@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     https_only: bool = False
     cors_allow_all: bool = True
 
+    # Secret handling. Production must use AWS Secrets Manager + KMS (Slice 10).
+    secret_backend: str = "local"  # noqa: S105 - backend selector, not a secret
+    kms_key_id: str | None = None
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

@@ -56,6 +56,8 @@ def config_failures(settings: Settings) -> list[str]:
         failures.append("csrf_enabled must be true in production")
     if settings.cors_allow_all:
         failures.append("cors_allow_all must be false in production")
+    if settings.secret_backend != "aws":  # noqa: S105 - backend selector, not a secret
+        failures.append("secret_backend must be 'aws' in production")
     return failures
 
 

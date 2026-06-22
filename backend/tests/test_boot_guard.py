@@ -29,6 +29,7 @@ def _safe_prod(**override: object) -> Settings:
         "csrf_enabled": True,
         "https_only": True,
         "cors_allow_all": False,
+        "secret_backend": "aws",
     }
     base.update(override)
     return Settings(**base)  # type: ignore[arg-type]
@@ -65,6 +66,11 @@ def test_unsafe_security_toggles_fail() -> None:
 def test_enforce_config_raises_on_unsafe_production() -> None:
     with pytest.raises(BootGuardError):
         enforce_config(_safe_prod(cookie_secure=False))
+
+
+def test_local_secret_backend_fails_in_production() -> None:
+    failures = config_failures(_safe_prod(secret_backend="local"))
+    assert any("secret_backend" in f for f in failures)
 
 
 def test_audit_events_exempt_from_forced_rls_check() -> None:
