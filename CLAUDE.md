@@ -28,7 +28,7 @@ If this guide conflicts with **signed legal policy, provider terms, or productio
 5. Routers, services, agents, tools, and n8n handlers must not use raw DB connections — **tenant-scoped helpers only**.
 6. RLS is required but not enough. Every route needs **permission checks and object-ownership checks**.
 7. Risky actions require **idempotency**: imports, campaign runs, draft generation, approvals, scheduling, sends, webhooks, billing, exports, deletion.
-8. Billing and quota gates run in **routes, services, workers, and scheduled jobs**.
+8. Billing and quota gates run through central gate functions in **routes, services, workers, and scheduled jobs**.
 9. Human approval **cannot bypass** prompt-injection checks, groundedness, suppression, billing, throttles, deliverability, or send gates.
 10. Agent tools require tenant scope, action permission, allowlist, rate limit, output validation, and audit logs.
 11. Mock mode must use the **same** interfaces, schemas, error shapes, rate-limit behavior, and audit records as live mode.
@@ -52,7 +52,9 @@ If this guide conflicts with **signed legal policy, provider terms, or productio
 
 ## Security rules
 
-- **Credential encryption (§10):** prod secrets in AWS Secrets Manager; tenant credentials envelope-encrypted with KMS or stored as secret references. Postgres stores only `secret_ref`, encrypted metadata, version, rotation timestamps. Decrypt only inside integration services. Decrypted values must never reach logs, prompts, audits, tool outputs, exports, or frontend responses.
+- **Auth provider:** Clerk owns credentials, login, primary sessions, password reset, email verification, MFA support, and primary auth security. The app owns tenant membership, RBAC, object authorization, billing gates, support access, audit, tenant context, and RLS. Do not build first-party email/password auth unless a future ADR reverses this decision.
+- **Credential encryption (§10):** production secrets in AWS Secrets Manager; encryption/key management in AWS KMS. Tenant credentials are stored by `secret_ref` plus safe metadata only. Postgres stores no raw secrets. Decrypt only inside approved credential/integration service methods. Decrypted values must never reach logs, prompts, audits, tool outputs, exports, frontend bundles, client responses, or error details.
+- **MVP billing:** local MVP billing is mock-only: schema, tenant status, plan/subscription records, centralized gates, mock transitions, deterministic tests. Do not build real Stripe checkout, real Stripe calls, real Stripe webhooks, dunning, or money movement during local MVP.
 - **Webhooks:** verify raw-body signature before parsing (rule 12), then dedupe.
 - **Rate limits:** required on auth, refresh, imports, agent/tool calls, sends, webhooks, billing — see [API_CONTRACT](docs/API_CONTRACT.md).
 
@@ -84,8 +86,9 @@ Responsibilities are described in [ARCHITECTURE](docs/ARCHITECTURE.md). Hard bou
 
 Add a startup guard in **backend and workers**. Do not rely on developer memory. `APP_ENV=production` must **fail boot** if any are true:
 
-- Mock Stripe / mailbox / DNS / verifier / research providers enabled outside an explicitly named demo environment.
-- Required webhook secrets are blank, placeholder, or not from the approved secrets backend.
+- Mock billing / mailbox / DNS / verifier / research providers enabled outside an explicitly named demo environment.
+- Required webhook/app secrets are blank, placeholder, missing, or not sourced from AWS Secrets Manager in production.
+- AWS KMS or AWS Secrets Manager is required in production but unreachable/misconfigured.
 - Placeholder API keys, encryption keys, JWT secrets, or DB credentials present.
 - RLS is disabled, not forced, or missing on any tenant-owned table.
 - API or worker DB roles have `BYPASSRLS`.
@@ -104,4 +107,4 @@ Add a startup guard in **backend and workers**. Do not rely on developer memory.
 
 ## Critical areas that must never be silently dropped (§27)
 
-Phase 0/1 scope + do-not-build list · multi-tenancy/forced RLS/tenant helpers/support access · auth & session lifecycle (rotation, reuse detection, revocation, MFA position) · RBAC + object auth · billing states/gates/Stripe · idempotency · queue/outbox/n8n boundaries · API contract + error envelope · CSV import/validation · agent flow/tool registry/prompt-injection/groundedness/re-grounding/human review · send gate/no-send codes/suppression/duplicate-send/deliverability · RAG/embedding governance · privacy/retention/export/delete/vector purge · credential encryption · observability/alerts · CI/CD/migration/rollback/backup · test suites/phase gates/evidence bundle/boot guard/go-no-go. Each area's detail lives in its dedicated doc (see [DOCUMENTATION_MANIFEST](docs/DOCUMENTATION_MANIFEST.md)).
+Phase 0/1 scope + do-not-build list · multi-tenancy/forced RLS/tenant helpers/support access · Clerk auth boundary + app-side tenant authorization/revocation/MFA position · RBAC + object auth · mock billing states/gates and later Stripe boundary · idempotency · queue/outbox/n8n boundaries · API contract + error envelope · CSV import/validation · agent flow/tool registry/prompt-injection/groundedness/re-grounding/human review · send gate/no-send codes/suppression/duplicate-send/deliverability · RAG/embedding governance · privacy/retention/export/delete/vector purge · AWS Secrets Manager/KMS credential handling · MVP in-product observability/LangSmith and post-demo alerts · CI/CD/migration/rollback/backup · test suites/phase gates/evidence bundle/boot guard/go-no-go. Each area's detail lives in its dedicated doc (see [DOCUMENTATION_MANIFEST](docs/DOCUMENTATION_MANIFEST.md)).

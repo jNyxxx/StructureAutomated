@@ -1,86 +1,82 @@
 # Launch Blockers & Owner Decisions
 
-**Purpose:** Single launch-control checklist — current verdict, blockers, owner decisions, go/no-go, pilot constraints, and unresolved items, bucketed by when they must be resolved. No decisions invented; unresolved items marked.
+**Purpose:** Single launch-control checklist - current verdict, blockers, owner decisions, go/no-go, pilot constraints, and unresolved items, bucketed by when they must be resolved. No decisions invented; unresolved items marked.
 **Source sections:** Master guide §25 (production readiness / launch control), Appendix A (conflict check).
 **Status:** Draft
-**Related docs:** [TESTING_AND_AUDIT](TESTING_AND_AUDIT.md) (evidence bundle, gates) · [PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_0_1_IMPLEMENTATION_PLAN.md) · the 4 ADRs · all domain docs
+**Related docs:** [TESTING_AND_AUDIT](TESTING_AND_AUDIT.md) (evidence bundle, gates) - [PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_0_1_IMPLEMENTATION_PLAN.md) - the 4 ADRs - all domain docs
 
 ---
 
 ## 1. Current verdict
 
-Implementation-ready for **Phase 0 + Phase 1**, **not** production launch approval. Readiness **6/10** until implementation evidence exists. Controlled pilot requires **avg ≥ 8.0/10**, **no critical category < 8/10**, **no open Critical/High blocker**, and a **signed evidence bundle**.
+Implementation-ready for **Phase 0 + Phase 1**, **not** production launch approval. Readiness **6/10** until implementation evidence exists. Controlled pilot requires **avg >= 8.0/10**, **no critical category < 8/10**, **no open Critical/High blocker**, and a **signed evidence bundle**.
 
-## 2. Resolution buckets
+## 2. Resolved owner decisions
 
-### A. Must DECIDE before coding
-| Decision | Recommended default | Authority |
+| Decision | Final owner decision | Authority |
 |---|---|---|
-| Auth provider | Managed auth (fastest production-safe MVP); first-party only with full security lifecycle | [ADR_AUTH_PROVIDER](ADRs/ADR_AUTH_PROVIDER.md) |
-| Queue transport | Postgres durable jobs + SQS production dispatch | [ADR_QUEUE_TRANSPORT](ADRs/ADR_QUEUE_TRANSPORT.md) |
-| Billing access-state defaults | Trial 14d · grace 7d · past-due read-only+billing · chargeback immediate lock | [ADR_BILLING_ACCESS_STATES](ADRs/ADR_BILLING_ACCESS_STATES.md) |
+| Auth provider | Clerk managed auth | [ADR_AUTH_PROVIDER](ADRs/ADR_AUTH_PROVIDER.md) |
+| Compliance baseline | United States MVP baseline; first target market = US | [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md) |
+| Production secrets | AWS Secrets Manager + AWS KMS | [CLAUDE](../CLAUDE.md), [PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_0_1_IMPLEMENTATION_PLAN.md) |
+| MVP billing | Mock-only billing states, schema, tenant status, central gates, deterministic tests | [ADR_BILLING_ACCESS_STATES](ADRs/ADR_BILLING_ACCESS_STATES.md) |
+| Billing states | `trialing`, `active`, `past_due`, `canceled`, `unpaid`, `inactive` | [BILLING_STATE_MACHINE](BILLING_STATE_MACHINE.md) |
+| First real client sending | Manual human approval for every AI-generated cold-email draft | [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md) |
+| Contact/research deletion | Soft-delete first, hard-delete after 30 days, retain minimum hashed suppression data | [PRIVACY_AND_RETENTION](PRIVACY_AND_RETENTION.md) |
+| Observability MVP | In-product observability + LangSmith faithfulness logging; Slack/internal alerts post-demo | [OPERATIONS_RUNBOOK](OPERATIONS_RUNBOOK.md) |
 
-### B. Must COMPLETE before external users
-Legal review (compliance) · refresh rotation + session revocation · **platform-admin MFA** · billing state machine + Stripe webhooks · rate limits/abuse protection · credential encryption + Secrets Manager · RLS/object-auth tests · backup restore drill · observability alerts · privacy export/delete/vector purge · production boot guard · **target market + compliance baseline locked** ([ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md)) · focused repo docs · support-access approval flow · production mock-provider exception policy (default: no exception).
+## 3. Must COMPLETE before external users
 
-### C. Must NEVER postpone (NO-GO if violated)
-Tenant isolation holds · send gate cannot be bypassed · idempotency prevents duplicate sends/billing events · live webhooks rejected without verification · billing state cannot grant paid access incorrectly · agent cannot directly send / access secrets / bypass tool permissions · backup restore drill exists and passes.
+Legal review for live cold outreach/privacy claims - Clerk production configuration and platform-admin MFA - app-side tenant/RBAC/object-auth/session invalidation - centralized mock billing gates - rate limits/abuse protection - AWS Secrets Manager/KMS secret handling - RLS/object-auth tests - backup restore drill - in-product observability + LangSmith traces - privacy export/delete/vector purge - production boot guard - support-access approval flow - production mock-provider exception policy (default: no exception).
 
-### D. Safe to BUILD now
-All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_0_1_IMPLEMENTATION_PLAN.md)) — foundation, isolation, gates, CRE demo, mock sends/outcomes. No live sending, SMS, ads, or live scraping.
+## 4. Must NEVER postpone (NO-GO if violated)
 
-## 3. Launch blockers
+Tenant isolation holds - send gate cannot be bypassed - idempotency prevents duplicate sends/billing events - billing state cannot grant paid access incorrectly - agent cannot directly send / access secrets / bypass tool permissions - secrets never leak to logs/audit/prompts/exports/client responses - backup restore drill exists and passes.
+
+## 5. Safe to BUILD now
+
+All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_0_1_IMPLEMENTATION_PLAN.md)) - foundation, isolation, gates, CRE demo, mock sends/outcomes. No live sending, SMS, ads, live scraping, Slack/internal alerts, or real Stripe.
+
+## 6. Launch blockers
 
 | Blocker | Area | Required fix |
 |---|---|---|
-| Legal review for SMS/cold outreach/privacy claims | Compliance | Counsel-approved policies + UI copy |
-| Refresh rotation + session revocation | Auth | Session table, rotation, revocation, reuse detection |
-| MFA for platform admins | Auth | Enforce MFA for platform super/support admins before external users / production; strongly recommended for tenant owners/admins |
-| Billing state machine + Stripe webhooks | Billing | Lifecycle, verification, reconciliation, access gates |
+| Legal review for live cold outreach/privacy claims | Compliance | Counsel-approved policies + UI copy before live sending |
+| Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production |
+| App-side tenant authorization | Auth/RBAC | Tenant membership, RBAC, object auth, support access, audit, tenant context, and RLS tests |
+| Centralized billing gates | Billing | `is_active(tenant)` + `has_feature(tenant, key)` with route/worker tests |
 | Rate limits + abuse protection | Security | App/WAF/Redis/provider limits |
-| Credential encryption + Secrets Manager | Security | KMS/Secrets Manager integration |
+| Credential encryption + Secrets Manager | Security | AWS Secrets Manager + AWS KMS integration |
 | RLS/object-auth tests | Security | Automated tenant + object tests |
 | Backup restore drill | DevOps | Successful restore test + report |
-| Observability alerts | SRE | CloudWatch/Sentry/LangSmith alerts |
+| In-product observability + LangSmith logging | SRE/AI | Demo observability and faithfulness traces |
 | Privacy export/delete/vector purge | Privacy | Working workflows + policy-aligned retention |
-| Auth provider not locked | Auth | Complete [ADR_AUTH_PROVIDER](ADRs/ADR_AUTH_PROVIDER.md) before auth |
-| Compliance jurisdiction not locked | Compliance | Define market, baseline, sender identity, unsubscribe, retention before live sending |
 | Production boot guard missing | Security/Ops | Startup checks fail unsafe prod/staging config |
-| Focused repo docs missing | Engineering | Generate component docs before coding those areas |
 
-## 4. Owner decisions (with defaults + needed-by)
+## 7. Remaining owner decisions
 
-| Decision | Recommended default | Needed by |
+| Decision | Default/current position | Needed by |
 |---|---|---|
-| Trial duration | 14 days | Billing launch |
-| Grace period | 7 days | Billing launch |
-| Refund/chargeback policy | Manual refund review; immediate chargeback lock | Billing launch |
-| Past-due access | Read-only + billing access after lock | Billing launch |
-| SMS legal wording | Counsel-approved only | Phase 3 |
-| CRE research source approval | Public/mock for MVP; legal review before live scraping | Live research |
-| Support access approval | Owner/super-admin grant + audit | External users |
-| Auth provider | Managed auth; first-party only with full lifecycle | Before auth coding |
-| Target recipient market | US CRE / Philippines / mixed-global / other | Before live sending |
-| Compliance baseline | Counsel-approved baseline for chosen market | Before live sending |
+| Counsel-approved privacy/terms/outreach/unsubscribe/data-use language | Required before live sending | Live sending |
+| CRE research source approval | Public/mock for MVP; legal review before live scraping/paid research | Live research |
+| Support access approval operations | Owner/super-admin grant + audit | External users |
 | Production mock-provider exception | No exception by default | Before any prod demo on mock providers |
-| Add ADRs for mock/live adapter pattern + privacy retention defaults? | Keep the 20-file set locked; do not add the two ADRs unless later implementation proves they are needed | Doc-set governance — revisit during implementation |
+| First-paying-client production billing | Stripe products/prices, plan entitlements, webhook/dunning rollout | First paying client |
+| SMS legal wording | Counsel-approved only | Phase 3 |
 
-> All recommended defaults are **defaults, not final decisions**. Items remain **unresolved** until the owner confirms in writing.
+## 8. Required >=8/10 categories (external production)
 
-## 5. Required ≥8/10 categories (external production)
+Product scope - multi-tenant isolation - auth/sessions/support - authorization/object permissions - billing enforcement - queue/workers/idempotency - cold-email compliance + send gate - deliverability/mailbox ops - AI safety/groundedness/tool permissions - privacy/retention/data rights - secrets/credential security - observability/incident response - DevOps/deploy/backup/rollback - testing/staging proof - legal/provider approvals.
 
-Product scope · multi-tenant isolation · auth/sessions/support · authorization/object permissions · billing enforcement · queue/workers/idempotency · cold-email compliance + send gate · deliverability/mailbox ops · AI safety/groundedness/tool permissions · privacy/retention/data rights · secrets/credential security · observability/incident response · DevOps/deploy/backup/rollback · testing/staging proof · legal/provider approvals.
+## 9. Go / No-Go
 
-## 6. Go / No-Go
+**GO only when:** avg readiness >= 8.0/10 - every critical category >= 8/10 - no open Critical/High blocker - staging E2E accepted - legal/security/backup/billing evidence attached - owner accepts remaining Medium/Low risks in writing.
 
-**GO only when:** avg readiness ≥ 8.0/10 · every critical category ≥ 8/10 · no open Critical/High blocker · staging E2E accepted · legal/security/backup/billing evidence attached · owner accepts remaining Medium/Low risks in writing.
+**NO-GO if any:** tenant isolation test fails - send-gate bypass exists - idempotency allows duplicate sends/billing events - billing state grants paid access incorrectly - agent can send/access secrets/bypass tool permissions - backup restore drill fails or missing - Critical/High security/legal issue remains.
 
-**NO-GO if any:** tenant isolation test fails · send-gate bypass exists · idempotency allows duplicate sends/billing events · live webhook accepted without verification · billing state grants paid access incorrectly · agent can send/access secrets/bypass tool permissions · backup restore drill fails or missing · Critical/High security/legal issue remains.
+## 10. Pilot production policy
 
-## 7. Pilot production policy
+Assisted onboarding only - 1-2 friendly pilot tenants - **manual approval for every AI-generated cold-email draft for the first real client** - conservative mailbox caps - no SMS/ads/GBP/advanced-CRM/auto signal-triggered live sends - live research only from approved sources - daily monitoring (sends, bounces, replies, complaints, costs, agent failures, blocked-send reasons) - weekly launch review until platform holds >=8/10 for **30 consecutive days**.
 
-Assisted onboarding only · 1–2 friendly pilot tenants · **manual approval for all live outbound** · conservative mailbox caps · no SMS/ads/GBP/advanced-CRM/auto signal-triggered live sends · live research only from approved sources · daily monitoring (sends, bounces, replies, complaints, costs, agent failures, blocked-send reasons) · weekly launch review until platform holds ≥8/10 for **30 consecutive days**.
-
-## 8. Conflicts
+## 11. Conflicts
 
 Per Appendix A, **no product/architecture conflicts** across source files. This guide wins over older sources unless stricter signed legal policy, provider terms, or production-incident decisions apply. Evidence bundle checklist lives in [TESTING_AND_AUDIT §2](TESTING_AND_AUDIT.md).

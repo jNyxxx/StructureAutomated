@@ -37,9 +37,8 @@ CREATE EXTENSION IF NOT EXISTS citext;
 
 | Object | States |
 |---|---|
-| tenant | trial, active, past_due, grace, locked, canceled, deleted |
-| subscription | trialing, active, past_due, grace, canceled, incomplete, incomplete_expired, unpaid |
-| internal access | trialing, active, past_due_grace, past_due_locked, canceled, chargeback_locked, unpaid_locked, incomplete_locked |
+| tenant / billing access | trialing, active, past_due, canceled, unpaid, inactive |
+| subscription | trialing, active, past_due, canceled, unpaid, inactive |
 | contact | active, suppressed, unsubscribed, deleted |
 | lead | new, working, qualified, meeting_booked, won, lost, disqualified |
 | campaign | draft, queued, running, paused, completed, archived |
@@ -56,8 +55,8 @@ CREATE EXTENSION IF NOT EXISTS citext;
 
 | Group | Tables |
 |---|---|
-| Tenancy/auth/support | `tenants`, `users`, `tenant_memberships`, `sessions`, `password_reset_tokens`, `email_verification_tokens`, `admin_support_access`, `api_keys` |
-| Billing/usage | `plans`, `tenant_subscriptions`, `invoices`, `payment_events`, `stripe_webhook_events`, `usage_counters`, `quota_events` |
+| Tenancy/auth/support | `tenants`, `users`, `tenant_memberships`, `app_auth_sessions`, `admin_support_access`, `api_keys` |
+| Billing/usage | `plans`, `tenant_subscriptions`, `usage_counters`, `quota_events` |
 | CRM/prospects/outcomes | `contacts`, `prospects`, `leads`, `pipeline_stages`, `consent_ledger`, `suppression_entries`, `outcome_events` |
 | RAG/research | `research_sources`, `research_snippets`, `knowledge_embeddings`, `brand_voice_examples` |
 | Campaigns/agents/review | `outreach_campaigns`, `campaign_prospects`, `agent_runs`, `agent_actions`, `outreach_drafts`, `groundedness_verdicts`, `review_queue_items`, `review_decisions` |
@@ -75,7 +74,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 | Outbound messages | `outbound_messages.send_intent_id` is unique → provider retries idempotent. |
 | Suppression | Works by contact, email, phone, and channel; survives re-import. |
 | Global RAG | Global embeddings require explicit approval + PII-scrub fields. |
-| Billing access | Store provider status **separately** from internal access state. |
+| Billing access | Store MVP `tenant_status` and route all checks through central gates. |
 | Audit immutability | Normal app roles cannot UPDATE/DELETE `audit_events`. |
 | JSONB discipline | Business-critical fields are real columns. |
 | Indexes | Tenant tables require composite **tenant-first** indexes. |
@@ -90,7 +89,7 @@ CREATE TABLE tenants (
   legal_name VARCHAR(255),
   primary_domain VARCHAR(255),
   niche VARCHAR(100) NOT NULL DEFAULT 'commercial_real_estate',
-  status VARCHAR(50) NOT NULL CHECK (status IN ('trial','active','past_due','grace','locked','canceled','deleted')),
+  tenant_status VARCHAR(50) NOT NULL CHECK (tenant_status IN ('trialing','active','past_due','canceled','unpaid','inactive')),
   timezone VARCHAR(100) NOT NULL DEFAULT 'America/New_York',
   settings JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -103,14 +102,16 @@ ON tenants (lower(primary_domain)) WHERE primary_domain IS NOT NULL AND deleted_
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email CITEXT UNIQUE NOT NULL,
-  hashed_password TEXT NOT NULL,
+  identity_provider VARCHAR(50) NOT NULL DEFAULT 'clerk',
+  provider_user_id TEXT NOT NULL,
   full_name VARCHAR(255),
   mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   email_verified_at TIMESTAMPTZ,
   last_login_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at TIMESTAMPTZ
+  deleted_at TIMESTAMPTZ,
+  UNIQUE (identity_provider, provider_user_id)
 );
 
 CREATE TABLE tenant_memberships (
@@ -125,19 +126,17 @@ CREATE TABLE tenant_memberships (
 CREATE INDEX ix_tenant_memberships_user_id ON tenant_memberships (user_id);
 ```
 
-### Billing state (provider status vs internal access state)
+### Billing state (mock MVP)
 ```sql
 CREATE TABLE tenant_subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   plan_id UUID NOT NULL REFERENCES plans(id),
-  provider VARCHAR(50) NOT NULL DEFAULT 'stripe',
+  provider VARCHAR(50) NOT NULL DEFAULT 'mock',
   provider_customer_id TEXT,
   provider_subscription_id TEXT,
-  provider_status VARCHAR(50) NOT NULL,
-  internal_access_state VARCHAR(50) NOT NULL CHECK (internal_access_state IN (
-    'trialing','active','past_due_grace','past_due_locked','canceled',
-    'chargeback_locked','unpaid_locked','incomplete_locked')),
+  tenant_status VARCHAR(50) NOT NULL CHECK (tenant_status IN (
+    'trialing','active','past_due','canceled','unpaid','inactive')),
   locked_reason TEXT,
   grace_ends_at TIMESTAMPTZ, trial_ends_at TIMESTAMPTZ,
   current_period_start TIMESTAMPTZ, current_period_end TIMESTAMPTZ,
@@ -146,7 +145,7 @@ CREATE TABLE tenant_subscriptions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (provider, provider_subscription_id)
 );
-CREATE INDEX ix_tenant_subscriptions_tenant_access ON tenant_subscriptions (tenant_id, internal_access_state);
+CREATE INDEX ix_tenant_subscriptions_tenant_status ON tenant_subscriptions (tenant_id, tenant_status);
 ```
 
 ### Contacts + suppression (survives re-import)

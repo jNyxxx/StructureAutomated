@@ -25,7 +25,7 @@
 | 3 | `docs/DATABASE_SCHEMA.md` | DB contract: tables, status domains, DDL, composite indexes, forced RLS, outbox/send-intent uniqueness, acceptance checklist | 7, 16 | L | 2 | Accepted draft |
 | 4 | `docs/API_CONTRACT.md` | Endpoint groups, common responses, error envelope, pagination/filtering, idempotency, rate limits | 11, 10 | M | 2 | Accepted draft |
 | 5 | `docs/AUTH_AND_RBAC.md` | Users/roles, authorization rule, object auth, tenant isolation (HTTP+worker), support access, session lifecycle (refresh rotation, reuse detection, revocation) | 3, 8, 9 | M | 2 | Accepted draft |
-| 6 | `docs/BILLING_STATE_MACHINE.md` | Access states + transitions, gates, Stripe + mock workflow, reconciliation | 12 | M | 3 | Accepted draft |
+| 6 | `docs/BILLING_STATE_MACHINE.md` | Mock MVP billing states, tenant status, centralized gates, and later production Stripe/dunning notes | 12 | M | 3 | Accepted draft |
 | 7 | `docs/EMAIL_COMPLIANCE_AND_SEND_GATE.md` | Send gate checks, no-send reason codes, compliance profile, suppression/unsubscribe, duplicate-send prevention, mailbox pool/warm-up/throttle/deliverability, CSV import + list verification | 14, 15 | M/L | 3 | Accepted draft |
 | 8 | `docs/AI_SAFETY_AND_GROUNDEDNESS.md` | LangGraph flow, agent state, tool registry, prompt-injection defense, groundedness gate + re-grounding after edits, human review queue, cost controls, RAG/research governance | 13, 16 | M | 3 | Accepted draft |
 | 9 | `docs/WORKERS_QUEUE_AND_WEBHOOKS.md` | Queue decision, SQS/Postgres outbox, worker runtime + worker tenant context, jobs/retries/idempotency/DLQ, n8n boundaries, inbound webhook verification | 17, 8 | M | 4 | Accepted draft |
@@ -36,10 +36,10 @@
 | 14 | `docs/PHASE_0_1_IMPLEMENTATION_PLAN.md` | Phased checklist: Phase 0 foundation, Phase 1 MVP, non-goals/do-not-build, start-here steps, forward roadmap | 1, 24, 26 | M | 6 | Accepted draft |
 | 15 | `docs/LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md` | Direct blocker + owner-decision checklist, go/no-go rule, pilot policy | 25, A | M | 6 | Accepted draft |
 | 16 | `README.md` | Project overview, locked-stack (brief), local-setup pointer, doc navigation | 1, 4, 26 | S | 6 | Accepted draft |
-| 17 | `docs/ADRs/ADR_AUTH_PROVIDER.md` | Decision: managed vs first-party auth | 9, 25 | ADR | 7 | Proposed (owner decision needed) |
+| 17 | `docs/ADRs/ADR_AUTH_PROVIDER.md` | Decision: Clerk managed auth | 9, 25 | ADR | 7 | Accepted |
 | 18 | `docs/ADRs/ADR_QUEUE_TRANSPORT.md` | Decision: queue transport (SQS vs Postgres outbox) | 17 | ADR | 7 | Accepted (locked) |
-| 19 | `docs/ADRs/ADR_BILLING_ACCESS_STATES.md` | Decision: billing access-state model | 12, 25 | ADR | 7 | Accepted (defaults = owner decision) |
-| 20 | `docs/ADRs/ADR_COMPLIANCE_JURISDICTION.md` | Decision: target market + compliance baseline | 21, 25 | ADR | 7 | Proposed (owner decision needed) |
+| 19 | `docs/ADRs/ADR_BILLING_ACCESS_STATES.md` | Decision: mock-only MVP billing access states and later production Stripe/dunning boundary | 12, 25 | ADR | 7 | Accepted |
+| 20 | `docs/ADRs/ADR_COMPLIANCE_JURISDICTION.md` | Decision: United States MVP compliance baseline and first US target market | 21, 25 | ADR | 7 | Accepted |
 
 ---
 
@@ -80,26 +80,20 @@ All batches complete — DOC-2 finished:
 
 | Decision | Recommended default | Needed by | Doc home |
 |----------|---------------------|-----------|----------|
-| Trial duration | 14 days | Billing launch | BILLING / ADR_BILLING |
-| Grace period | 7 days | Billing launch | BILLING / ADR_BILLING |
-| Refund/chargeback policy | Manual refund review; immediate chargeback lock | Billing launch | BILLING |
-| Past-due access | Read-only + billing access after lock | Billing launch | BILLING / ADR_BILLING |
 | SMS legal wording | Counsel-approved only | Phase 3 | EMAIL_COMPLIANCE |
 | CRE research source approval | Public/mock for MVP; legal review before live scraping | Live research | AI_SAFETY / PRIVACY |
 | Support access approval | Owner/super-admin grant + audit | External users | AUTH_AND_RBAC |
-| Auth provider | Managed auth for fastest production-safe MVP; first-party only if full security lifecycle implemented | Before auth coding | ADR_AUTH_PROVIDER |
-| Target recipient market | US CRE / Philippines / mixed-global / other | Before live sending | ADR_COMPLIANCE_JURISDICTION |
-| Compliance baseline | Counsel-approved baseline for chosen market | Before live sending | ADR_COMPLIANCE_JURISDICTION |
 | Production mock-provider exception | No exception by default | Before any prod demo on mock providers | CLAUDE |
+| First-paying-client production billing | Stripe products/prices, plan entitlements, webhook/dunning rollout | First paying client | BILLING / ADR_BILLING |
 
 ## Launch blockers (from §25) — mirrored in `LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md`
 
-Legal review (compliance) · refresh rotation + session revocation (auth) · billing state machine + Stripe webhooks (billing) · rate limits/abuse (security) · credential encryption + Secrets Manager (security) · RLS/object-auth tests (security) · backup restore drill (devops) · observability alerts (SRE) · privacy export/delete/vector purge (privacy) · auth provider not locked → ADR · compliance jurisdiction not locked → ADR · production boot guard missing (security/ops) · focused repo docs missing (this doc effort).
+Legal review (compliance) · Clerk production configuration + platform-admin MFA (auth) · centralized mock billing gates (billing) · rate limits/abuse (security) · credential encryption + AWS Secrets Manager/KMS (security) · RLS/object-auth tests (security) · backup restore drill (devops) · in-product observability + LangSmith faithfulness logging (SRE/AI) · privacy export/delete/vector purge (privacy) · production boot guard missing (security/ops).
 
 ---
 
 ## Conflicts / gaps
 
 - **Conflicts:** None at product/architecture level (Appendix A). If older source files disagree, this guide wins unless stricter legal/provider/incident rule.
-- **Open owner decisions:** 11 above; 2 block ADRs (`ADR_AUTH_PROVIDER`, `ADR_COMPLIANCE_JURISDICTION`) — written with recommended default + explicit "Owner decision needed" marker, not guessed as final.
+- **Open owner decisions:** limited to genuinely unresolved launch/future items above; Clerk, US compliance baseline, AWS Secrets Manager/KMS, and mock-only MVP billing are owner-confirmed.
 - **Gaps:** none beyond the listed owner decisions. No requirements invented.

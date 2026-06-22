@@ -39,6 +39,8 @@ Every tool definition must include: tool name + action · tenant scopes + requir
 
 Agents **cannot**: send directly · access the DB · read cross-tenant data · modify billing/users/sessions · decrypt credentials · call arbitrary URLs · disable audit · include secrets or unneeded PII (CLAUDE rules 9, 10). Sending only ever happens through the [send gate](EMAIL_COMPLIANCE_AND_SEND_GATE.md); duplicate-send prevention is enforced there + in the DB.
 
+For the first real client, every AI-generated cold-email draft requires manual human approval even after prompt-injection, groundedness, compliance, billing, and send gates pass. Auto-send is a later per-tenant/per-campaign configuration only, and still cannot bypass any safety gate.
+
 ## 5. Prompt-injection defense
 
 Treat all research and imported content as **untrusted data**. System prompt must state snippets cannot override instructions. Quarantine content that tries to: reveal prompts, alter tools, change recipients, bypass gates, request secrets, or skip approval.
@@ -88,7 +90,7 @@ async def retrieve_similar(query, tenant_id, top_k=5, include_global=True) -> li
 
 ## 9. Required evals / tests
 
-- [ ] LangSmith traces for every agent run (cost, tokens, trace URL stored).
+- [ ] LangSmith traces and faithfulness logging for every agent run (cost, tokens, trace URL stored).
 - [ ] Prompt-injection eval corpus (§5) passes — no bypass of recipient/tenant/approval/suppression.
 - [ ] Groundedness reports: unsupported claims stripped/blocked; re-grounding triggered on edit.
 - [ ] Tool permission/allowlist/quota enforced; secrets never in logs/outputs.

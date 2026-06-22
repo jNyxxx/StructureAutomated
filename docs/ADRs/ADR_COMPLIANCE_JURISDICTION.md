@@ -1,47 +1,45 @@
-# ADR — Compliance Jurisdiction
+# ADR - Compliance Jurisdiction
 
-**Status:** Proposed — **Owner decision needed** (must be locked before any live outbound sending; mock demos may proceed)
+**Status:** Accepted - United States MVP baseline
 **Date:** 2026-06-22
 
 ## Context
 
-This guide defines technical controls, not legal advice. SMS/TCPA, cold-outreach rules, privacy terms, DPAs, scraping/ToS, and industry claims require **counsel review before production launch**. Before any live sending, the owner must lock the target market and compliance baseline. **Mock demos can proceed without this decision; production cannot.**
+This guide defines technical controls, not legal advice. Cold outreach, privacy terms, DPAs, scraping/ToS, sender identity, unsubscribe language, and industry claims still require counsel review before production launch.
 
 ## Decision
 
-**Undecided — owner must lock the following before live sending.** Required decision fields:
+The MVP compliance baseline is the **United States**, and the first target market is the **US**.
 
-- **Primary recipient market:** US CRE, Philippines, mixed/global, or another defined market.
-- **Primary privacy baseline:** Philippine Data Privacy Act, CAN-SPAM, GDPR/UK GDPR, TCPA, and/or other applicable rules.
-- **Allowed research sources:** public/manual/mock only, approved paid providers, customer-provided data, or other documented sources.
-- **Outreach channel policy:** email-only MVP; SMS post-MVP; ads/retargeting post-MVP.
-- **Sender identity:** required sender identity, unsubscribe language, business address, opt-out handling.
-- **Data retention defaults:** for contacts, research snippets, embeddings, uploads, audit records, exports.
+Phase 1 cold outreach should follow US email outreach compliance assumptions. SMS remains post-MVP. Live sending remains gated behind compliance review and owner approval.
 
-**SMS is post-MVP** — do not ship SMS sending until legal review, consent ledger, opt-out handling, quiet hours, provider registration, and compliance gates are implemented and tested.
+For the first real client, every AI-generated cold-email draft requires manual human approval, even after prompt-injection, groundedness, compliance, and send gates pass. Auto-send can be added later only as a per-tenant/per-campaign configuration and must still require every safety gate to pass.
 
 ## Options considered
 
-| Target market | Likely baseline focus |
+| Target market | Verdict |
 |---|---|
-| US CRE | CAN-SPAM (+ TCPA if SMS later) |
-| Philippines | Philippine Data Privacy Act |
-| Mixed/global | GDPR/UK GDPR + per-market rules |
-| Other defined | Per counsel |
-
-(Listed to frame the decision; selection is the owner's.)
+| United States | Accepted for MVP and first target market |
+| Philippines | Deferred |
+| Mixed/global | Deferred until counsel-approved per-market rules exist |
+| Other defined market | Deferred |
 
 ## Consequences
 
-- Live sending is gated on a complete `tenant_compliance_profiles` record + legal/provider approval ([EMAIL_COMPLIANCE_AND_SEND_GATE](../EMAIL_COMPLIANCE_AND_SEND_GATE.md)).
-- **If the target market changes,** update [EMAIL_COMPLIANCE_AND_SEND_GATE](../EMAIL_COMPLIANCE_AND_SEND_GATE.md), [PRIVACY_AND_RETENTION](../PRIVACY_AND_RETENTION.md), the send-gate tests, and owner decision records before live sending.
-- Until locked, the platform stays in mock mode for outreach.
+- `tenant_compliance_profiles` remains required before live sending.
+- Live sending requires legal/provider review and explicit owner approval.
+- SMS cannot ship until a later phase implements consent ledger, opt-out handling, quiet hours, provider registration, and SMS-specific gates.
+- If the target market changes, update [EMAIL_COMPLIANCE_AND_SEND_GATE](../EMAIL_COMPLIANCE_AND_SEND_GATE.md), [PRIVACY_AND_RETENTION](../PRIVACY_AND_RETENTION.md), send-gate tests, and owner decision records before live sending.
 
 ## Owner decisions / open questions
 
-- [ ] All six required decision fields above — **owner decision needed**.
-- [ ] Counsel-approved privacy/terms/outreach/unsubscribe/data-use language (launch blocker).
+- [x] MVP compliance baseline selected: United States.
+- [x] First target market selected: US.
+- [x] SMS remains post-MVP.
+- [x] First real client requires manual approval for every AI-generated cold-email draft.
+- [ ] Counsel-approved privacy/terms/outreach/unsubscribe/data-use language remains required before live sending.
+- [ ] Approved live research/scraping/paid-provider sources remain required before live research.
 
 ## Related docs
 
-[EMAIL_COMPLIANCE_AND_SEND_GATE](../EMAIL_COMPLIANCE_AND_SEND_GATE.md) · [PRIVACY_AND_RETENTION](../PRIVACY_AND_RETENTION.md) · [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS](../LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md)
+[EMAIL_COMPLIANCE_AND_SEND_GATE](../EMAIL_COMPLIANCE_AND_SEND_GATE.md) - [PRIVACY_AND_RETENTION](../PRIVACY_AND_RETENTION.md) - [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS](../LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md)

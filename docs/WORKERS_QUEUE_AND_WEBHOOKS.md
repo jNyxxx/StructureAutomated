@@ -56,13 +56,13 @@ Structured JSON logs with `correlation_id`, `job_id`, `tenant_id` on every job. 
 
 ## 7. n8n boundaries
 
-**n8n may:** trigger scheduled campaign runs · inject mock outcomes for demo · receive provider-like mock callbacks · trigger daily deliverability monitor · send internal Slack/email notifications.
+**n8n may:** trigger scheduled campaign runs · inject mock outcomes for demo · receive provider-like mock callbacks · trigger daily deliverability monitor. Internal Slack/email notifications are post-demo.
 
 **n8n must not:** bypass backend auth · send messages directly · mark billing active · disable gates · access DB directly · store tenant secrets outside approved storage. (Integration glue only — never an authority for sends, billing, auth, or tenant access.)
 
 ## 8. Webhook verification & processing
 
-- **Stripe:** verify `Stripe-Signature` over raw body.
+- **Future Stripe:** verify `Stripe-Signature` over raw body. Real Stripe webhooks are not part of the local mock MVP.
 - **n8n internal:** HMAC or shared-secret header, rotatable, **fail closed**.
 - **Future Twilio/mailbox:** provider-specific signature verification before parsing.
 - Flow: **verify raw-body signature → store first (`webhook_events`) → return 2xx only after durable storage → dedupe by provider event ID → process asynchronously via queue → idempotent → audit.** Failed processing leaves the event retryable (replay-safe).

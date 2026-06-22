@@ -6,7 +6,7 @@
 
 **Architecture:** Strict layering — routers validate and call **services only**; services enforce permissions/billing/idempotency/rate limits; repositories do **tenant-scoped SQL only**; agents/tools never touch the DB and never send; workers reuse the same services/gates as routes. Every tenant request and worker job sets `SET LOCAL app.current_tenant_id` before any query. RLS is the final guardrail, never the only one.
 
-**Tech Stack (locked — ARCHITECTURE.md:43–56):** Next.js App Router + TS + Tailwind + shadcn/ui + Zod; FastAPI + Python 3.12+ + Pydantic + asyncpg + SQLAlchemy/Alembic; PostgreSQL 16+ with `uuid-ossp`, `vector`, `pgcrypto`, `citext`, forced RLS; Postgres jobs/outbox source of truth + SQS production transport; Stripe (mockable, enforced server-side).
+**Tech Stack (locked — ARCHITECTURE.md:43–56):** Next.js App Router + TS + Tailwind + shadcn/ui + Zod; FastAPI + Python 3.12+ + Pydantic + asyncpg + SQLAlchemy/Alembic; PostgreSQL 16+ with `uuid-ossp`, `vector`, `pgcrypto`, `citext`, forced RLS; Postgres jobs/outbox source of truth + SQS production transport; Clerk auth; mock-only MVP billing gates with real Stripe deferred.
 
 ---
 
@@ -20,10 +20,10 @@ Phase 0 is infrastructure + safety scaffolding only. No cold-outreach features (
 
 | ADR | Status for Phase 0 planning | Effect |
 |---|---|---|
-| **Auth provider** | **LOCKED = managed auth** (Clerk/Auth0/Supabase). Sign the ADR to record the specific vendor. | Auth slice proceeds (Slice 14). |
+| **Auth provider** | **LOCKED = Clerk managed auth.** | Auth slice proceeds (Slice 14). |
 | **Queue transport** | **LOCKED = Postgres jobs/outbox source of truth + SQS production transport** (local dev polls Postgres). | Queue slice proceeds (Slice 13). |
-| **Billing access-state model** | **LOCKED** (the state set + provider-status-vs-internal-access-state separation). **Exact timing defaults remain owner-decision gated** (trial/grace/past-due/chargeback durations). | Billing slice proceeds (Slice 16); timing values are config constants pending owner sign-off, not a slice blocker. |
-| **Compliance jurisdiction** | **UNRESOLVED.** Gates **compliance-sensitive content and live-sending decisions only.** | Compliance/suppression **schema** proceeds (Slice 17). Jurisdiction values + any live-sending compliance logic are deferred (and there is no live sending in Phase 0). |
+| **Billing access-state model** | **LOCKED = mock-only MVP billing** with states `trialing`, `active`, `past_due`, `canceled`, `unpaid`, `inactive`; real Stripe deferred. | Billing slice proceeds (Slice 16) with schema, tenant status, central gates, mock transitions, deterministic tests only. |
+| **Compliance jurisdiction** | **LOCKED = United States MVP baseline; first target market = US.** | Compliance/suppression schema proceeds (Slice 17); live sending remains gated by compliance review and owner approval. |
 
 ---
 
@@ -63,7 +63,7 @@ ADR-independent infrastructure first; the few owner-gated items are isolated. Or
 | 13 | Queue/outbox foundation + worker loop | queue LOCKED | 7, 8, 11 |
 | 14 | Auth & session (managed auth) + app-side mapping/revocation | auth LOCKED=managed | 7, 8, 12 |
 | 15 | RBAC + object-authorization + support-access grants | — | 14 |
-| 16 | Billing state/access-gate skeleton + Stripe mock + webhook storage | billing model LOCKED; timing defaults owner-gated | 9, 10, 12, 13, 15 |
+| 16 | Mock billing state/access-gate skeleton | billing mock-only LOCKED | 9, 10, 12, 13, 15 |
 | 17 | Compliance profile + suppression baseline (schema only) | schema OK; jurisdiction values gated | 7 |
 | 18 | Frontend wiring: managed-auth login, tenant context, billing banner, audit view | — | 14, 15, 16 |
 | 19 | Phase 0 test-gate suite + E2E smoke + evidence bundle + completion report | all | all |
@@ -79,7 +79,7 @@ Every slice ends with an independently testable, reviewable deliverable. "Migrat
 ---
 
 ### Slice 0 — ADR confirmation (governance, no code)
-**Objective:** Record ADR sign-offs per the status table: auth = managed (name the vendor), queue = Postgres+SQS, billing model locked (timing defaults still owner-gated), compliance jurisdiction unresolved.
+**Objective:** Record ADR sign-offs per the status table: auth = Clerk, queue = Postgres+SQS, billing = mock-only MVP, compliance jurisdiction = United States MVP baseline.
 **Files:** `docs/ADRs/*` (status), `docs/LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md` (mark resolved/gated). *No code.*
 **Migration:** None. **Tests:** None (governance).
 **Acceptance:** Each ADR status reads Accepted/Locked or explicitly gated, with date + owner.
@@ -183,7 +183,7 @@ WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 **Objective:** Production-shaped adapter registry (mock vs live behind one interface) + startup boot guard in **backend and worker** that hard-fails unsafe config; wire into CI.
 **Files (create):** `integrations/registry.py` (resolve by `APP_ENV`), `integrations/base.py`, `observability/boot_guard.py`, hook into `main.py` + `workers/__init__.py`; CI job running the guard against production-like config.
 **Migration:** None.
-**Boot guard — FAIL BOOT when `APP_ENV=production` and any true (CLAUDE env guard — verbatim):** mock Stripe/mailbox/DNS/verifier/research outside a named demo env; webhook secrets blank/placeholder/not from approved backend; placeholder API/encryption/JWT/DB credentials; RLS disabled/not forced/missing on any tenant-owned table (`pg_class.relrowsecurity`/`relforcerowsecurity`); API/worker roles have BYPASSRLS (`pg_roles`); cannot verify DB tenant-context setup; migration version ≠ deployed code; required cookie/CORS/CSRF/HTTPS settings disabled. *(Secret-specific checks extended in Slice 10.)*
+**Boot guard — FAIL BOOT when `APP_ENV=production` and any true (CLAUDE env guard):** mock billing/mailbox/DNS/verifier/research outside a named demo env; webhook/app secrets blank/placeholder/missing/not sourced from AWS Secrets Manager; AWS KMS or AWS Secrets Manager unreachable/misconfigured; placeholder API/encryption/JWT/DB credentials; RLS disabled/not forced/missing on any tenant-owned table (`pg_class.relrowsecurity`/`relforcerowsecurity`); API/worker roles have BYPASSRLS (`pg_roles`); cannot verify DB tenant-context setup; migration version ≠ deployed code; required cookie/CORS/CSRF/HTTPS settings disabled. *(Secret-specific checks extended in Slice 10.)*
 **Tests:** guard passes for `local` w/ mocks; **fails** for each unsafe production condition (one test each); runs in both entrypoints.
 **Acceptance:** Unsafe prod/staging config hard-fails; mocks allowed only per CLAUDE env table; CI exercises guard.
 **Rollback/safety:** The guard is a safety control — never bypass. Mock-in-prod blocked unless owner-approved named demo exception recorded.
@@ -191,11 +191,11 @@ WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 ---
 
 ### Slice 10 — Credential encryption & secret handling
-**Objective:** Establish the end-to-end secret-handling pattern so no raw secret ever lands in the DB, logs, audit details, prompts, exports, or any client/frontend response — and so tenant credentials are envelope-encrypted with KMS and decrypted only inside approved integration-service methods.
-**Files (create):** `integrations/secrets/manager.py` (resolve secrets from the approved backend — AWS Secrets Manager in prod; local file/env in dev, both via the same interface), `integrations/secrets/kms.py` (envelope encrypt/decrypt; data-key wrapping), `services/credentials.py` (the **only** module permitted to decrypt; exposes typed accessors, never returns raw secrets to callers/responses), `repositories/credential_repo.py`, extend `observability/boot_guard.py` (secret-safety checks), `migrations/versions/0005_integration_credentials.py` (schema stub only).
+**Objective:** Establish the end-to-end secret-handling pattern so no raw secret ever lands in the DB, logs, audit details, prompts, exports, bundles, errors, or any client/frontend response — and so production secrets use AWS Secrets Manager plus AWS KMS and are decrypted only inside approved credential/integration service methods.
+**Files (create):** `integrations/secrets/manager.py` (resolve secrets from AWS Secrets Manager in prod; local/mock backend in dev, both via the same interface), `integrations/secrets/kms.py` (AWS KMS key management/envelope operations), `services/credentials.py` (the **only** module permitted to decrypt; exposes typed accessors, never returns raw secrets to callers/responses), `repositories/credential_repo.py`, extend `observability/boot_guard.py` (secret-safety checks), `migrations/versions/0005_integration_credentials.py` (schema stub only).
 **Migration — 0005 integration_credentials (stub; exact columns flagged owner-decision):** `id, tenant_id, integration_connection_id?, credential_type, secret_ref TEXT NOT NULL` (reference only — e.g. `aws-secrets-manager://...`), `envelope_key_id TEXT`, `version INT`, `rotated_at?`, `rotation_due_at?`, `created_at, updated_at`. Forced RLS, tenant-first index. **DB stores `secret_ref` + encrypted metadata only — never plaintext or ciphertext of the secret itself.**
-**Pattern (CLAUDE §10):** prod secrets in approved Secrets Manager; tenant credentials envelope-encrypted with KMS or stored as secret references; Postgres holds only `secret_ref` + encrypted metadata + version + rotation timestamps; **decrypt only inside `services/credentials.py` integration methods**; decrypted values never reach logs, prompts, audits, tool outputs, exports, or frontend/client responses.
-**Boot-guard extension:** fail boot in prod if any required app secret (JWT/encryption/DB/webhook) is blank/placeholder or not sourced from the approved backend; if KMS/Secrets Manager is unreachable; if decryption path is misconfigured.
+**Pattern (CLAUDE §10):** production secrets in AWS Secrets Manager; encryption/key management in AWS KMS; Postgres holds only `secret_ref` + safe metadata + version + rotation timestamps; **decrypt only inside `services/credentials.py` integration methods**; decrypted values never reach logs, prompts, audits, tool outputs, exports, frontend bundles, client responses, or error details.
+**Boot-guard extension:** fail boot in prod if any required app secret (JWT/encryption/DB/webhook) is blank, placeholder, missing, or not sourced from AWS Secrets Manager; if AWS KMS/Secrets Manager is unreachable; if decryption path is misconfigured.
 **Tests:** secret never appears in API response, log line, audit `redacted_details`, export, or error detail (assert via fixtures injecting a sentinel secret); decrypt works only through `services/credentials.py` (other layers cannot decrypt); DB row holds only `secret_ref`/metadata (no plaintext); rotation metadata updates bump `version`/`rotated_at`; boot guard fails on placeholder/missing/unsafe secret; mock secrets backend shares the live interface/error shapes.
 **Acceptance:** No raw secret leaves the credentials service; DB persists references + metadata only; rotation metadata tracked; boot guard blocks unsafe secrets. Credential-encryption launch blocker satisfied (pattern + stub; live integration tables are Phase 1).
 **Rollback/safety:** Decryption confined to one audited module. Never log/return secrets. Exact `integration_credentials` columns remain **owner-decision** before the first live integration — stub only here.
@@ -235,17 +235,17 @@ WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ---
 
-### Slice 14 — Auth & session (managed auth) + app-side mapping/revocation  ·  auth LOCKED=managed
-**Objective:** Integrate managed auth; map provider identity → app `users`; bind tenant context from membership; keep a **minimal** app-side session/revocation record (only what app-side revocation + audit require); enforce platform-admin MFA + auth rate limits.
+### Slice 14 — Auth & session (Clerk) + app-side mapping/revocation  ·  auth LOCKED=Clerk
+**Objective:** Integrate Clerk; map Clerk identity → app `users`; bind tenant context from membership; keep a **minimal** app-side session/revocation record (only what app-side revocation + audit require); enforce platform-admin MFA + auth rate limits.
 **Ownership split (clarified):**
-- **Managed provider owns:** credentials, password reset, email verification, MFA support, primary provider sessions/refresh.
+- **Clerk owns:** credentials, login, sessions, password reset, email verification, MFA support, and primary auth security.
 - **App owns:** `provider_user_id`/`identity_provider` mapping, tenant memberships, RBAC, object authorization, audit, billing gates, tenant context, DB RLS, and app-side session **revocation + membership-version** state.
 - **Do not** build first-party password-reset / email-verification / refresh-token-rotation tables — the provider owns them. Build an app-side record **only** for revocation + audit.
 **Files (create):** `services/auth.py` (verify provider token → resolve user via identity mapping → resolve membership), `middleware/auth.py` (token → session → tenant context), `routers/auth.py` (session exchange, logout, logout-all), `repositories/auth_session_repo.py`, `migrations/versions/0008_auth_sessions.py`.
 **Migration — 0008 auth_sessions (minimal, justified by app-side revocation + audit):** `id, user_id, tenant_id?, provider_session_ref TEXT, membership_version INT, revoked_at?, created_at, expires_at`. (Identity columns live on `users` from Slice 7.) No raw tokens stored.
 **Lifecycle the app enforces (AUTH_AND_RBAC.md:77–82):** logout / logout-all revoke app sessions; role change increments `membership_version` → forces re-auth/refresh; tenant lock/deletion invalidates access immediately; **platform-admin MFA required before external users/production** (provider feature, recommended for owners/admins); auth rate-limited (IP+email) via Slice 12. Provider-side reuse/rotation handled by the provider; app emits security audit on revocation/role change.
-**Tests:** provider token validated → user resolved via `(identity_provider,provider_user_id)`; session→tenant mapping; logout/logout-all revoke app sessions; role change bumps `membership_version` and forces re-auth; tenant lock invalidates access; platform-admin login requires MFA; auth endpoints rate-limited.
-**Acceptance:** Managed-auth login works; app-side revocation + membership-version + tenant binding enforced; admin MFA required. Gate cleared. (Refresh rotation + reuse detection owned by provider; verified at integration.)
+**Tests:** Clerk token validated → user resolved via `(identity_provider,provider_user_id)`; session→tenant mapping; logout/logout-all revoke app sessions; role change bumps `membership_version` and forces re-auth; tenant lock invalidates access; platform-admin login requires MFA; auth endpoints rate-limited.
+**Acceptance:** Clerk login works; app-side revocation + membership-version + tenant binding enforced; admin MFA required. Gate cleared. (Refresh rotation + reuse detection owned by Clerk; verified at integration.)
 **Rollback/safety:** No raw tokens/secrets stored. App-side session table is intentionally minimal — not a re-implementation of the provider.
 
 ---
@@ -261,24 +261,24 @@ WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ---
 
-### Slice 16 — Billing state/access-gate skeleton + Stripe mock + webhook storage  ·  billing model LOCKED; timing defaults owner-gated
-**Objective:** Billing gate where **internal access state is authority** (not Stripe status), enforced in routes **and** workers; Stripe adapter (mock+live interface); webhook storage with **verify-before-parse** + dedup.
-**Files (create):** `models/{plan,subscription,stripe_webhook_event}.py`, `services/billing_gate.py`, `integrations/stripe/{adapter,mock}.py`, `routers/webhooks/stripe.py` (raw-body verify **before** parse; rate-limited via Slice 12), `repositories/{subscription,webhook}_repo.py`, `migrations/versions/0010_billing.py`.
-**Migration — 0010 billing (DATABASE_SCHEMA.md:130–150):** `plans`; `tenant_subscriptions` with `provider_status` (raw Stripe, not authority) **separate from** `internal_access_state CHECK IN ('trialing','active','past_due_grace','past_due_locked','canceled','chargeback_locked','unpaid_locked','incomplete_locked')`, `locked_reason, grace_ends_at, trial_ends_at, current_period_*`, `UNIQUE (provider,provider_subscription_id)`, `ix_(tenant_id,internal_access_state)`; `stripe_webhook_events` (`stripe_event_id` UNIQUE dedup, `raw_body, stripe_signature, parsed_data, processed, processing_*`).
-**Timing defaults (owner-gated — config constants, recommended):** trial 14d · grace 7d · past-due read-only+billing · chargeback immediate lock. **Surface as config pending owner sign-off; do not hardcode as final.**
-**Webhook rule (verbatim):** verify `Stripe-Signature` over **raw body before parsing**; store first; return 2xx **only after durable storage**; dedupe by `stripe_event_id`; process idempotently (Slice 11).
-**Tests:** access state blocks routes **and** worker at claim; locked → read-only + billing only; signature **verify-before-parse** (tampered body rejected pre-parse); dup `stripe_event_id` deduped; provider_status vs internal_access_state separation; mock adapter shares live interface/error shapes.
-**Acceptance:** Billing gate works in routes + workers (Phase 0 gate); webhooks rejected without verification; state cannot incorrectly grant paid access. Model gate cleared; timing values flagged owner-decision.
-**Rollback/safety:** Internal access state is sole authority. Webhook verification must-never-postpone.
+### Slice 16 — Mock billing state/access-gate skeleton  ·  mock-only MVP billing LOCKED
+**Objective:** Build only the local MVP billing foundation: schema, tenant subscription/plan relationship, `tenant_status`, centralized gates, mock transitions, and deterministic tests. Real Stripe checkout, calls, webhooks, dunning, and money movement are out of Phase 0.
+**Files (create):** `models/{plan,subscription}.py`, `services/billing_gate.py`, `services/mock_billing.py`, `repositories/subscription_repo.py`, `migrations/versions/0010_billing.py`.
+**Migration — 0010 billing (DATABASE_SCHEMA.md:130–150):** `plans`; `tenant_subscriptions` with `provider DEFAULT 'mock'`, optional provider refs for future use, `tenant_status CHECK IN ('trialing','active','past_due','canceled','unpaid','inactive')`, `locked_reason, grace_ends_at, trial_ends_at, current_period_*`, `UNIQUE (provider,provider_subscription_id)`, `ix_(tenant_id,tenant_status)`. **Do not create `stripe_webhook_events` in local MVP.**
+**Central gates:** all access routes through `is_active(tenant)` and `has_feature(tenant, key)`. Derived gates include `can_send`, `can_run_agents`, `can_create_campaign`, and `can_export`. Do not scatter billing if-checks across routes/services/workers.
+**Lock policy:** `past_due` keeps access running during grace. `unpaid`, `canceled`, and `inactive` lock agent runs, cold email/SMS sending, paid ad spend, external paid API calls, and campaign creation; keep dashboard/data read access, exports, and dormant integrations available longer.
+**Tests:** every mock state transition covered; gates block routes **and** workers at claim; `past_due` grace remains active; `unpaid`/`canceled`/`inactive` block paid/write/send actions; exports remain available when expected; no real Stripe checkout/calls/webhooks exist.
+**Acceptance:** Billing gate works in routes + workers (Phase 0 gate); state cannot incorrectly grant paid access; deterministic mock billing tests pass.
+**Rollback/safety:** Central gates are the only authority. Real Stripe is a later first-paying-client / production billing phase.
 
 ---
 
-### Slice 17 — Compliance profile + suppression baseline (schema only)  ·  schema OK; jurisdiction values gated
-**Objective:** Schema-only baseline to satisfy the Phase 0 gate "compliance profile + suppression baseline exist." **No send/import logic** (Phase 1). The schema is unblocked; jurisdiction **values** and any live-sending compliance logic remain gated by `ADR_COMPLIANCE_JURISDICTION`.
+### Slice 17 — Compliance profile + suppression baseline (schema only)  ·  US MVP baseline locked
+**Objective:** Schema-only baseline to satisfy the Phase 0 gate "compliance profile + suppression baseline exist." **No send/import logic** (Phase 1). MVP compliance baseline is United States; live sending remains gated by compliance review and owner approval.
 **Files (create):** `models/{compliance_profile,suppression_entry,contact}.py`, `migrations/versions/0011_compliance_suppression.py`. Minimal RLS-scoped repos.
-**Migration — 0011 (DATABASE_SCHEMA.md:154–187):** `tenant_compliance_profiles` (jurisdiction/unsubscribe/retention fields — **left unseeded** until ADR resolved); `contacts` (schema only — `tenant_id`, `email CITEXT`, status, `ux_contacts_tenant_email_active`); `suppression_entries` (`tenant_id, contact_id?, email?, phone?, channel CHECK IN ('email','sms','all'), reason, source, reinstated_at?`; partial unique indexes on active suppressions). All forced RLS, tenant-first indexes.
+**Migration — 0011 (DATABASE_SCHEMA.md:154–187):** `tenant_compliance_profiles` (jurisdiction defaults to US for MVP/demo seed data; live approval still required); `contacts` (schema only — `tenant_id`, `email CITEXT`, status, `ux_contacts_tenant_email_active`, `deleted_at`); `suppression_entries` (`tenant_id, contact_id?, hashed_email?/email?, phone?, channel CHECK IN ('email','sms','all'), reason, source, reinstated_at?`; partial unique indexes on active suppressions). All forced RLS, tenant-first indexes.
 **Tests:** forced RLS + cross-tenant denial on all three; suppression unique indexes block duplicate **active** suppression by email/phone/contact; compliance profile row creatable per tenant. *(Re-import survival + send-time suppression are Phase 1.)*
-**Acceptance:** Compliance profile + suppression baseline exist w/ forced RLS (Phase 0 gate). No import/campaign/send behavior. Jurisdiction values deferred to ADR.
+**Acceptance:** Compliance profile + suppression baseline exist w/ forced RLS (Phase 0 gate). No import/campaign/send behavior. US MVP baseline recorded; SMS remains post-MVP.
 **Rollback/safety:** Schema-only; reversible. Does not start Phase 1 outreach.
 
 ---
@@ -313,7 +313,7 @@ WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 | App-side session revocation + membership-version (managed-auth model) | 14 |
 | **Platform-admin MFA** | 14 (verified 19) |
 | RLS/object-auth automated tests | 7, 15, 19 |
-| Billing state machine + Stripe webhooks (verify-before-parse) | 16 |
+| Mock billing state machine + centralized gates | 16 |
 | Idempotency prevents duplicate sends/billing | 11, 13 |
 | **Rate limits + abuse protection** (auth, webhooks, risky actions, jobs) | 12 |
 | **Credential encryption + Secrets Manager + KMS** | 10 |
@@ -327,23 +327,23 @@ WITH CHECK (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 ## 4. Explicitly out of scope until Phase 1+ (do-not-build)
 
-CSV/campaign import **functionality** (contacts schema stub only in Slice 17) · AI drafting / agent run tables / RAG / groundedness / re-grounding · **send-gate functionality**, no-send reason codes, mailbox pool, warm-up, throttles, deliverability dashboard · outbound-message/send-intent send behavior · real SMS (A2P 10DLC/Twilio), Google/Meta Ads, Google Business Profile, advanced CRM, SEO/AI-search rank tracking · real mailbox integration beyond adapter contracts + mock · live scraping / paid research · auto live sends from signals · full multi-plan self-serve pricing UI · Phases 2–6. **Do not start Phase 2 until the Phase 0+1 completion report is accepted.**
+CSV/campaign import **functionality** (contacts schema stub only in Slice 17) · AI drafting / agent run tables / RAG / groundedness / re-grounding · **send-gate functionality**, no-send reason codes, mailbox pool, warm-up, throttles, deliverability dashboard · outbound-message/send-intent send behavior · real Stripe checkout/calls/webhooks/dunning/money movement · real SMS (A2P 10DLC/Twilio), Google/Meta Ads, Google Business Profile, advanced CRM, SEO/AI-search rank tracking · real mailbox integration beyond adapter contracts + mock · live scraping / paid research · auto live sends from signals · Slack/internal alerts · full multi-plan self-serve pricing UI · Phases 2–6. **Do not start Phase 2 until the Phase 0+1 completion report is accepted.**
 
 ---
 
 ## 5. Risks and owner decisions
 
 **Open owner decisions (Needs owner decision — do not guess):**
-1. **Billing timing defaults** — confirm trial 14d / grace 7d / past-due read-only+billing / chargeback immediate lock (Slice 16 config; model is locked, durations are not).
-2. **Compliance jurisdiction** (`ADR_COMPLIANCE_JURISDICTION`) — target market + unsubscribe/retention baseline. Gates jurisdiction **values** + live-sending only; Slice 17 schema proceeds unseeded.
-3. **Managed-auth vendor** — name Clerk/Auth0/Supabase in `ADR_AUTH_PROVIDER` (model locked = managed).
-4. **Exact `integration_credentials` columns** — Slice 10 ships a stub; finalize columns before the first live integration.
-5. **Production mock-provider exception** — none by default; record owner-approved named-demo exception if needed (boot guard, Slice 9).
-6. **Rate-limit store** — Redis (compose) vs Postgres counter table (Slice 12).
-7. **Demo tenant seeding** — automatic vs manual; record count (Slice 19 E2E).
+1. **Counsel-approved legal/privacy/outreach/unsubscribe/data-use language** — required before live sending.
+2. **Approved live research/scraping/paid-provider sources** — required before live research.
+3. **Exact `integration_credentials` columns** — Slice 10 ships a stub; finalize columns before the first live integration.
+4. **Production mock-provider exception** — none by default; record owner-approved named-demo exception if needed (boot guard, Slice 9).
+5. **Rate-limit store** — Redis (compose) vs Postgres counter table (Slice 12).
+6. **Demo tenant seeding** — automatic vs manual; record count (Slice 19 E2E).
+7. **First-paying-client production billing details** — Stripe products/prices, plan entitlements, and rollout evidence.
 
 **Risks:**
-- **Credential-encryption DDL not fully specified in docs** — mitigated by Slice 10 establishing the pattern + stub; exact columns owner-gated.
+- **Credential-encryption DDL not fully specified in docs** — mitigated by Slice 10 establishing AWS Secrets Manager/KMS pattern + stub; exact columns owner-gated.
 - **Managed-auth responsibility boundary** — Slice 14 keeps the app-side session table intentionally minimal (revocation + audit + membership-version only); confirm the provider covers tenant-scoped session invalidation, else expand the app-side record.
 - **`users` global RLS** — `users` is global identity (no tenant RLS); access mediated by membership + object-auth. Assumed in Slice 7.
 

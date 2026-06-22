@@ -1,41 +1,88 @@
-# ADR — Billing Access States
+# ADR - Billing Access States
 
-**Status:** Accepted (state model) — **timing defaults = Owner decision needed**
+**Status:** Accepted - MVP mock billing rules owner-confirmed
 **Date:** 2026-06-22
 
 ## Context
 
-Access decisions cannot rely on Stripe status alone (Stripe status is not enough for access control). Billing must be modeled as data so trials, pricing, feature gates, and usage limits change without a code deploy. Gates run in routes, services, workers, and scheduled jobs.
+Access decisions cannot rely on Stripe status alone. Billing must be modeled as data so tenant status, plans, feature gates, and usage limits can be tested deterministically before real money movement. The local MVP must prove centralized billing gates without implementing live Stripe.
 
 ## Decision
 
-- **Separate `provider_status` (raw Stripe) from `internal_access_state`.** Routes and workers gate **only** on `internal_access_state`.
-- Internal access states: `trialing`, `active`, `past_due_grace`, `past_due_locked`, `canceled`, `chargeback_locked`, `unpaid_locked`, `incomplete_locked`.
-- **Workers re-check billing at claim time** — a job queued while active must not send if the tenant becomes locked before execution.
-- Access behavior per state, blocked-routes list, and always-available list are defined in [BILLING_STATE_MACHINE](../BILLING_STATE_MACHINE.md); schema in [DATABASE_SCHEMA](../DATABASE_SCHEMA.md).
+During the local mock MVP, build only:
+
+- Billing schema.
+- Tenant subscription/plan relationship.
+- `tenant_status`.
+- Centralized access gates.
+- Mock billing states and mock transitions.
+- Deterministic gate tests.
+
+Do **not** build real Stripe checkout, real Stripe calls, real Stripe webhooks, dunning processing, or money movement during the local MVP. Real Stripe starts later when onboarding the first paying client.
+
+Standardize MVP mock billing states as:
+
+- `trialing`
+- `active`
+- `past_due`
+- `canceled`
+- `unpaid`
+- `inactive`
+
+Use `inactive` as the catch-all no-access state.
+
+All access must route through one central gate system:
+
+- `is_active(tenant)`
+- `has_feature(tenant, key)`
+
+Derived gates must include `can_send`, `can_run_agents`, `can_create_campaign`, and `can_export`.
+
+## Access Rules
+
+During the `past_due` grace period, keep access running.
+
+On `unpaid`, `canceled`, or `inactive`, lock agent runs, cold email/SMS sending, paid ad spend, external paid API calls, and campaign creation.
+
+Keep available longer: dashboard/data read access, exports, and connected integrations as dormant rather than disconnected.
+
+## Later Production Stripe / Dunning Behavior
+
+Production Stripe and dunning rules are later production behavior, not local MVP scope:
+
+- `trialing` = full access during trial.
+- Trial ends with no payment method -> `inactive`.
+- `active` = full access.
+- Failed payment -> `past_due` and start dunning.
+- Retry schedule: immediate, 24h, day 3, day 7.
+- Grace period = 7 days during `past_due`.
+- After retries plus grace exhausted -> `unpaid`, then canceled/inactive locked.
+- Customer cancellation = `canceled`; access continues until paid period ends, then locks.
+- Full refund = canceled/inactive.
+- Chargeback/dispute = immediate `inactive` hard stop and manual review.
+- Stripe webhooks will later drive `tenant_status`, but not during local MVP.
 
 ## Options considered
 
 | Option | Verdict |
 |---|---|
-| Gate directly on Stripe `provider_status` | Rejected — Stripe status alone is insufficient and couples access to provider semantics |
-| **Separate internal access state derived from provider events** | **Chosen** — explicit, auditable, provider-independent access control |
+| Mock-only MVP billing with centralized gates | Accepted |
+| Real Stripe in local MVP | Rejected - premature money movement and webhook complexity before mock demo proof |
+| Scattered route/service billing checks | Rejected - access decisions must be centralized and testable |
 
 ## Consequences
 
-- Stripe webhooks update `provider_status`; reconciliation + lifecycle logic derive `internal_access_state`.
-- Lock/restore transitions are audited; daily reconciliation flags mismatch.
-- Recommended **defaults (not final):** trial **14 days** · grace **7 days** · past-due locked → read-only dashboards/history + billing access · canceled → read-only for retention/export window · chargeback → immediate lock pending manual review.
+- MVP billing timing defaults are no longer unresolved because real Stripe is outside local MVP scope.
+- Phase 0 must remove real Stripe webhook storage from MVP implementation scope.
+- Production billing will need a later implementation phase and evidence bundle before the first paying client.
 
 ## Owner decisions / open questions
 
-- [ ] Trial duration (default 14d) — owner decision.
-- [ ] Grace period (default 7d) — owner decision.
-- [ ] Refund/chargeback policy (default: manual refund review; immediate chargeback lock) — owner decision.
-- [ ] Past-due access scope (default: read-only + billing access after lock) — owner decision.
-
-(Defaults are labeled defaults, not committed decisions; confirm in writing before billing launch.)
+- [x] MVP mock billing states confirmed.
+- [x] MVP mock-only billing scope confirmed.
+- [x] Production Stripe/dunning rules documented as later behavior.
+- [ ] First-paying-client production billing details, Stripe products/prices, and plan entitlements remain future decisions.
 
 ## Related docs
 
-[BILLING_STATE_MACHINE](../BILLING_STATE_MACHINE.md) · [DATABASE_SCHEMA](../DATABASE_SCHEMA.md) (`tenant_subscriptions`) · [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS](../LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md)
+[BILLING_STATE_MACHINE](../BILLING_STATE_MACHINE.md) - [DATABASE_SCHEMA](../DATABASE_SCHEMA.md) - [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS](../LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md)

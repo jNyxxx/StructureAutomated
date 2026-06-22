@@ -34,7 +34,7 @@ LangGraph Agents
 Tool/Connector Layer — registered tools only, tenant-scoped, permissioned, validated, audited
         |
         v
-External Providers — Stripe, mailbox, DNS, verifier, research, future Twilio/GBP/ads
+External Providers - future Stripe, mailbox, DNS, verifier, research, future Twilio/GBP/ads
   Mocked in MVP through production-shaped adapters
 ```
 
@@ -50,8 +50,8 @@ External Providers — Stripe, mailbox, DNS, verifier, research, future Twilio/G
 | AI/agents | LangGraph, LangSmith tracing/evals, OpenAI-compatible provider abstraction, deterministic mock provider |
 | Workers/queue | PostgreSQL jobs/outbox as source of truth; SQS for production dispatch; local worker may poll Postgres |
 | Automation | n8n only for orchestration/webhook glue — never core business or security rules |
-| Billing | Stripe, mockable locally, enforced server-side |
-| Infra | Docker Compose local; AWS ECS/Fargate, RDS PostgreSQL, SQS, EventBridge, Secrets Manager, S3, CloudWatch, ALB, WAF |
+| Billing | Mock-only local MVP gates; real Stripe deferred until first-paying-client production billing |
+| Infra | Docker Compose local; AWS ECS/Fargate, RDS PostgreSQL, SQS, EventBridge, AWS Secrets Manager, AWS KMS, S3, CloudWatch, ALB, WAF |
 | Observability | Structured JSON logs, correlation IDs, CloudWatch alarms, LangSmith, Sentry or equivalent |
 
 > Queue transport (SQS vs Postgres outbox) rationale is recorded in [ADR_QUEUE_TRANSPORT](ADRs/ADR_QUEUE_TRANSPORT.md).
@@ -89,7 +89,7 @@ Providers are mocked **through production-shaped adapters** — architecture, in
 
 | | Mocked in MVP | Never mocked (always real) |
 |---|---|---|
-| Components | External email delivery · mailbox warm-up clock · email verification · DNS/domain auth · public research results (when no live tool) · Stripe calls/webhooks · n8n external callbacks · reply/bounce/booked outcome events | Tenant isolation + forced RLS · auth/authz · billing/feature/usage enforcement · idempotency · queue state transitions · send gate · groundedness verdict storage · human approval · audit logs · outcome event emission · rate limits |
+| Components | External email delivery · mailbox warm-up clock · email verification · DNS/domain auth · public research results (when no live tool) · mock billing transitions · n8n external callbacks · reply/bounce/booked outcome events | Tenant isolation + forced RLS · auth/authz · billing/feature/usage enforcement · idempotency · queue state transitions · send gate · groundedness verdict storage · human approval · audit logs · outcome event emission · rate limits |
 
 Enforcement rules (rule 11) and the production boot guard live in [CLAUDE](../CLAUDE.md).
 

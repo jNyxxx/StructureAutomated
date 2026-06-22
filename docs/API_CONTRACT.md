@@ -51,11 +51,11 @@ Store request hash, response hash, status code, scope, tenant, expiry, status (`
 
 ## 6. Rate limits (minimum)
 
-Signup/login/password-reset (by IP + email) · refresh (by session) · imports (by tenant) · agent runs/tool calls (by tenant/campaign) · send scheduling (by tenant/campaign/mailbox) · webhooks (by provider/source) · billing checkout/portal. Production may use Redis/WAF/provider limits; local may use in-memory/DB if behavior matches.
+Clerk session exchange/status/logout (by IP + user/session) · imports (by tenant) · agent runs/tool calls (by tenant/campaign) · send scheduling (by tenant/campaign/mailbox) · webhooks (by provider/source) · mock billing transitions/status. Production may use Redis/WAF/provider limits; local may use in-memory/DB if behavior matches.
 
 ## 7. Webhook verification
 
-- **Stripe:** verify `Stripe-Signature` over raw body.
+- **Future Stripe:** verify `Stripe-Signature` over raw body. Real Stripe webhooks are not part of the local mock MVP.
 - **n8n internal:** HMAC or shared-secret header, rotatable, fail closed.
 - **Future Twilio/mailbox:** provider-specific signature verification before parsing.
 - All webhooks are **stored first, deduped, then processed asynchronously** (CLAUDE rule 12). Processing detail → [WORKERS_QUEUE_AND_WEBHOOKS](WORKERS_QUEUE_AND_WEBHOOKS.md).
@@ -64,7 +64,7 @@ Signup/login/password-reset (by IP + email) · refresh (by session) · imports (
 
 | Group | Endpoints |
 |---|---|
-| Auth/session | `POST /auth/signup`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, reset request/confirm, email verify, `GET /sessions`, `DELETE /sessions/{id}` |
+| Auth/session | Clerk session exchange/status, `POST /auth/logout`, `GET /sessions`, `DELETE /sessions/{id}` for app-side revocation/audit only |
 | Tenant/team | `GET/PATCH /tenants/current`, `GET/POST/PATCH/DELETE /memberships` |
 | Contacts/imports/prospects | `GET/POST/PATCH/DELETE /contacts`, `POST /imports/csv`, `GET /imports/{id}`, `GET /prospects` |
 | Campaigns/runs | `POST/GET/PATCH /campaigns`, `GET /campaigns/{id}`, `POST /campaigns/{id}/prospects`, `POST /campaigns/{id}/runs`, `GET /campaign-runs/{id}` |
@@ -72,8 +72,8 @@ Signup/login/password-reset (by IP + email) · refresh (by session) · imports (
 | Sending/messages | `POST /send-intents/{id}/schedule`, `GET /outbound-messages`, `POST /send-gate/dry-run` |
 | Deliverability/mailboxes | `GET /deliverability`, `GET/POST/PATCH /mailboxes` |
 | Compliance/suppression | `GET/PUT /compliance/profile`, `GET/POST /suppressions`, `POST /suppressions/{id}/reinstate` |
-| Integrations/webhooks | `GET /integrations`, `POST /integrations/{provider}/connect`, `POST /webhooks/stripe`, `POST /webhooks/n8n/{name}` |
-| Billing/usage | `GET /billing/subscription`, `POST /billing/checkout`, `POST /billing/portal`, `GET /usage` |
+| Integrations/webhooks | `GET /integrations`, `POST /integrations/{provider}/connect`, `POST /webhooks/n8n/{name}`; future `POST /webhooks/stripe` only in production billing phase |
+| Billing/usage | `GET /billing/subscription`, mock billing state transition endpoint for local/demo admins, `GET /usage`; real checkout/portal deferred |
 | Audit/privacy | `GET /audit-events`, `POST /privacy/export`, `POST /privacy/delete` |
 | Platform/admin | `GET /platform/tenants`, `POST /platform/support-access` |
 | Demo/future | `POST /mock/outcomes`, `GET /signals`, `POST /signals/mock` (where environment allows) |

@@ -1,18 +1,21 @@
 # Auth & RBAC
 
-**Purpose:** Auth/session lifecycle, RBAC roles + permission matrix, object authorization, tenant isolation (HTTP + worker context), and platform/support access. The auth **provider** choice is controlled by an ADR (below) — do not implement auth until it is locked.
+**Purpose:** Clerk-managed auth boundary, RBAC roles + permission matrix, object authorization, tenant isolation (HTTP + worker context), and platform/support access.
 **Source sections:** Master guide §3 (users/roles/authz), §8 (tenant isolation, support access), §9 (auth/session lifecycle).
-**Status:** Draft (auth provider = **Owner decision needed**)
-**Related docs:** [ADR_AUTH_PROVIDER](ADRs/ADR_AUTH_PROVIDER.md) (provider decision) · [CLAUDE](../CLAUDE.md) (rules 1–6) · [DATABASE_SCHEMA](DATABASE_SCHEMA.md) (`sessions`, tokens, RLS) · [API_CONTRACT](API_CONTRACT.md) (auth routes) · [TESTING_AND_AUDIT](TESTING_AND_AUDIT.md) (isolation tests)
+**Status:** Draft (auth provider = Clerk selected -> [ADR_AUTH_PROVIDER](ADRs/ADR_AUTH_PROVIDER.md))
+**Related docs:** [ADR_AUTH_PROVIDER](ADRs/ADR_AUTH_PROVIDER.md) (provider decision) - [CLAUDE](../CLAUDE.md) (rules 1-6) - [DATABASE_SCHEMA](DATABASE_SCHEMA.md) (identity mapping, RLS) - [API_CONTRACT](API_CONTRACT.md) (auth routes) - [TESTING_AND_AUDIT](TESTING_AND_AUDIT.md) (isolation tests)
 
 ---
 
-## 1. Auth provider decision
+## 1. Auth provider boundary
 
-**Locked by [ADR_AUTH_PROVIDER](ADRs/ADR_AUTH_PROVIDER.md) before any auth coding.** — **Needs owner decision.**
+Use **Clerk** as the managed auth provider.
 
-- Recommended MVP default: **managed auth** (Clerk/Auth0/Supabase Auth) with tenant membership, RBAC, object authorization, audit logs, and billing gates still owned by the application.
-- First-party email/password allowed **only** if the team implements + tests the full lifecycle below (hashing, verification, short access tokens, rotating refresh tokens, reuse detection, revocation, reset, session table, admin MFA, rate limits, secure cookies, security audit events).
+Clerk owns credentials, login, primary sessions, password reset, email verification, MFA support, and primary auth security. The application owns tenant membership, RBAC, object authorization, billing gates, support-access approvals, audit logs, tenant context, and database RLS.
+
+Do **not** build first-party email/password auth unless a future ADR reverses this decision.
+
+Platform-admin MFA remains required before external users or production. Tenant-owner/admin MFA remains strongly recommended.
 
 ## 2. Core users
 
@@ -31,8 +34,8 @@
 
 Frontend role checks are **UX only**. Backend must enforce on every protected action:
 
-1. Authenticated session.
-2. Active tenant membership.
+1. Authenticated Clerk session.
+2. Active app tenant membership.
 3. Role/action permission.
 4. **Object ownership within tenant** (blocks IDOR).
 5. Billing/feature/usage access.
@@ -54,45 +57,42 @@ RLS is the final guardrail, not the only one (CLAUDE rule 6).
 | Audit log read | Yes | Admin-level | No | No | No | Billing events only |
 | Integration credentials | Yes | Yes, limited | No | No | No | No |
 
-## 5. Session lifecycle
+## 5. App-side session and tenant binding
 
-### Signup
-- Validate email + password strength. Hash with **Argon2id** (preferred) or bcrypt cost 12 if standardized.
-- Create user with `email_verified_at = NULL`; create tenant + owner membership only through onboarding; send verification email.
-- External users cannot run campaigns until email verified. Production password minimum **12 chars**. Rate-limit by IP + email.
+The app validates Clerk session/token state, resolves the app user by Clerk identity mapping, then resolves tenant membership. App-side session/revocation state is minimal and exists only for tenant access invalidation, audit, and membership-version enforcement.
 
-### Login & tokens
-Flow: rate-limit (IP+email) → verify hash → reject deleted → require verification if enabled → MFA challenge for admins/owners if enabled → create session → issue tokens → store refresh **hash only** → audit success/failure.
+The app must not store raw Clerk tokens, passwords, password reset tokens, or email verification tokens.
 
-| Token | Lifetime | Storage | Notes |
-|---|---|---|---|
-| Access | 15 min | Memory or secure cookie | user_id, session_id, tenant_id (optional), roles version; no secrets. |
-| Refresh | 14 days | HttpOnly Secure SameSite cookie | Raw token never stored; **rotate every refresh**. |
-| Email verification | 24 h | DB hash | One-time use. |
-| Password reset | 30 min | DB hash | One-time use; revokes sessions on success. |
+App lifecycle responsibilities:
 
-### Refresh rotation & reuse detection
-Hash incoming token → find active session by hash → **if not found but family was rotated before → treat as reuse attack: revoke entire token family, emit security alert/audit, force login** → if valid, issue new refresh token, store hash, rotate old session, return new access token.
-
-### Revocation, reset, MFA, deletion
-- Logout current → revoke current session. Logout all → revoke all user sessions.
-- Password reset → revoke all sessions. Role change → increment membership version, force token refresh.
-- Tenant lock/deletion → invalidate tenant access immediately.
-- **MFA is a launch blocker for platform admins**; strongly recommended for tenant owners/admins.
-- Deletion/export must handle user, tenant, research snippets, embeddings, uploads, exports — **no ad-hoc SQL** (see [PRIVACY_AND_RETENTION](PRIVACY_AND_RETENTION.md)).
+- Logout/logout-all revoke app-side access records where needed.
+- Role change increments membership version and forces re-auth/refresh of app authorization state.
+- Tenant lock/deletion invalidates tenant access immediately.
+- Platform-admin MFA is verified through Clerk before external users / production.
+- Auth-sensitive endpoints and session exchange are rate-limited.
+- Security events are audited without secrets or raw tokens.
 
 ## 6. Tenant isolation
 
 ### HTTP request context
-1. Validate access token → 2. Resolve session → 3. Resolve tenant membership (route/header/subdomain) → 4. Check tenant status + subscription access → 5. Open DB via tenant helper → 6. `SET LOCAL app.current_tenant_id = '<tenant_id>'` in transaction → 7. Query through repositories only → 8. Release connection.
+
+1. Validate Clerk session/token.
+2. Resolve app user.
+3. Resolve tenant membership from route/header/subdomain.
+4. Check tenant status + subscription access.
+5. Open DB via tenant helper.
+6. `SET LOCAL app.current_tenant_id = '<tenant_id>'` in transaction.
+7. Query through repositories only.
+8. Release connection.
 
 ```python
 async with tenant_db.session(tenant_id=tenant_id, actor_id=user_id, request_id=request_id) as conn:
     await contact_repo.list_contacts(conn, filters)
 ```
 
-### Worker context (security view)
-Every tenant job payload must include: `tenant_id`, `actor_user_id` or `system_actor`, `correlation_id`, `job_id`, `idempotency_key`, `requested_permission`. Worker must **fail closed** if tenant context is missing, set context through the same helper, then **re-check subscription, usage, permission, object access** before executing. Full job lifecycle → [WORKERS_QUEUE_AND_WEBHOOKS](WORKERS_QUEUE_AND_WEBHOOKS.md).
+### Worker context
+
+Every tenant job payload must include: `tenant_id`, `actor_user_id` or `system_actor`, `correlation_id`, `job_id`, `idempotency_key`, `requested_permission`. Worker must **fail closed** if tenant context is missing, set context through the same helper, then **re-check subscription, usage, permission, object access** before executing. Full job lifecycle -> [WORKERS_QUEUE_AND_WEBHOOKS](WORKERS_QUEUE_AND_WEBHOOKS.md).
 
 ## 7. Platform & support access
 
@@ -112,5 +112,7 @@ With Tenant A/B fixtures (users, roles, contacts, prospects, campaigns, drafts, 
 - [ ] Workers cannot process Tenant B job under Tenant A context.
 - [ ] Support access fails without an active grant.
 - [ ] Every support access action emits an audit event.
+- [ ] Clerk identity maps to exactly one app user through provider identity fields.
+- [ ] No first-party password/reset/verification secret is stored by the app.
 
-Consolidated suites → [TESTING_AND_AUDIT](TESTING_AND_AUDIT.md).
+Consolidated suites -> [TESTING_AND_AUDIT](TESTING_AND_AUDIT.md).

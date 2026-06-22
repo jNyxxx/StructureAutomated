@@ -2,7 +2,7 @@
 
 **Purpose:** The final server-side send gate, no-send reason codes, compliance profile, suppression/unsubscribe, duplicate-send prevention, mailbox pool + warm-up + throttling + deliverability pause thresholds, DNS/domain checks, and CSV import / list verification. Deliverability lives here (no separate doc).
 **Source sections:** Master guide §14 (sending/compliance/deliverability), §15 (CSV imports/list verification).
-**Status:** Draft (compliance jurisdiction = **Owner decision needed** → [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md))
+**Status:** Draft (MVP compliance baseline = United States -> [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md))
 **Related docs:** [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md) · [DATABASE_SCHEMA](DATABASE_SCHEMA.md) (`send_intents`, `outbound_messages`, `suppression_entries`, `tenant_compliance_profiles`) · [AI_SAFETY_AND_GROUNDEDNESS](AI_SAFETY_AND_GROUNDEDNESS.md) (groundedness, injection) · [BILLING_STATE_MACHINE](BILLING_STATE_MACHINE.md) (subscription gate) · [API_CONTRACT](API_CONTRACT.md) (`/send-gate/dry-run`)
 
 ---
@@ -13,7 +13,7 @@ The send gate is the **final server-side decision** before any outbound message 
 
 ## 2. Send gate checks
 
-Subscription + usage quota · campaign status + approval mode · prospect/contact tenant ownership · suppression + unsubscribe state · contact validity + verification · message review status · **human edits re-grounded after latest edit** · prompt-injection + groundedness verdicts · compliance profile completeness · required footer/address/unsubscribe content · mailbox state/warm-up/domain auth/deliverability · per-mailbox/tenant/provider/campaign throttles · recipient local send window · idempotency + duplicate-send uniqueness · provider readiness/outage/pause.
+Subscription + usage quota · campaign status + approval mode · prospect/contact tenant ownership · suppression + unsubscribe state · contact validity + verification · message review status · **first-client manual approval policy** · **human edits re-grounded after latest edit** · prompt-injection + groundedness verdicts · compliance profile completeness · required footer/address/unsubscribe content · mailbox state/warm-up/domain auth/deliverability · per-mailbox/tenant/provider/campaign throttles · recipient local send window · idempotency + duplicate-send uniqueness · provider readiness/outage/pause.
 
 ## 3. No-send reason codes
 
@@ -46,7 +46,13 @@ Subscription + usage quota · campaign status + approval mode · prospect/contac
 
 `tenant_compliance_profiles` required before live sending; in mock mode, seed it but still read from it. Min fields: `tenant_id`, `sender_business_name`, `physical_mailing_address`, `default_unsubscribe_text`, `default_footer_text`, `cold_email_enabled`, `sms_enabled`, `legal_review_status` (`not_reviewed`/`approved`/`rejected`/`needs_changes`).
 
-**Production live sending requires a complete compliance profile + legal/provider approval. SMS is post-MVP.** Target market + compliance baseline = **Owner decision needed** → [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md).
+**Production live sending requires a complete compliance profile + legal/provider approval. SMS is post-MVP.** MVP compliance baseline = **United States** and first target market = **US** -> [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md).
+
+## 4A. First real client sending policy
+
+For the first real client, every AI-generated cold-email draft requires manual human approval, even after prompt-injection, groundedness, compliance, billing, and send gates pass.
+
+Auto-send can be added later only as a per-tenant/per-campaign configuration. Auto-send must still require every safety gate to pass.
 
 ## 5. Suppression model
 

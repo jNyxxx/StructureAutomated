@@ -1,37 +1,43 @@
-# ADR — Auth Provider
+# ADR - Auth Provider
 
-**Status:** Proposed — **Owner decision needed** (must be locked before any auth coding)
+**Status:** Accepted - Clerk selected
 **Date:** 2026-06-22
 
 ## Context
 
-Auth/session lifecycle is a launch blocker. The provider choice must be locked before auth implementation starts. Regardless of provider, the **application** always owns tenant membership, RBAC, object authorization, audit logging, and billing/usage gates — the provider only handles identity/session primitives.
+Auth/session lifecycle is a launch blocker. The provider choice must be locked before auth implementation starts. A managed provider reduces the primary auth security surface while the application still owns tenant-scoped authorization and access control.
 
 ## Decision
 
-**Not final.** Recommended default from the guide (a default, not a committed decision): **managed auth** (e.g., Clerk, Auth0, or Supabase Auth) for the fastest production-safe MVP.
+Use **Clerk** as the managed auth provider.
 
-First-party email/password auth is permitted **only if** the team implements and tests the full lifecycle: Argon2id (or bcrypt cost 12) hashing, email verification, 15-minute access tokens, 14-day rotating refresh tokens, reuse detection, revocation, reset tokens, session table, admin MFA, rate limits, secure cookies, and security audit events.
+Clerk owns credentials, login, primary sessions, password reset, email verification, MFA support, and primary auth security. The application owns tenant membership, RBAC, object authorization, billing gates, support-access approvals, audit logs, tenant context, and database RLS.
+
+Platform-admin MFA remains required before external users or production. Tenant-owner/admin MFA remains strongly recommended.
+
+Do **not** build first-party email/password auth unless a future ADR explicitly reverses this decision.
 
 ## Options considered
 
-| Option | Pros | Cons |
-|---|---|---|
-| **Managed auth** (recommended default) | Fast, smaller security surface, lifecycle handled by vendor | Vendor dependency/cost; must still map sessions → tenant membership in-app |
-| **First-party email/password** | Full control, no vendor lock-in | Team owns and must test the entire security lifecycle; higher risk if incomplete |
+| Option | Verdict |
+|---|---|
+| Clerk managed auth | Accepted - fastest production-safe MVP path with provider-owned auth lifecycle |
+| Auth0 / Supabase Auth | Rejected for MVP - viable managed alternatives, but not selected by owner |
+| First-party email/password | Rejected for MVP - app would own password storage, resets, verification, session security, and auth abuse controls |
 
 ## Consequences
 
-- App-side authorization (membership, RBAC, object ownership, billing gates, audit) is unchanged either way — see [AUTH_AND_RBAC](../AUTH_AND_RBAC.md).
-- **MFA is a launch blocker for platform admins** in both options.
-- If managed: implement session→tenant mapping and revocation hooks.
-- If first-party: the full lifecycle above becomes mandatory, tested scope before launch.
+- App-side authorization is unchanged: tenant membership, RBAC, object ownership, billing gates, support access, audit, tenant context, and RLS stay in-app.
+- App user records store Clerk identity mapping, not password hashes or first-party credential lifecycle state.
+- App-side session/revocation records are allowed only where needed for tenant access invalidation, audit, and membership-version enforcement.
+- Clerk configuration and platform-admin MFA are launch blockers before external users / production.
 
 ## Owner decisions / open questions
 
-- [ ] **Final provider choice** (managed vs first-party) — owner decision needed.
-- [ ] If first-party: confirm owner/team accountable for the full security lifecycle + tests.
+- [x] Managed auth provider selected: Clerk.
+- [x] First-party email/password excluded from MVP unless a future ADR reverses this decision.
+- [ ] Clerk production configuration, domains, templates, and MFA policy must be verified before external users.
 
 ## Related docs
 
-[AUTH_AND_RBAC](../AUTH_AND_RBAC.md) · [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS](../LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) · [CLAUDE](../../CLAUDE.md)
+[AUTH_AND_RBAC](../AUTH_AND_RBAC.md) - [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS](../LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) - [CLAUDE](../../CLAUDE.md)

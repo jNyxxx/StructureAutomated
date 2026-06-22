@@ -31,14 +31,14 @@ Per-domain detail: DB invariants → [DATABASE_SCHEMA §9](DATABASE_SCHEMA.md); 
 Launch evidence bundle (attach to completion report):
 
 - [ ] Empty-DB migration proof · RLS isolation output · auth/session report · RBAC/object-auth negative tests.
-- [ ] Stripe webhook + failed-payment lock + reconciliation proof.
+- [ ] Mock billing state transitions + centralized gate proof.
 - [ ] Queue retry/crash/DLQ/duplicate-send prevention tests.
 - [ ] Send-gate dry-run + worker tests for **each** no-send reason.
 - [ ] DNS/warm-up/throttle/pause-threshold tests.
-- [ ] LangSmith traces · groundedness reports · prompt-injection evals.
+- [ ] LangSmith traces + faithfulness logs · groundedness reports · prompt-injection evals.
 - [ ] Export/delete/vector-purge + retention job proof.
 - [ ] Backup restore drill report.
-- [ ] Observability dashboards + alert test result.
+- [ ] In-product observability evidence + LangSmith faithfulness logging. External Slack/internal alerts are post-demo.
 - [ ] Secret scan · dependency scan · SAST · webhook verification · rate-limit tests.
 - [ ] Counsel-approved privacy/terms/outreach/unsubscribe/data-use language.
 - [ ] Staging E2E run with screenshots, logs, traces, owner sign-off.
