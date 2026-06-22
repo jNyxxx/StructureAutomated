@@ -16,4 +16,4 @@ class UserRepository(BaseRepository):
             User.identity_provider == identity_provider,
             User.provider_user_id == provider_user_id,
         )
-        return (await self.conn.execute(stmt)).first()
+        return (await self.conn.execute(stmt)).scalars().first()

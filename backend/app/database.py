@@ -80,6 +80,20 @@ async def tenant_session(
 
 
 @asynccontextmanager
+async def auth_context_session() -> AsyncIterator[AsyncConnection]:
+    """Open a transaction for pre-tenant auth/session lookups.
+
+    Sets ``app.auth_context='on'`` transaction-locally so auth/session rows can
+    be checked without setting tenant context before membership resolution. This
+    helper is for authentication plumbing only and must never be used for
+    tenant business data.
+    """
+    async with get_engine().connect() as conn, conn.begin():
+        await conn.execute(text("SELECT set_config('app.auth_context', 'on', true)"))
+        yield conn
+
+
+@asynccontextmanager
 async def worker_session() -> AsyncIterator[AsyncConnection]:
     """Open a transaction in worker/system context for cross-tenant job claiming.
 
