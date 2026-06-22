@@ -12,11 +12,15 @@ Readiness never returns or logs the DSN, credentials, or raw driver errors
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.config import Settings, get_settings
@@ -25,6 +29,63 @@ from app.observability.logging import get_logger
 _logger = get_logger("app.database")
 _CONNECT_TIMEOUT_SECONDS = 3.0
 _ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
+
+# Role-safety: the runtime DB role must never be SUPERUSER or have BYPASSRLS.
+ROLE_SAFETY_SQL = "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user"
+
+
+@lru_cache
+def get_engine() -> AsyncEngine:
+    """Return the cached pooled async engine (app-role DSN)."""
+    settings = get_settings()
+    if settings.database_url is None:
+        raise RuntimeError("DATABASE_URL is not configured.")
+    return create_async_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        connect_args={"timeout": _CONNECT_TIMEOUT_SECONDS},
+    )
+
+
+def _tenant_context_statements(
+    tenant_id: UUID | str,
+    actor_id: UUID | str | None,
+    request_id: str | None,
+) -> list[tuple[str, dict[str, str]]]:
+    """Transaction-local (SET LOCAL equivalent) context, parameterized and leak-free."""
+    statements = [("SELECT set_config('app.current_tenant_id', :v, true)", {"v": str(tenant_id)})]
+    if actor_id is not None:
+        statements.append(("SELECT set_config('app.actor_id', :v, true)", {"v": str(actor_id)}))
+    if request_id is not None:
+        statements.append(("SELECT set_config('app.request_id', :v, true)", {"v": str(request_id)}))
+    return statements
+
+
+@asynccontextmanager
+async def tenant_session(
+    *,
+    tenant_id: UUID | str,
+    actor_id: UUID | str | None = None,
+    request_id: str | None = None,
+) -> AsyncIterator[AsyncConnection]:
+    """Open a transaction with tenant context set; repositories use this only.
+
+    Uses ``set_config(..., is_local=true)`` so the context is transaction-scoped
+    and cannot leak to other transactions on the pooled connection.
+    """
+    async with get_engine().connect() as conn, conn.begin():
+        for sql, params in _tenant_context_statements(tenant_id, actor_id, request_id):
+            await conn.execute(text(sql), params)
+        yield conn
+
+
+async def assert_runtime_role_safe(conn: AsyncConnection) -> None:
+    """Raise if the connected role is SUPERUSER or has BYPASSRLS (boot-guard use)."""
+    row = (await conn.execute(text(ROLE_SAFETY_SQL))).first()
+    if row is None:
+        return
+    if bool(row[0]) or bool(row[1]):
+        raise RuntimeError("Application DB role must not be SUPERUSER or have BYPASSRLS.")
 
 
 def code_head_revision() -> str | None:
