@@ -34,7 +34,7 @@ jobs:
         run: pytest
 
   frontend:
-    name: Frontend (type check)
+    name: Frontend (lint, type, test, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,8 +48,14 @@ jobs:
       # package-lock.json lands; switch to `npm ci` once it does.
       - name: Install dependencies
         run: npm install
+      - name: Lint
+        run: npm run lint
       - name: Type check
         run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
 
   secret-scan:
     name: Secret scan (gitleaks)
