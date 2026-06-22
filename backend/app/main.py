@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
 from fastapi import FastAPI
 
@@ -17,10 +18,13 @@ from app.config import get_settings
 from app.database import get_engine
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.logging import RequestLoggingMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.observability.boot_guard import BootGuardError, database_failures, enforce_config
 from app.observability.logging import setup_logging
+from app.ratelimit.backend import InMemoryRateLimitBackend
 from app.routers import health
+from app.services.rate_limit import RateLimitPolicy, RateLimitService
 
 
 @asynccontextmanager
@@ -41,9 +45,20 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="AutomatedStructure API", version="0.0.0", lifespan=_lifespan)
 
-    # Added last = outermost. RequestIdMiddleware must wrap logging so that
-    # request/correlation context is set before any request log line.
+    # Added last = outermost. RequestIdMiddleware must wrap the others so that
+    # request/correlation context (and request_id for the rate-limit envelope)
+    # is set before they run.
     app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(
+        RateLimitMiddleware,
+        service=RateLimitService(InMemoryRateLimitBackend()),
+        policy=RateLimitPolicy(
+            "ip",
+            limit=settings.rate_limit_default_limit,
+            window=timedelta(seconds=settings.rate_limit_window_seconds),
+        ),
+        enabled=settings.rate_limit_enabled,
+    )
     app.add_middleware(RequestIdMiddleware)
 
     register_error_handlers(app)

@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     secret_backend: str = "local"  # noqa: S105 - backend selector, not a secret
     kms_key_id: str | None = None
 
+    # Rate-limit foundation (Slice 12). Off by default — per-endpoint enforcement
+    # lands with each route; deployments opt in to the baseline per-IP guard.
+    rate_limit_enabled: bool = False
+    rate_limit_default_limit: int = 60
+    rate_limit_window_seconds: int = 60
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
