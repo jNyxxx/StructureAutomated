@@ -42,9 +42,9 @@ def test_ready_endpoint_without_db_configured(monkeypatch: pytest.MonkeyPatch) -
         get_settings.cache_clear()
 
 
-def test_code_head_revision_is_extensions() -> None:
+def test_code_head_revision_is_latest() -> None:
     # Exercises the Alembic config + script directory without a database.
-    assert code_head_revision() == "0001_extensions"
+    assert code_head_revision() == "0002_core_tenancy"
 
 
 async def test_readiness_unavailable_does_not_leak_secrets() -> None:
