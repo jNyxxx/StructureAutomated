@@ -79,6 +79,21 @@ async def tenant_session(
         yield conn
 
 
+@asynccontextmanager
+async def worker_session() -> AsyncIterator[AsyncConnection]:
+    """Open a transaction in worker/system context for cross-tenant job claiming.
+
+    Sets ``app.worker_context='on'`` (transaction-local, like tenant context) so
+    the worker can claim jobs across tenants under the ``jobs`` RLS policy. This
+    is a trusted-infrastructure context set only by the worker claim path — never
+    by request handling. Per-job processing must use ``tenant_session`` so normal
+    tenant isolation applies while the job runs.
+    """
+    async with get_engine().connect() as conn, conn.begin():
+        await conn.execute(text("SELECT set_config('app.worker_context', 'on', true)"))
+        yield conn
+
+
 async def assert_runtime_role_safe(conn: AsyncConnection) -> None:
     """Raise if the connected role is SUPERUSER or has BYPASSRLS (boot-guard use)."""
     row = (await conn.execute(text(ROLE_SAFETY_SQL))).first()
