@@ -24,6 +24,26 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     database_url: str | None = None
 
+    # Provider mock flags (mocks allowed only in local/dev/demo per the env guard).
+    mock_stripe: bool = True
+    mock_mailbox: bool = True
+    mock_dns: bool = True
+    mock_verifier: bool = True
+    mock_research: bool = True
+    controlled_demo: bool = False
+
+    # Production secrets — shape-checked by the boot guard only; real secret
+    # handling (AWS Secrets Manager / KMS) lands in Slice 10.
+    jwt_secret: str | None = None
+    encryption_key: str | None = None
+    webhook_secret: str | None = None
+
+    # Security toggles — must be hardened in production.
+    cookie_secure: bool = False
+    csrf_enabled: bool = False
+    https_only: bool = False
+    cors_allow_all: bool = True
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
