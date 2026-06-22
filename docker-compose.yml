@@ -1,0 +1,116 @@
+# AutomatedStructure — local development stack.
+#
+#   cp .env.example .env
+#   docker compose up                       # core stack: db, backend, worker, frontend, n8n
+#   docker compose --profile aws up         # + localstack (SQS)
+#   docker compose --profile cache up       # + redis
+#
+# Postgres extensions (vector, citext, pgcrypto, uuid-ossp) are created by the
+# Alembic migration in Slice 5 — NOT by container init — so the boot-guard
+# migration-version check stays authoritative. The db image only needs to
+# *support* them (pgvector/pgvector:pg16 = Postgres 16 + contrib + pgvector).
+#
+# Slice 2 status: the `db` tier is fully runnable now. `backend` serves /health
+# from Slice 3, `frontend` gains pages in Slice 4, and the `worker` loop arrives
+# in Slice 13 — until then those services build/start but are not yet useful.
+name: automatedstructure
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-automatedstructure}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app_user} -d ${POSTGRES_DB:-automatedstructure}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      # Container-internal DSN (host = service name `db`). Overrides any
+      # host-oriented DATABASE_URL loaded from .env.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-local_dev_password}@db:5432/${POSTGRES_DB:-automatedstructure}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    restart: "no"
+
+  worker:
+    build:
+      context: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-local_dev_password}@db:5432/${POSTGRES_DB:-automatedstructure}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    # Placeholder until the worker loop lands in Slice 13.
+    command: ["sh", "-c", "echo 'worker placeholder — implemented in Slice 13' && sleep infinity"]
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: "no"
+
+  n8n:
+    image: n8nio/n8n:1.70.0
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:-changeme}
+      N8N_PORT: "5678"
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  # --- Optional tiers (enable with --profile) ---
+  localstack:
+    image: localstack/localstack:3
+    profiles: ["aws"]
+    environment:
+      SERVICES: sqs
+    ports:
+      - "${LOCALSTACK_PORT:-4566}:4566"
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["cache"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+volumes:
+  db_data:
+  n8n_data:
