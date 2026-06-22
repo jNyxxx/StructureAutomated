@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, apiRequest } from "../api-client";
+import { ApiError, apiRequest, authenticatedApiRequest } from "../api-client";
 
 /** Build a fetch stub exposing only what the client uses (ok/status/text). */
-function mockFetch(status: number, body: unknown): typeof fetch {
+function mockFetch(
+  status: number,
+  body: unknown,
+  capture?: (input: RequestInfo | URL, init?: RequestInit) => void,
+): typeof fetch {
   const fake = {
     ok: status >= 200 && status < 300,
     status,
     text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
   };
-  return (async () => fake as unknown as Response) as unknown as typeof fetch;
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    capture?.(input, init);
+    return fake as unknown as Response;
+  }) as unknown as typeof fetch;
 }
 
 describe("apiRequest", () => {
@@ -61,5 +68,25 @@ describe("apiRequest", () => {
     expect(err.status).toBe(500);
     // Raw upstream body must not leak into the surfaced message.
     expect(err.message).toBe("Request failed.");
+  });
+
+  it("attaches Clerk bearer token and selected tenant header without exposing token", async () => {
+    let captured: RequestInit | undefined;
+    const data = await authenticatedApiRequest<{ ok: boolean }>(
+      "/auth/me",
+      { method: "GET" },
+      {
+        fetchImpl: mockFetch(200, { ok: true }, (_input, init) => {
+          captured = init;
+        }),
+        getToken: async () => "clerk-token-sentinel",
+        getTenantId: () => "11111111-1111-1111-1111-111111111111",
+      },
+    );
+
+    const headers = new Headers(captured?.headers);
+    expect(data.ok).toBe(true);
+    expect(headers.get("Authorization")).toBe("Bearer clerk-token-sentinel");
+    expect(headers.get("X-Tenant-ID")).toBe("11111111-1111-1111-1111-111111111111");
   });
 });

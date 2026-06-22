@@ -31,6 +31,11 @@ export interface ApiClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+export interface AuthenticatedApiClientOptions extends ApiClientOptions {
+  getToken: () => Promise<string | null>;
+  getTenantId: () => string | null;
+}
+
 const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 function toApiError(body: unknown, status: number): ApiError {
@@ -48,6 +53,15 @@ function toApiError(body: unknown, status: number): ApiError {
   return new ApiError("Request failed.", { code: "UNKNOWN", status, details: {}, requestId: null });
 }
 
+function mergeHeaders(...headers: Array<HeadersInit | undefined>): Headers {
+  const merged = new Headers();
+  for (const headerSet of headers) {
+    if (!headerSet) continue;
+    new Headers(headerSet).forEach((value, key) => merged.set(key, value));
+  }
+  return merged;
+}
+
 export async function apiRequest<T = unknown>(
   path: string,
   init: RequestInit = {},
@@ -58,7 +72,7 @@ export async function apiRequest<T = unknown>(
 
   const response = await doFetch(`${baseUrl}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+    headers: mergeHeaders({ "Content-Type": "application/json" }, init.headers),
   });
 
   const raw = await response.text();
@@ -77,9 +91,29 @@ export async function apiRequest<T = unknown>(
   return body as T;
 }
 
+export async function authenticatedApiRequest<T = unknown>(
+  path: string,
+  init: RequestInit = {},
+  options: AuthenticatedApiClientOptions,
+): Promise<T> {
+  const token = await options.getToken();
+  const tenantId = options.getTenantId();
+  const headers = mergeHeaders(init.headers);
+
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (tenantId) headers.set("X-Tenant-ID", tenantId);
+
+  return apiRequest<T>(path, { ...init, headers }, options);
+}
+
 export interface ApiClient {
   get<T = unknown>(path: string, options?: ApiClientOptions): Promise<T>;
   post<T = unknown>(path: string, body?: unknown, options?: ApiClientOptions): Promise<T>;
+}
+
+export interface AuthenticatedApiClient {
+  get<T = unknown>(path: string): Promise<T>;
+  post<T = unknown>(path: string, body?: unknown): Promise<T>;
 }
 
 export function createApiClient(base: ApiClientOptions = {}): ApiClient {
@@ -90,6 +124,20 @@ export function createApiClient(base: ApiClientOptions = {}): ApiClient {
         path,
         { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) },
         { ...base, ...options },
+      ),
+  };
+}
+
+export function createAuthenticatedApiClient(
+  options: AuthenticatedApiClientOptions,
+): AuthenticatedApiClient {
+  return {
+    get: (path) => authenticatedApiRequest(path, { method: "GET" }, options),
+    post: (path, body) =>
+      authenticatedApiRequest(
+        path,
+        { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) },
+        options,
       ),
   };
 }
