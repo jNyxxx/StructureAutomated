@@ -22,10 +22,15 @@ class Settings(BaseSettings):
     app_env: str = "local"
     service_name: str = "backend"
     log_level: str = "INFO"
+    database_url: str | None = None
 
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def is_db_configured(self) -> bool:
+        return self.database_url is not None
 
     @property
     def is_known_env(self) -> bool:

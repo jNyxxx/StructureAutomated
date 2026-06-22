@@ -10,8 +10,22 @@ permissions:
 
 jobs:
   backend:
-    name: Backend (lint, type, test)
+    name: Backend (lint, type, test, migration smoke)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: app_user
+          POSTGRES_PASSWORD: local_dev_password
+          POSTGRES_DB: automatedstructure
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app_user -d automatedstructure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
@@ -32,6 +46,16 @@ jobs:
         run: mypy app
       - name: Pytest
         run: pytest
+      # Step-level DATABASE_URL so the unit tests above run DB-less (and exercise
+      # the "not configured" readiness path), while this step verifies the
+      # extensions migration is applyable and reversible against real Postgres.
+      - name: Migration smoke (alembic up / down / up)
+        env:
+          DATABASE_URL: postgresql+asyncpg://app_user:local_dev_password@localhost:5432/automatedstructure
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
 
   frontend:
     name: Frontend (lint, type, test, build)

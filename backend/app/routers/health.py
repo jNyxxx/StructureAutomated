@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response, status
 
 from app.config import get_settings
+from app.database import check_readiness
 
 router = APIRouter(tags=["health"])
 
@@ -28,11 +29,15 @@ async def live() -> dict[str, Any]:
 
 
 @router.get("/ready")
-async def ready() -> dict[str, Any]:
-    settings = get_settings()
-    # Slice 5 replaces "not_configured" with a real DB + migration-head check.
+async def ready(response: Response) -> dict[str, Any]:
+    # Readiness checks DB connectivity + migration head when the DB is configured;
+    # when it is not configured the API is still considered ready. check_readiness
+    # never leaks the DSN, credentials, or raw driver errors.
+    result = await check_readiness()
+    if not result["ready"]:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return {
-        "status": "ok",
-        "environment": settings.app_env,
-        "checks": {"database": "not_configured"},
+        "status": "ok" if result["ready"] else "not_ready",
+        "environment": get_settings().app_env,
+        "checks": result["checks"],
     }
