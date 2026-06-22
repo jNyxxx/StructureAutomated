@@ -40,8 +40,12 @@ src = ["app", "tests"]
 select = ["E", "F", "I", "B", "UP", "S", "ASYNC"]
 # S101 (assert) is allowed in tests; configured per-file below.
 
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+# Tests use assert and intentionally contain fake/sentinel secrets.
+"tests/**" = ["S101", "S105", "S106", "S107"]
 
 [tool.black]
 target-version = ["py312"]

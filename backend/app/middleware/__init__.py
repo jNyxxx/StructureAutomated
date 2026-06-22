@@ -1,1 +1,1 @@
-"""HTTP middleware: request IDs, structured logging, error envelope, auth, rate limiting. (Scaffolding only in Slice 1.)"""
+"""HTTP middleware: request IDs, logging, error envelope, auth, and rate limiting."""

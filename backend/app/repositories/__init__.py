@@ -1,1 +1,1 @@
-"""Repositories: tenant-scoped SQL only, executed through the tenant DB helper. (Scaffolding only in Slice 1.)"""
+"""Repositories: tenant-scoped SQL only, executed via the tenant DB helper."""
