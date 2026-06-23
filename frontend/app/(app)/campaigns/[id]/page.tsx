@@ -1,28 +1,35 @@
 import Link from "next/link";
-import { AlertTriangle, Plus } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 
+import { CampaignDetail } from "@/components/campaigns/campaign-detail";
+import { getCampaignById } from "@/components/campaigns/campaign-sample-data";
 import { GateReasonBadge } from "@/components/badges";
-import { CampaignsTable } from "@/components/campaigns/campaigns-table";
 import { PageHeader } from "@/components/layout/page-header";
-import { LocalMockNotice } from "@/components/states";
+import { ErrorState, LocalMockNotice } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function CampaignsPage() {
+export default function CampaignDetailPage({ params }: { params: { id: string } }) {
+  const campaign = getCampaignById(params.id);
+
+  if (!campaign) {
+    return <ErrorState title="Campaign demo row not found" description="Only local/demo campaign IDs are available in this frontend slice." />;
+  }
+
   return (
     <section className="space-y-6">
       <PageHeader
-        eyebrow="Campaign command center"
-        title="Campaigns"
-        description="Demo-safe campaign workspace using local rows only. Campaign creation, research, drafts, review, send, follow-up, and export APIs are not mounted yet."
+        eyebrow="Campaign detail"
+        title={campaign.name}
+        description="Read-only local/demo campaign detail. No mutation, provider, sending, schedule, export, or campaign APIs are called."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
             <Badge variant="locked">Production not approved</Badge>
             <Button asChild variant="secondary">
-              <Link href="/campaigns/new">
-                <Plus className="size-4" /> New campaign shell
+              <Link href="/campaigns">
+                <ArrowLeft className="size-4" /> Back to campaigns
               </Link>
             </Button>
           </>
@@ -38,23 +45,22 @@ export default function CampaignsPage() {
               <AlertTriangle className="size-5" />
             </div>
             <div>
-              <CardTitle>Pending backend API notice</CardTitle>
+              <CardTitle>Actions locked until backend APIs exist</CardTitle>
               <CardDescription>
-                This page does not call unavailable campaign APIs. All rows are local/demo and every mutating action stays locked.
+                Create campaign, add/remove contacts, start research, generate drafts, approve drafts, mock send, schedule follow-up, and export are disabled.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Campaign API pending" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No provider calls" />
-          <GateReasonBadge state="blocked" label="No production" />
+          <GateReasonBadge state="pending" label="Campaign API pending" />
         </CardContent>
       </Card>
 
-      <CampaignsTable />
+      <CampaignDetail campaign={campaign} />
     </section>
   );
 }

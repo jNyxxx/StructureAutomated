@@ -8,6 +8,9 @@ import { TenantProvider, TenantStatusCard } from "@/lib/tenant-context";
 
 import AuditLogsPage from "../(app)/audit-logs/page";
 import BillingPage from "../(app)/billing/page";
+import CampaignsPage from "../(app)/campaigns/page";
+import CampaignDetailPage from "../(app)/campaigns/[id]/page";
+import NewCampaignPage from "../(app)/campaigns/new/page";
 import DashboardPage from "../(app)/dashboard/page";
 import ProspectsPage from "../(app)/prospects/page";
 import ProspectImportPage from "../(app)/prospects/import/page";
@@ -102,6 +105,25 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /import prospects/i })).toBeTruthy();
     expect(screen.getAllByText(/Upload CSV/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("table", { name: /csv import preview rows/i })).toBeTruthy();
+  });
+
+  it("renders the campaigns DataTable demo safely", () => {
+    render(<CampaignsPage />);
+    expect(screen.getByRole("heading", { name: /^campaigns$/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /campaigns demo table/i })).toBeTruthy();
+    expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
+  });
+
+  it("renders a campaign detail shell", () => {
+    render(<CampaignDetailPage params={{ id: "cre-multifamily-demo" }} />);
+    expect(screen.getByRole("heading", { name: /CRE Multifamily Owner Outreach/i })).toBeTruthy();
+    expect(screen.getByText(/Pipeline stage progress/i)).toBeTruthy();
+  });
+
+  it("renders the locked campaign builder shell", () => {
+    render(<NewCampaignPage />);
+    expect(screen.getByRole("heading", { name: /new campaign/i })).toBeTruthy();
+    expect(screen.getByText(/Campaign builder shell/i)).toBeTruthy();
   });
 });
 

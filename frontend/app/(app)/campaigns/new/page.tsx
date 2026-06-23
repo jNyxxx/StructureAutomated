@@ -1,28 +1,28 @@
 import Link from "next/link";
-import { AlertTriangle, Plus } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 
 import { GateReasonBadge } from "@/components/badges";
-import { CampaignsTable } from "@/components/campaigns/campaigns-table";
+import { CampaignBuilderShell } from "@/components/campaigns/campaign-builder-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { LocalMockNotice } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function CampaignsPage() {
+export default function NewCampaignPage() {
   return (
     <section className="space-y-6">
       <PageHeader
-        eyebrow="Campaign command center"
-        title="Campaigns"
-        description="Demo-safe campaign workspace using local rows only. Campaign creation, research, drafts, review, send, follow-up, and export APIs are not mounted yet."
+        eyebrow="Campaign builder"
+        title="New campaign"
+        description="Visual-only builder shell. Creation and all mutation actions remain pending backend API."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
-            <Badge variant="locked">Production not approved</Badge>
+            <Badge variant="locked">Create API pending</Badge>
             <Button asChild variant="secondary">
-              <Link href="/campaigns/new">
-                <Plus className="size-4" /> New campaign shell
+              <Link href="/campaigns">
+                <ArrowLeft className="size-4" /> Back to campaigns
               </Link>
             </Button>
           </>
@@ -38,23 +38,22 @@ export default function CampaignsPage() {
               <AlertTriangle className="size-5" />
             </div>
             <div>
-              <CardTitle>Pending backend API notice</CardTitle>
+              <CardTitle>Builder is locked</CardTitle>
               <CardDescription>
-                This page does not call unavailable campaign APIs. All rows are local/demo and every mutating action stays locked.
+                No campaign is persisted. Research, RAG, draft generation, review, mock send, follow-up, and export remain unavailable until backend routes exist.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Campaign API pending" />
+          <GateReasonBadge state="blocked" label="No backend create" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No provider calls" />
-          <GateReasonBadge state="blocked" label="No production" />
         </CardContent>
       </Card>
 
-      <CampaignsTable />
+      <CampaignBuilderShell />
     </section>
   );
 }
