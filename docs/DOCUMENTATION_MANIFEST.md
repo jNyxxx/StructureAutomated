@@ -43,6 +43,17 @@
 
 ---
 
+## Phase 1 evidence files
+
+Produced by P1-13 (E2E smoke + evidence update). Not counted among the 20 implementation docs.
+
+| File | Purpose |
+|------|---------|
+| `docs/evidence/phase-1-final-verification.md` | Slice completion table, E2E smoke test results, quality gate outputs, migration state, deferred items |
+| `docs/evidence/phase-1-readiness-checklist.md` | Structured checklist covering all CLAUDE.md rules, gates, multi-tenancy, mock mode, idempotency, and Phase 1 deferred items |
+
+---
+
 ## Folded / avoided (no standalone doc)
 
 | Master § | Folded into | Why |

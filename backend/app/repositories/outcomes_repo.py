@@ -283,7 +283,6 @@ class OutcomesRepository(BaseRepository):
             _cnt("unsubscribed").label("unsubscribed"),
             _cnt("bounced").label("bounced"),
             _cnt("complaint").label("complaint"),
-
         ).where(OutcomeEvent.tenant_id == tenant_id)
 
         if campaign_id is not None:
@@ -323,12 +322,12 @@ class OutcomesRepository(BaseRepository):
         stmt = (
             select(
                 bucket,
-                func.count().filter(OutcomeEvent.event_type == "reply_received").label(
-                    "reply_received"
-                ),
-                func.count().filter(OutcomeEvent.event_type == "meeting_booked").label(
-                    "meeting_booked"
-                ),
+                func.count()
+                .filter(OutcomeEvent.event_type == "reply_received")
+                .label("reply_received"),
+                func.count()
+                .filter(OutcomeEvent.event_type == "meeting_booked")
+                .label("meeting_booked"),
                 func.count().filter(OutcomeEvent.event_type == "deal_won").label("deal_won"),
             )
             .where(

@@ -16,9 +16,9 @@ from app.repositories.followup_repo import (
 from app.repositories.knowledge_repo import KnowledgeRepository
 from app.repositories.outcomes_repo import (
     OutcomeEventRecord,
+    OutcomesRepository,
     OutcomeTrendPoint,
     OutcomeTypeCounts,
-    OutcomesRepository,
     ROIAssumptionsRecord,
 )
 from app.repositories.research_repo import ResearchRepository
