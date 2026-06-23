@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import insert, select, update
 
 from app.models.research import ResearchArtifact, ResearchRun
 from app.repositories.base import BaseRepository
-from app.services.research import ResearchArtifactRecord, ResearchRunRecord
+
+if TYPE_CHECKING:
+    from app.services.research import ResearchArtifactRecord, ResearchRunRecord
 
 
 def _research_run(row: ResearchRun) -> ResearchRunRecord:
+    from app.services.research import ResearchRunRecord
+
     return ResearchRunRecord(
         id=row.id,
         tenant_id=row.tenant_id,
@@ -28,6 +32,8 @@ def _research_run(row: ResearchRun) -> ResearchRunRecord:
 
 
 def _research_artifact(row: ResearchArtifact) -> ResearchArtifactRecord:
+    from app.services.research import ResearchArtifactRecord
+
     return ResearchArtifactRecord(
         id=row.id,
         tenant_id=row.tenant_id,

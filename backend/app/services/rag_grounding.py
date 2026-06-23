@@ -54,9 +54,10 @@ class ResearchArtifactRecord:
 
 @dataclass(frozen=True)
 class GroundingChunk:
-    source_type: str  # "document" | "research_artifact"
+    source_type: str  # "knowledge_chunk" | "research_artifact"
     source_id: uuid.UUID
     content: str
+    tenant_id: uuid.UUID
     score: float = 1.0
 
 
@@ -351,6 +352,7 @@ class RAGGroundingService:
                     source_type="research_artifact",
                     source_id=artifact.id,
                     content=formatted_findings,
+                    tenant_id=artifact.tenant_id,
                     score=1.0,
                 )
             )
@@ -367,9 +369,10 @@ class RAGGroundingService:
             for c in matched_chunks:
                 chunks.append(
                     GroundingChunk(
-                        source_type="document",
-                        source_id=c.document_id,
+                        source_type="knowledge_chunk",
+                        source_id=c.id,
                         content=c.content,
+                        tenant_id=c.tenant_id,
                         score=1.0,
                     )
                 )
@@ -378,9 +381,10 @@ class RAGGroundingService:
             for c in active_chunks[:3]:
                 chunks.append(
                     GroundingChunk(
-                        source_type="document",
-                        source_id=c.document_id,
+                        source_type="knowledge_chunk",
+                        source_id=c.id,
                         content=c.content,
+                        tenant_id=c.tenant_id,
                         score=1.0,
                     )
                 )

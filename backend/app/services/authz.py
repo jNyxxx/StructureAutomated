@@ -27,6 +27,7 @@ CAN_MANAGE_INTEGRATIONS = "integrations:manage"
 CAN_GRANT_SUPPORT_ACCESS = "support_access:grant"
 CAN_USE_SUPPORT_ACCESS = "support_access:use"
 CAN_MANAGE_KNOWLEDGE = "knowledge:manage"
+CAN_CREATE_DRAFT = "draft:create"
 
 ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
     "owner": frozenset(
@@ -44,6 +45,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             CAN_MANAGE_INTEGRATIONS,
             CAN_GRANT_SUPPORT_ACCESS,
             CAN_MANAGE_KNOWLEDGE,
+            CAN_CREATE_DRAFT,
         }
     ),
     "admin": frozenset(
@@ -59,6 +61,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             CAN_READ_AUDIT,
             CAN_MANAGE_INTEGRATIONS,
             CAN_MANAGE_KNOWLEDGE,
+            CAN_CREATE_DRAFT,
         }
     ),
     "marketer": frozenset(
@@ -70,6 +73,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             CAN_REVIEW_DRAFT,
             CAN_SCHEDULE_SEND,
             CAN_MANAGE_KNOWLEDGE,
+            CAN_CREATE_DRAFT,
         }
     ),
     "reviewer": frozenset({CAN_REVIEW_DRAFT, CAN_APPROVE_DRAFT}),

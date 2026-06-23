@@ -423,7 +423,7 @@ async def test_retrieve_grounding_context_success() -> None:
     # Artifact chunk included
     assert any(c.source_type == "research_artifact" for c in res.chunks)
     # Document chunks included
-    assert any(c.source_type == "document" for c in res.chunks)
+    assert any(c.source_type == "knowledge_chunk" for c in res.chunks)
 
 
 @pytest.mark.asyncio

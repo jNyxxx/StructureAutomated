@@ -17,6 +17,7 @@ from app.models.contact import (
     ContactImport,
     ContactImportRow,
 )
+from app.models.draft import Draft, DraftEvidence
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.models.membership import ROLES, TenantMembership
 from app.models.research import ResearchArtifact, ResearchRun
@@ -38,6 +39,8 @@ __all__ = [
     "Contact",
     "ContactImport",
     "ContactImportRow",
+    "Draft",
+    "DraftEvidence",
     "IMPORT_ROW_STATUSES",
     "IMPORT_STATUSES",
     "KnowledgeChunk",
