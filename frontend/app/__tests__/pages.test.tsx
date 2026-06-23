@@ -81,10 +81,11 @@ describe("route shells render", () => {
     expect(screen.getAllByText(/read only/i).length).toBeGreaterThan(0);
   });
 
-  it("renders the audit log empty state", () => {
+  it("renders the audit log DataTable demo safely", () => {
     render(<AuditLogsPage />);
     expect(screen.getByRole("heading", { name: /audit logs/i })).toBeTruthy();
-    expect(screen.getByText(/no audit events yet/i)).toBeTruthy();
+    expect(screen.getByRole("table", { name: /audit log demo table/i })).toBeTruthy();
+    expect(screen.getByText(/send_gate.blocked/i)).toBeTruthy();
   });
 });
 
