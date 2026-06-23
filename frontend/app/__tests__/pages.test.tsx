@@ -14,6 +14,8 @@ import CampaignDetailPage from "../(app)/campaigns/[id]/page";
 import CampaignDraftsPage from "../(app)/campaigns/[id]/drafts/page";
 import NewCampaignPage from "../(app)/campaigns/new/page";
 import DashboardPage from "../(app)/dashboard/page";
+import DeliverabilityPage from "../(app)/deliverability/page";
+import OutcomesPage from "../(app)/outcomes/page";
 import ProspectsPage from "../(app)/prospects/page";
 import ProspectImportPage from "../(app)/prospects/import/page";
 import ReviewQueuePage from "../(app)/review-queue/page";
@@ -147,6 +149,20 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /review queue/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /review queue demo table/i })).toBeTruthy();
     expect(screen.getByText(/Human approval never bypasses/i)).toBeTruthy();
+  });
+
+  it("renders the deliverability dashboard shell", () => {
+    render(<DeliverabilityPage />);
+    expect(screen.getByRole("heading", { name: /deliverability/i })).toBeTruthy();
+    expect(screen.getAllByText(/Mailbox health/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/No real DNS checks/i)).toBeTruthy();
+  });
+
+  it("renders the outcomes ROI dashboard shell", () => {
+    render(<OutcomesPage />);
+    expect(screen.getByRole("heading", { name: /outcomes and ROI/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /campaign outcomes demo table/i })).toBeTruthy();
+    expect(screen.getByText(/No real Stripe\/payment data/i)).toBeTruthy();
   });
 });
 
