@@ -13,6 +13,7 @@ from app.services.research import (
     ResearchRunRecord,
     ResearchService,
 )
+from app.services.review import ReviewService
 
 __all__ = [
     "GroundingChunk",
@@ -24,4 +25,5 @@ __all__ = [
     "ResearchRunCreateResult",
     "ResearchRunRecord",
     "ResearchService",
+    "ReviewService",
 ]

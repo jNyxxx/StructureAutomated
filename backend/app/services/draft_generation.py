@@ -120,6 +120,19 @@ class DraftStore(Protocol):
         """Link evidence to a draft."""
 
 
+class ReviewStore(Protocol):
+    async def create_review_item(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        draft_id: uuid.UUID,
+        campaign_id: uuid.UUID,
+        contact_id: uuid.UUID,
+        status: str = "pending_review",
+    ) -> Any:
+        """Create review item in the human review queue."""
+
+
 AuditRecorder = Any
 
 
@@ -146,6 +159,7 @@ class DraftGenerationService:
         safety_service: SafetyService | None = None,
         groundedness_service: GroundednessService | None = None,
         compliance: ComplianceGate | None = None,
+        review_store: ReviewStore | None = None,
         idempotency: IdempotencyGate | None = None,
         audit_record: AuditRecorder | None = None,
     ) -> None:
@@ -160,6 +174,7 @@ class DraftGenerationService:
         self._safety_service = safety_service
         self._groundedness_service = groundedness_service
         self._compliance = compliance
+        self._review_store = review_store
         self._idempotency = idempotency
         self._audit_record = audit_record
 
@@ -488,6 +503,16 @@ class DraftGenerationService:
             object_id=draft.id,
             details={"campaign_id": str(campaign_id), "contact_id": str(contact_id)},
         )
+
+        # 11.5 Queue successfully "generated" drafts in human review queue
+        if self._review_store is not None and draft.status == "generated":
+            await self._review_store.create_review_item(
+                tenant_id=principal.tenant_id,
+                draft_id=draft.id,
+                campaign_id=campaign_id,
+                contact_id=contact_id,
+                status="pending_review",
+            )
 
         # 12. Idempotency Complete
         if self._idempotency is not None and idempotency_key is not None:

@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 
 from app.models.draft import Draft, DraftEvidence
 from app.repositories.base import BaseRepository
@@ -179,3 +179,20 @@ class DraftRepository(BaseRepository):
             .all()
         )
         return [_evidence(r) for r in rows]
+
+    async def update_draft_status(
+        self, *, tenant_id: uuid.UUID, draft_id: uuid.UUID, status: str
+    ) -> DraftRecord | None:
+        row = (
+            (
+                await self.conn.execute(
+                    update(Draft)
+                    .where(Draft.tenant_id == tenant_id, Draft.id == draft_id)
+                    .values(status=status)
+                    .returning(Draft)
+                )
+            )
+            .scalars()
+            .first()
+        )
+        return _draft(row) if row is not None else None

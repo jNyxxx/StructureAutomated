@@ -151,9 +151,7 @@ class _FakeKnowledgeStore:
             return c
         return None
 
-    async def get_artifact(
-        self, *, tenant_id: uuid.UUID, artifact_id: uuid.UUID
-    ) -> Any | None:
+    async def get_artifact(self, *, tenant_id: uuid.UUID, artifact_id: uuid.UUID) -> Any | None:
         return None
 
     async def create_document(

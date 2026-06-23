@@ -3,6 +3,7 @@
 from app.repositories.draft_repo import DraftRepository
 from app.repositories.knowledge_repo import KnowledgeRepository
 from app.repositories.research_repo import ResearchRepository
+from app.repositories.review_repo import ReviewRecord, ReviewRepository
 from app.repositories.safety_repo import SafetyRepository
 
 __all__ = [
@@ -10,4 +11,6 @@ __all__ = [
     "KnowledgeRepository",
     "ResearchRepository",
     "SafetyRepository",
+    "ReviewRepository",
+    "ReviewRecord",
 ]
