@@ -23,6 +23,7 @@ from app.models.membership import ROLES, TenantMembership
 from app.models.research import ResearchArtifact, ResearchRun
 from app.models.review import ReviewItem
 from app.models.safety import SafetyGateResult
+from app.models.sending import OutboundMessage, SendGateResult
 from app.models.support_access import SupportAccessGrantModel
 from app.models.tenant import Tenant
 from app.models.user import User
@@ -47,11 +48,13 @@ __all__ = [
     "IMPORT_STATUSES",
     "KnowledgeChunk",
     "KnowledgeDocument",
+    "OutboundMessage",
     "Plan",
     "ResearchArtifact",
     "ResearchRun",
     "ReviewItem",
     "SafetyGateResult",
+    "SendGateResult",
     "Suppression",
     "SupportAccessGrantModel",
     "Tenant",
