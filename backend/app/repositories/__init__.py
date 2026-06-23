@@ -14,6 +14,13 @@ from app.repositories.followup_repo import (
     FollowUpScheduleRecord,
 )
 from app.repositories.knowledge_repo import KnowledgeRepository
+from app.repositories.outcomes_repo import (
+    OutcomeEventRecord,
+    OutcomeTrendPoint,
+    OutcomeTypeCounts,
+    OutcomesRepository,
+    ROIAssumptionsRecord,
+)
 from app.repositories.research_repo import ResearchRepository
 from app.repositories.review_repo import ReviewRecord, ReviewRepository
 from app.repositories.safety_repo import SafetyRepository
@@ -31,6 +38,11 @@ __all__ = [
     "OutboundCounts",
     "DraftRepository",
     "KnowledgeRepository",
+    "OutcomeEventRecord",
+    "OutcomeTrendPoint",
+    "OutcomeTypeCounts",
+    "OutcomesRepository",
+    "ROIAssumptionsRecord",
     "ResearchRepository",
     "SafetyRepository",
     "ReviewRepository",

@@ -9,6 +9,13 @@ from app.services.deliverability import (
 )
 from app.services.followup_scheduler import FollowUpSchedulerService
 from app.services.mock_sender import MockSenderService
+from app.services.outcomes import (
+    CampaignOutcomesSummary,
+    FunnelSummary,
+    OutcomesService,
+    OutcomesSummary,
+    ROISummary,
+)
 from app.services.rag_grounding import (
     GroundingChunk,
     GroundingContextResult,
@@ -44,4 +51,9 @@ __all__ = [
     "SendGateService",
     "MockSenderService",
     "FollowUpSchedulerService",
+    "CampaignOutcomesSummary",
+    "FunnelSummary",
+    "OutcomesService",
+    "OutcomesSummary",
+    "ROISummary",
 ]

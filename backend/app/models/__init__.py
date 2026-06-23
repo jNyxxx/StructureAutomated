@@ -21,6 +21,7 @@ from app.models.draft import Draft, DraftEvidence
 from app.models.followup import FollowUpRule, FollowUpSchedule
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.models.membership import ROLES, TenantMembership
+from app.models.outcomes import CampaignROIAssumptions, OutcomeEvent
 from app.models.research import ResearchArtifact, ResearchRun
 from app.models.review import ReviewItem
 from app.models.safety import SafetyGateResult
@@ -56,6 +57,8 @@ __all__ = [
     "ResearchArtifact",
     "ResearchRun",
     "ReviewItem",
+    "OutcomeEvent",
+    "CampaignROIAssumptions",
     "SafetyGateResult",
     "SendGateResult",
     "Suppression",
