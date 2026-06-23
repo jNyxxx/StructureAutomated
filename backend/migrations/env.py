@@ -25,11 +25,25 @@ if config.config_file_name is not None:
 target_metadata = None
 
 
+# Offline `--sql` rendering never opens a connection, so a real DATABASE_URL is
+# not required. Fall back to a non-connecting placeholder DSN (same Postgres
+# dialect, so DDL renders identically) when none is configured — this is what
+# lets CI render the migration chain to SQL without a database. ONLINE migrations
+# stay strict and still require a real DSN.
+_OFFLINE_FALLBACK_URL = "postgresql+asyncpg://offline:offline@offline/automatedstructure"
+
+
 def _database_url() -> str:
+    """Strict DSN for ONLINE migrations — a real connection is required."""
     url = get_settings().database_url
     if not url:
         raise RuntimeError("DATABASE_URL is not configured; cannot run migrations.")
     return url
+
+
+def _offline_url() -> str:
+    """DSN for OFFLINE ``--sql`` rendering; falls back to a placeholder when unset."""
+    return get_settings().database_url or _OFFLINE_FALLBACK_URL
 
 
 def _run_migrations(connection: Connection) -> None:
@@ -47,7 +61,7 @@ async def _run_async_migrations() -> None:
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=_database_url(),
+        url=_offline_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},

@@ -7,6 +7,8 @@ smoke is deferred to CI).
 """
 
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -71,7 +73,50 @@ class _FakeQueueRepo:
         return next(iter(self.rows.values()))
 
 
-async def _ok_handler(job: JobRecord) -> None:
+@asynccontextmanager
+async def _noop_ctx(*_args: object) -> AsyncIterator[None]:
+    """Do-nothing claim/tenant context for tests that don't inspect scoping."""
+    yield None
+
+
+def _make_service(repo: _FakeQueueRepo) -> QueueService:
+    """QueueService wired with no-op contexts so process_next needs no live DB."""
+    return QueueService(repo, claim_context=_noop_ctx, tenant_context=_noop_ctx)
+
+
+class _CtxLog:
+    """Records context enter/exit so tests can assert claim vs tenant scoping."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[str, str, uuid.UUID | None]] = []
+
+
+class _RecordingCtx:
+    def __init__(self, log: _CtxLog, kind: str, tenant_id: uuid.UUID | None = None) -> None:
+        self._log = log
+        self._kind = kind
+        self._tid = tenant_id
+
+    async def __aenter__(self) -> str:
+        self._log.events.append(("enter", self._kind, self._tid))
+        return f"conn:{self._kind}:{self._tid}"
+
+    async def __aexit__(self, *exc: object) -> bool:
+        self._log.events.append(("exit", self._kind, self._tid))
+        return False
+
+
+def _recording_contexts(log: _CtxLog) -> tuple[Any, Any]:
+    def claim() -> _RecordingCtx:
+        return _RecordingCtx(log, "worker")
+
+    def tenant(tenant_id: uuid.UUID) -> _RecordingCtx:
+        return _RecordingCtx(log, "tenant", tenant_id)
+
+    return claim, tenant
+
+
+async def _ok_handler(job: JobRecord, conn: object) -> None:
     return None
 
 
@@ -100,12 +145,12 @@ async def test_enqueue_dedupes_within_tenant_and_isolates_across_tenants() -> No
 
 async def test_claim_and_succeed() -> None:
     repo = _FakeQueueRepo()
-    svc = QueueService(repo)
+    svc = _make_service(repo)
     await svc.enqueue(tenant_id=_T_A, job_type="noop", payload={}, now=_NOW)
 
     seen: list[uuid.UUID] = []
 
-    async def handler(job: JobRecord) -> None:
+    async def handler(job: JobRecord, conn: object) -> None:
         seen.append(job.id)
 
     outcome = await svc.process_next(now=_NOW, handler=handler)
@@ -119,7 +164,7 @@ async def test_claim_and_succeed() -> None:
 
 
 async def test_idle_when_nothing_claimable() -> None:
-    svc = QueueService(_FakeQueueRepo())
+    svc = _make_service(_FakeQueueRepo())
     outcome = await svc.process_next(now=_NOW, handler=_ok_handler)
     assert outcome.kind == "idle"
     assert outcome.claimed is False
@@ -127,10 +172,10 @@ async def test_idle_when_nothing_claimable() -> None:
 
 async def test_failure_retries_with_backoff_then_dead_letters_with_safe_error() -> None:
     repo = _FakeQueueRepo()
-    svc = QueueService(repo)
+    svc = _make_service(repo)
     await svc.enqueue(tenant_id=_T_A, job_type="noop", payload={}, now=_NOW, max_attempts=2)
 
-    async def boom(job: JobRecord) -> None:
+    async def boom(job: JobRecord, conn: object) -> None:
         raise RuntimeError("boom SENTINELSECRET token=abc123")
 
     first = await svc.process_next(now=_NOW, handler=boom)
@@ -173,7 +218,7 @@ async def test_lease_blocks_concurrent_claim_until_expiry() -> None:
 
 async def test_throttle_defers_job_without_consuming_an_attempt() -> None:
     repo = _FakeQueueRepo()
-    svc = QueueService(repo)
+    svc = _make_service(repo)
     await svc.enqueue(tenant_id=_T_A, job_type="send", payload={}, now=_NOW)
 
     rl = RateLimitService(InMemoryRateLimitBackend())
@@ -181,7 +226,7 @@ async def test_throttle_defers_job_without_consuming_an_attempt() -> None:
     # Exhaust the per-(tenant, job_type) allowance.
     await throttle.allow(tenant_id=_T_A, job_type="send", now=_NOW)
 
-    async def must_not_run(job: JobRecord) -> None:
+    async def must_not_run(job: JobRecord, conn: object) -> None:
         raise AssertionError("handler ran while throttled")
 
     outcome = await svc.process_next(now=_NOW, handler=must_not_run, throttle=throttle)
@@ -204,12 +249,12 @@ def test_backoff_is_monotonic_and_capped() -> None:
 
 async def test_worker_loop_runs_once_and_is_stoppable() -> None:
     repo = _FakeQueueRepo()
-    svc = QueueService(repo)
+    svc = _make_service(repo)
     await svc.enqueue(tenant_id=_T_A, job_type="noop", payload={}, now=_NOW)
 
     processed: list[uuid.UUID] = []
 
-    async def handler(job: JobRecord) -> None:
+    async def handler(job: JobRecord, conn: object) -> None:
         processed.append(job.id)
 
     loop = WorkerLoop(svc, handler)
@@ -220,6 +265,120 @@ async def test_worker_loop_runs_once_and_is_stoppable() -> None:
     # Stoppable: stop() before run() makes the loop exit immediately (no hang/sleep).
     loop.stop()
     await loop.run(now_fn=lambda: _NOW)
+
+
+async def test_handler_runs_inside_tenant_context_with_its_connection() -> None:
+    repo = _FakeQueueRepo()
+    log = _CtxLog()
+    claim, tenant = _recording_contexts(log)
+    svc = QueueService(repo, claim_context=claim, tenant_context=tenant)
+    await svc.enqueue(tenant_id=_T_A, job_type="noop", payload={}, now=_NOW)
+
+    seen: list[tuple[uuid.UUID, object, list[tuple[str, str, uuid.UUID | None]]]] = []
+
+    async def handler(job: JobRecord, conn: object) -> None:
+        seen.append((job.tenant_id, conn, list(log.events)))
+
+    outcome = await svc.process_next(now=_NOW, handler=handler)
+
+    assert outcome.kind == "succeeded"
+    assert len(seen) == 1
+    tid, conn, events_when_called = seen[0]
+    assert tid == _T_A
+    # Handler received the tenant-scoped connection for its own tenant.
+    assert conn == f"conn:tenant:{_T_A}"
+    # The tenant context was open (entered, not yet exited) while the handler ran.
+    assert ("enter", "tenant", _T_A) in events_when_called
+    assert ("exit", "tenant", _T_A) not in events_when_called
+
+
+async def test_missing_tenant_context_fails_closed_without_running_handler() -> None:
+    repo = _FakeQueueRepo()
+    log = _CtxLog()
+    claim, tenant = _recording_contexts(log)
+    svc = QueueService(repo, claim_context=claim, tenant_context=tenant)
+    # Defensive: tenant_id is NOT NULL at the DB, but a job that somehow lacks
+    # tenant context must never run — fail closed (dead-letter, no handler).
+    await repo.insert(
+        JobRecord(
+            id=uuid.uuid4(),
+            tenant_id=None,  # type: ignore[arg-type]
+            job_type="noop",
+            payload={},
+            status=JobStatus.QUEUED,
+            attempts=0,
+            max_attempts=3,
+            run_after=_NOW,
+            locked_until=None,
+            idempotency_key="k",
+            last_error=None,
+        )
+    )
+
+    ran = False
+
+    async def handler(job: JobRecord, conn: object) -> None:
+        nonlocal ran
+        ran = True
+
+    outcome = await svc.process_next(now=_NOW, handler=handler)
+
+    assert outcome.kind == "no_tenant_context"
+    assert ran is False
+    # No tenant context was ever entered (fail closed before the handler).
+    assert all(kind != "tenant" for _, kind, _ in log.events)
+    dead = repo.only()
+    assert dead.status == JobStatus.DEAD_LETTER
+    assert dead.last_error is not None
+    assert "token" not in dead.last_error  # safe, non-secret label only
+
+
+async def test_claim_uses_worker_context_and_handler_never_runs_under_it() -> None:
+    repo = _FakeQueueRepo()
+    log = _CtxLog()
+    claim, tenant = _recording_contexts(log)
+    svc = QueueService(repo, claim_context=claim, tenant_context=tenant)
+    await svc.enqueue(tenant_id=_T_A, job_type="noop", payload={}, now=_NOW)
+
+    events_during_handler: list[list[tuple[str, str, uuid.UUID | None]]] = []
+
+    async def handler(job: JobRecord, conn: object) -> None:
+        events_during_handler.append(list(log.events))
+
+    await svc.process_next(now=_NOW, handler=handler)
+
+    # The claim ran under the sanctioned worker context.
+    assert ("enter", "worker", None) in log.events
+    # No worker context was held open while the handler ran (only tenant context).
+    snapshot = events_during_handler[0]
+    opened = snapshot.count(("enter", "worker", None))
+    closed = snapshot.count(("exit", "worker", None))
+    assert opened - closed == 0
+    assert ("enter", "tenant", _T_A) in snapshot
+
+
+async def test_each_job_runs_under_its_own_tenant_context_no_cross_tenant() -> None:
+    repo = _FakeQueueRepo()
+    log = _CtxLog()
+    claim, tenant = _recording_contexts(log)
+    svc = QueueService(repo, claim_context=claim, tenant_context=tenant)
+    await svc.enqueue(tenant_id=_T_A, job_type="noop", payload={}, now=_NOW)
+    await svc.enqueue(tenant_id=_T_B, job_type="noop", payload={}, now=_NOW)
+
+    ran_under: list[tuple[uuid.UUID, object]] = []
+
+    async def handler(job: JobRecord, conn: object) -> None:
+        ran_under.append((job.tenant_id, conn))
+
+    await svc.process_next(now=_NOW, handler=handler)
+    await svc.process_next(now=_NOW, handler=handler)
+
+    # Each handler ran under exactly its own tenant's context/connection.
+    assert len(ran_under) == 2
+    for tid, conn in ran_under:
+        assert conn == f"conn:tenant:{tid}"
+    tenant_ctx_used = {t for ev, kind, t in log.events if ev == "enter" and kind == "tenant"}
+    assert tenant_ctx_used == {_T_A, _T_B}
 
 
 def test_model_has_required_columns_and_tenant_not_null() -> None:

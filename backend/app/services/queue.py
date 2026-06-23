@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Protocol
 
+from sqlalchemy.ext.asyncio import AsyncConnection
+
+from app.database import tenant_session, worker_session
 from app.models.job import JobStatus
 from app.services.idempotency import hash_payload
 
@@ -23,6 +27,8 @@ DEFAULT_MAX_ATTEMPTS = 3
 _DEFAULT_LEASE = timedelta(minutes=5)
 _BASE_BACKOFF_SECONDS = 10.0
 _MAX_BACKOFF_SECONDS = 3600.0
+# Safe, non-secret label stored when a job cannot run for lack of tenant context.
+_NO_TENANT_CONTEXT = "MissingTenantContext"
 
 
 @dataclass(frozen=True)
@@ -46,7 +52,20 @@ class ProcessOutcome:
     claimed: bool
 
 
-Handler = Callable[[JobRecord], Awaitable[None]]
+Handler = Callable[[JobRecord, AsyncConnection], Awaitable[None]]
+
+# Context factories let the service open the sanctioned DB context around each
+# phase: the cross-tenant claim runs under the worker context; each job's handler
+# runs under its own tenant context. Defaults are the real session helpers; tests
+# inject fakes. The yielded connection is opaque to the service (it only forwards
+# it to the handler), so it is typed Any here.
+ClaimContextFactory = Callable[[], AbstractAsyncContextManager[Any]]
+TenantContextFactory = Callable[[uuid.UUID], AbstractAsyncContextManager[Any]]
+
+
+def _default_tenant_context(tenant_id: uuid.UUID) -> AbstractAsyncContextManager[Any]:
+    """Per-job tenant context — the same helper HTTP requests use."""
+    return tenant_session(tenant_id=tenant_id)
 
 
 class QueueRepository(Protocol):
@@ -82,9 +101,19 @@ def _safe_error(exc: BaseException) -> str:
 
 
 class QueueService:
-    def __init__(self, repo: QueueRepository, *, lease: timedelta = _DEFAULT_LEASE) -> None:
+    def __init__(
+        self,
+        repo: QueueRepository,
+        *,
+        lease: timedelta = _DEFAULT_LEASE,
+        claim_context: ClaimContextFactory = worker_session,
+        tenant_context: TenantContextFactory = _default_tenant_context,
+    ) -> None:
         self._repo = repo
         self._lease = lease
+        # Sanctioned cross-tenant claim context; per-job tenant context.
+        self._claim_context = claim_context
+        self._tenant_context = tenant_context
 
     @staticmethod
     def backoff_delay(attempts: int) -> timedelta:
@@ -129,49 +158,75 @@ class QueueService:
         handler: Handler,
         throttle: ThrottleLike | None = None,
     ) -> ProcessOutcome:
-        """Claim one due job (concurrency-safe lease), then run and mark it."""
-        job = await self._repo.claim_next(now=now, lease=self._lease)
-        if job is None:
-            return ProcessOutcome("idle", claimed=False)
+        """Claim one due job, then run it under the job's tenant context.
 
-        if throttle is not None:
-            result = await throttle.allow(tenant_id=job.tenant_id, job_type=job.job_type, now=now)
-            if not result.allowed:
-                # Release without burning an attempt — this is back-pressure, not a failure.
+        The claim is cross-tenant and runs under the sanctioned worker context;
+        per-job processing runs under ``tenant_session(job.tenant_id)`` — the same
+        helper HTTP requests use — so normal tenant isolation applies while the
+        handler runs. A job that carries no tenant context is dead-lettered
+        **without running the handler** (fail closed): it can never run safely and
+        retrying will not fix it.
+        """
+        async with self._claim_context():
+            job = await self._repo.claim_next(now=now, lease=self._lease)
+            if job is None:
+                return ProcessOutcome("idle", claimed=False)
+
+            tenant_id: uuid.UUID | None = job.tenant_id
+            if tenant_id is None:
                 await self._repo.update(
                     job_id=job.id,
                     fields={
-                        "status": JobStatus.QUEUED,
-                        "run_after": now + timedelta(seconds=max(1, result.retry_after)),
+                        "status": JobStatus.DEAD_LETTER,
+                        "last_error": _NO_TENANT_CONTEXT,
                         "locked_until": None,
                     },
                 )
-                return ProcessOutcome("throttled", claimed=True)
+                return ProcessOutcome("no_tenant_context", claimed=True)
 
-        attempts = job.attempts + 1
-        await self._repo.update(
-            job_id=job.id,
-            fields={"status": JobStatus.RUNNING, "attempts": attempts},
-        )
+            if throttle is not None:
+                result = await throttle.allow(
+                    tenant_id=job.tenant_id, job_type=job.job_type, now=now
+                )
+                if not result.allowed:
+                    # Release without burning an attempt — back-pressure, not failure.
+                    await self._repo.update(
+                        job_id=job.id,
+                        fields={
+                            "status": JobStatus.QUEUED,
+                            "run_after": now + timedelta(seconds=max(1, result.retry_after)),
+                            "locked_until": None,
+                        },
+                    )
+                    return ProcessOutcome("throttled", claimed=True)
+
+            attempts = job.attempts + 1
+            await self._repo.update(
+                job_id=job.id,
+                fields={"status": JobStatus.RUNNING, "attempts": attempts},
+            )
+
         try:
-            await handler(job)
+            # Per-job tenant context: the handler runs under tenant isolation and
+            # receives the tenant-scoped connection (symmetric with HTTP requests).
+            async with self._tenant_context(tenant_id) as conn:
+                await handler(job, conn)
         except Exception as exc:
             # The loop must never crash; capture a safe error and retry or dead-letter.
-            fields: dict[str, Any] = {
-                "last_error": _safe_error(exc),
-                "locked_until": None,
-            }
+            fields: dict[str, Any] = {"last_error": _safe_error(exc), "locked_until": None}
             if attempts >= job.max_attempts:
                 fields["status"] = JobStatus.DEAD_LETTER
-                await self._repo.update(job_id=job.id, fields=fields)
+                await self._mark(job.id, fields)
                 return ProcessOutcome("dead_letter", claimed=True)
             fields["status"] = JobStatus.FAILED
             fields["run_after"] = now + self.backoff_delay(attempts)
-            await self._repo.update(job_id=job.id, fields=fields)
+            await self._mark(job.id, fields)
             return ProcessOutcome("retry", claimed=True)
 
-        await self._repo.update(
-            job_id=job.id,
-            fields={"status": JobStatus.SUCCEEDED, "locked_until": None},
-        )
+        await self._mark(job.id, {"status": JobStatus.SUCCEEDED, "locked_until": None})
         return ProcessOutcome("succeeded", claimed=True)
+
+    async def _mark(self, job_id: uuid.UUID, fields: dict[str, Any]) -> None:
+        """Persist a job-row status change under the worker (claim) context."""
+        async with self._claim_context():
+            await self._repo.update(job_id=job_id, fields=fields)

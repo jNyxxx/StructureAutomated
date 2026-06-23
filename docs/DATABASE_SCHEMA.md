@@ -263,7 +263,20 @@ CREATE TABLE audit_events (
 );
 CREATE INDEX ix_audit_events_tenant_created_at ON audit_events (tenant_id, created_at DESC);
 CREATE INDEX ix_audit_events_object ON audit_events (tenant_id, object_type, object_id);
--- Enforce by role grants: app runtime role may INSERT/SELECT only. No UPDATE/DELETE. Add trigger guard if needed.
+-- Append-only: app runtime role may INSERT/SELECT only (no UPDATE/DELETE), enforced by
+-- role grants + an immutability trigger. Forced RLS isolates tenant rows; platform/system
+-- rows (tenant_id IS NULL) are reachable only when no tenant context is set.
+ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_events FORCE ROW LEVEL SECURITY;
+CREATE POLICY audit_events_tenant_isolation ON audit_events
+USING (
+  tenant_id = current_setting('app.current_tenant_id', true)::uuid
+  OR (tenant_id IS NULL AND current_setting('app.current_tenant_id', true) IS NULL)
+)
+WITH CHECK (
+  tenant_id = current_setting('app.current_tenant_id', true)::uuid
+  OR (tenant_id IS NULL AND current_setting('app.current_tenant_id', true) IS NULL)
+);
 ```
 
 ## 7. Required composite indexes (tenant-first)

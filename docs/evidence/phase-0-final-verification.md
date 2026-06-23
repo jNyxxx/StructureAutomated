@@ -76,7 +76,10 @@ Live DB migration/smoke checks were deferred.
 - Frontend lint/type/test/build gates passed.
 - Alembic code head resolves to `00010_compliance_suppression`.
 - Offline Alembic SQL renders from base to head.
-- Forced RLS migration coverage exists for tenant-owned Phase 0 tables.
+- Forced RLS migration coverage exists for tenant-owned Phase 0 tables. (Post-audit
+  remediation: `audit_events` was the sole tenant-owned table missing `ENABLE`/`FORCE`
+  RLS + policy at Phase 0 sign-off; forced RLS with a NULL-aware tenant policy was added
+  to migration `0003_audit_events`, so this claim is now accurate.)
 - Tenant DB helper and role-safety conventions are covered by tests.
 - Auth mock/prod guard is tested; local/mock frontend auth is blocked in production by default.
 - Billing gate tests cover states, grace, unknown features, and denied actions.

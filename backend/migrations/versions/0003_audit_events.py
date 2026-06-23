@@ -1,9 +1,16 @@
-"""audit_events: append-only audit trail (grants + immutability trigger)
+"""audit_events: append-only audit trail (forced RLS + grants + immutability trigger)
 
 Revision ID: 0003_audit_events
 Revises: 0002_core_tenancy
 Create Date: 2026-06-22 00:00:02
 
+tenant_id is nullable (platform/system events carry no tenant). Forced RLS with a
+NULL-aware policy (same shape as idempotency_keys) isolates tenant rows to their
+own tenant context; platform/system (NULL-tenant) rows are reachable ONLY when no
+tenant context is set (system path) — never by a tenant request. This is in
+addition to the append-only trigger (blocks UPDATE/DELETE) and least-privilege
+grants. Audit isolation is strictly tenant / NULL-aware: unlike jobs, there is no
+worker-context read bypass.
 """
 
 import sqlalchemy as sa
@@ -81,8 +88,27 @@ def upgrade() -> None:
         "REVOKE UPDATE, DELETE ON audit_events FROM app_role; END IF; END $$"
     )
 
+    # Forced RLS with NULL-aware tenant isolation (mirrors idempotency_keys).
+    # Tenant rows match the current tenant context; platform/system (NULL-tenant)
+    # rows are visible ONLY when no tenant context is set. Identical USING +
+    # WITH CHECK so a tenant request can neither read nor write system rows, and
+    # vice versa. Static literal — no interpolation; table/columns are
+    # developer-controlled.
+    op.execute("ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE audit_events FORCE ROW LEVEL SECURITY")
+    op.execute(
+        "CREATE POLICY audit_events_tenant_isolation ON audit_events USING ("
+        "tenant_id = current_setting('app.current_tenant_id', true)::uuid "
+        "OR (tenant_id IS NULL AND current_setting('app.current_tenant_id', true) IS NULL)"
+        ") WITH CHECK ("
+        "tenant_id = current_setting('app.current_tenant_id', true)::uuid "
+        "OR (tenant_id IS NULL AND current_setting('app.current_tenant_id', true) IS NULL)"
+        ")"
+    )
+
 
 def downgrade() -> None:
+    op.execute("DROP POLICY IF EXISTS audit_events_tenant_isolation ON audit_events")
     op.execute("DROP TRIGGER IF EXISTS audit_events_no_mutation ON audit_events")
     op.execute("DROP FUNCTION IF EXISTS audit_events_block_mutation()")
     op.drop_table("audit_events")
