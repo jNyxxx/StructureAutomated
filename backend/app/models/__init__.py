@@ -21,6 +21,7 @@ from app.models.draft import Draft, DraftEvidence
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.models.membership import ROLES, TenantMembership
 from app.models.research import ResearchArtifact, ResearchRun
+from app.models.safety import SafetyGateResult
 from app.models.support_access import SupportAccessGrantModel
 from app.models.tenant import Tenant
 from app.models.user import User
@@ -48,6 +49,7 @@ __all__ = [
     "Plan",
     "ResearchArtifact",
     "ResearchRun",
+    "SafetyGateResult",
     "Suppression",
     "SupportAccessGrantModel",
     "Tenant",

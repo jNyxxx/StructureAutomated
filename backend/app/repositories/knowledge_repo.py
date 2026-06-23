@@ -100,6 +100,23 @@ class KnowledgeRepository(BaseRepository):
         )
         return _document(row) if row is not None else None
 
+    async def get_chunk(
+        self, *, tenant_id: uuid.UUID, chunk_id: uuid.UUID
+    ) -> KnowledgeChunkRecord | None:
+        row = (
+            (
+                await self.conn.execute(
+                    select(KnowledgeChunk).where(
+                        KnowledgeChunk.tenant_id == tenant_id,
+                        KnowledgeChunk.id == chunk_id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        return _chunk(row) if row is not None else None
+
     async def update_document(
         self,
         *,

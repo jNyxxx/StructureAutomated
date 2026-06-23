@@ -23,6 +23,7 @@ from app.services.billing import CAN_RUN_AGENTS as BILLING_CAN_RUN_AGENTS
 from app.services.billing import BillingGateService
 from app.services.idempotency import IdempotencyOutcome, IdempotencyState
 from app.services.rag_grounding import RAGGroundingService
+from app.services.safety import SafetyService
 
 
 @dataclass(frozen=True)
@@ -138,6 +139,7 @@ class DraftGenerationService:
         rbac: RBACService,
         object_authz: ObjectAuthorizationService,
         billing: BillingGateService,
+        safety_service: SafetyService | None = None,
         compliance: ComplianceGate | None = None,
         idempotency: IdempotencyGate | None = None,
         audit_record: AuditRecorder | None = None,
@@ -150,6 +152,7 @@ class DraftGenerationService:
         self._rbac = rbac
         self._object_authz = object_authz
         self._billing = billing
+        self._safety_service = safety_service
         self._compliance = compliance
         self._idempotency = idempotency
         self._audit_record = audit_record
@@ -270,6 +273,70 @@ class DraftGenerationService:
                     status_code=403,
                 )
 
+        # 7.5 Run safety evaluation if safety service is configured
+        safety_results = []
+        if self._safety_service is not None:
+            safety_results = await self._safety_service.evaluate_grounding_safety(
+                principal=principal,
+                chunks=context_res.chunks,
+                campaign_id=campaign_id,
+                contact_id=contact_id,
+            )
+            any_failed = any(res.status == "failed" for res in safety_results)
+            if any_failed:
+                # Create a blocked draft record and return immediately
+                draft = await self._draft_store.create_draft(
+                    tenant_id=principal.tenant_id,
+                    campaign_id=campaign_id,
+                    contact_id=contact_id,
+                    status="blocked",
+                    subject=f"Blocked Draft - {campaign.name}",
+                    body="Draft generation blocked due to safety gate failure.",
+                    idempotency_key=idempotency_key,
+                )
+
+                # Link evidence to retrieved grounding chunks
+                for chunk in context_res.chunks:
+                    await self._draft_store.create_evidence(
+                        tenant_id=principal.tenant_id,
+                        draft_id=draft.id,
+                        source_type=chunk.source_type,
+                        source_id=chunk.source_id,
+                        content_snippet=chunk.content[:500],
+                    )
+
+                # Link safety results to the draft ID
+                for res in safety_results:
+                    await self._safety_service._safety_store.update_result_draft_id(
+                        tenant_id=principal.tenant_id,
+                        result_id=res.id,
+                        draft_id=draft.id,
+                    )
+
+                # Audit blocked event
+                await self._audit(
+                    event_type="draft.blocked",
+                    tenant_id=principal.tenant_id,
+                    actor_user_id=principal.user_id,
+                    object_type="draft",
+                    object_id=draft.id,
+                    details={
+                        "campaign_id": str(campaign_id),
+                        "contact_id": str(contact_id),
+                        "reason": "safety_gate_failure",
+                    },
+                )
+
+                if self._idempotency is not None and idempotency_key is not None:
+                    await self._idempotency.complete(
+                        key=idempotency_key,
+                        response_payload={"draft_id": str(draft.id)},
+                        status_code=201,
+                        tenant_id=principal.tenant_id,
+                    )
+
+                return DraftCreateResult(draft=draft)
+
         # 8. Deterministic mock draft generation
         findings_snippets = []
         document_snippets = []
@@ -304,6 +371,15 @@ class DraftGenerationService:
             body=body,
             idempotency_key=idempotency_key,
         )
+
+        # Link safety results to the draft ID (if safety check was run)
+        if self._safety_service is not None:
+            for res in safety_results:
+                await self._safety_service._safety_store.update_result_draft_id(
+                    tenant_id=principal.tenant_id,
+                    result_id=res.id,
+                    draft_id=draft.id,
+                )
 
         # 10. Link evidence to retrieved grounding chunks
         for chunk in context_res.chunks:

@@ -143,6 +143,14 @@ class _FakeKnowledgeStore:
         self.chunks: dict[uuid.UUID, KnowledgeChunkRecord] = {}
         self.artifacts: dict[uuid.UUID, ResearchArtifactRecord] = {}
 
+    async def get_chunk(
+        self, *, tenant_id: uuid.UUID, chunk_id: uuid.UUID
+    ) -> KnowledgeChunkRecord | None:
+        c = self.chunks.get(chunk_id)
+        if c is not None and c.tenant_id == tenant_id:
+            return c
+        return None
+
     async def create_document(
         self,
         *,
@@ -778,10 +786,6 @@ def test_safety_gates_and_fences_not_accidental_added() -> None:
     from app.services.draft_generation import DraftGenerationService
 
     source_code = inspect.getsource(DraftGenerationService)
-
-    # Confirm no prompt-injection fence added
-    assert "prompt_injection" not in source_code.lower()
-    assert "fence" not in source_code.lower()
 
     # Confirm no groundedness gate added
     assert "groundedness" not in source_code.lower()

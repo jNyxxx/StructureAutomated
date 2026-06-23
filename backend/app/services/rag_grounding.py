@@ -104,6 +104,11 @@ class KnowledgeStore(Protocol):
     ) -> KnowledgeDocumentRecord | None:
         """Get a knowledge document."""
 
+    async def get_chunk(
+        self, *, tenant_id: uuid.UUID, chunk_id: uuid.UUID
+    ) -> KnowledgeChunkRecord | None:
+        """Get a knowledge chunk."""
+
     async def update_document(
         self,
         *,

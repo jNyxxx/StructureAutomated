@@ -91,6 +91,14 @@ class _FakeKnowledgeStore:
         self.chunks: dict[uuid.UUID, KnowledgeChunkRecord] = {}
         self.artifacts: dict[uuid.UUID, ResearchArtifactRecord] = {}
 
+    async def get_chunk(
+        self, *, tenant_id: uuid.UUID, chunk_id: uuid.UUID
+    ) -> KnowledgeChunkRecord | None:
+        c = self.chunks.get(chunk_id)
+        if c is not None and c.tenant_id == tenant_id:
+            return c
+        return None
+
     async def create_document(
         self,
         *,
