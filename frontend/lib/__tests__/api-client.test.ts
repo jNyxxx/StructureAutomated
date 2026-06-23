@@ -2,15 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError, apiRequest, authenticatedApiRequest } from "../api-client";
 
-/** Build a fetch stub exposing only what the client uses (ok/status/text). */
+/** Build a fetch stub exposing only what the client uses. */
 function mockFetch(
   status: number,
   body: unknown,
   capture?: (input: RequestInfo | URL, init?: RequestInit) => void,
+  headers: Record<string, string> = {},
 ): typeof fetch {
   const fake = {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers(headers),
     text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
   };
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -36,6 +38,7 @@ describe("apiRequest", () => {
         message: "You do not have access.",
         details: { field: "tenant_id" },
         request_id: "req_abc123",
+        correlation_id: "corr_abc123",
       },
     };
 
@@ -52,21 +55,47 @@ describe("apiRequest", () => {
     expect(err.message).toBe("You do not have access.");
     expect(err.status).toBe(403);
     expect(err.requestId).toBe("req_abc123");
+    expect(err.correlationId).toBe("corr_abc123");
     expect(err.details.field).toBe("tenant_id");
   });
 
-  it("falls back to UNKNOWN for a non-envelope error body", async () => {
+  it("extracts request and correlation IDs from headers when the body is not an envelope", async () => {
     let caught: unknown;
     try {
-      await apiRequest("/x", {}, { fetchImpl: mockFetch(500, "raw gateway text") });
+      await apiRequest(
+        "/x",
+        {},
+        { fetchImpl: mockFetch(500, "raw gateway text", undefined, { "x-request-id": "req_header", "x-correlation-id": "corr_header" }) },
+      );
     } catch (error) {
       caught = error;
     }
+
     expect(caught).toBeInstanceOf(ApiError);
     const err = caught as ApiError;
     expect(err.code).toBe("UNKNOWN");
     expect(err.status).toBe(500);
-    // Raw upstream body must not leak into the surfaced message.
+    expect(err.message).toBe("Request failed.");
+    expect(err.requestId).toBe("req_header");
+    expect(err.correlationId).toBe("corr_header");
+  });
+
+  it("falls back to NETWORK_ERROR without leaking transport details", async () => {
+    const fetchImpl = (async () => {
+      throw new Error("socket secret sentinel");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await apiRequest("/ready", {}, { fetchImpl });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
     expect(err.message).toBe("Request failed.");
   });
 

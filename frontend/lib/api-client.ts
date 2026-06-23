@@ -1,11 +1,12 @@
 import { errorEnvelopeSchema } from "./schemas";
 
-/** Typed error mapped from the backend standard error envelope. */
+/** Typed error mapped from the backend standard error envelope without leaking raw bodies. */
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly details: Record<string, unknown>;
   readonly requestId: string | null;
+  readonly correlationId: string | null;
 
   constructor(
     message: string,
@@ -14,6 +15,7 @@ export class ApiError extends Error {
       status: number;
       details?: Record<string, unknown>;
       requestId?: string | null;
+      correlationId?: string | null;
     },
   ) {
     super(message);
@@ -22,6 +24,7 @@ export class ApiError extends Error {
     this.status = opts.status;
     this.details = opts.details ?? {};
     this.requestId = opts.requestId ?? null;
+    this.correlationId = opts.correlationId ?? null;
   }
 }
 
@@ -38,19 +41,40 @@ export interface AuthenticatedApiClientOptions extends ApiClientOptions {
 
 const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-function toApiError(body: unknown, status: number): ApiError {
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, "");
+}
+
+function extractTraceIds(response?: Response): { requestId: string | null; correlationId: string | null } {
+  const headers = response?.headers;
+  return {
+    requestId: headers?.get("x-request-id") ?? headers?.get("request-id") ?? null,
+    correlationId: headers?.get("x-correlation-id") ?? headers?.get("correlation-id") ?? null,
+  };
+}
+
+function toApiError(body: unknown, status: number, response?: Response): ApiError {
+  const trace = extractTraceIds(response);
   const parsed = errorEnvelopeSchema.safeParse(body);
+
   if (parsed.success) {
     const err = parsed.data.error;
     return new ApiError(err.message, {
       code: err.code,
       status,
       details: err.details,
-      requestId: err.request_id ?? null,
+      requestId: err.request_id ?? trace.requestId,
+      correlationId: err.correlation_id ?? trace.correlationId,
     });
   }
-  // Non-envelope failure (network/proxy/unexpected): never surface raw bodies.
-  return new ApiError("Request failed.", { code: "UNKNOWN", status, details: {}, requestId: null });
+
+  return new ApiError("Request failed.", {
+    code: "UNKNOWN",
+    status,
+    details: {},
+    requestId: trace.requestId,
+    correlationId: trace.correlationId,
+  });
 }
 
 function mergeHeaders(...headers: Array<HeadersInit | undefined>): Headers {
@@ -62,31 +86,44 @@ function mergeHeaders(...headers: Array<HeadersInit | undefined>): Headers {
   return merged;
 }
 
+async function parseResponseBody(response: Response): Promise<unknown> {
+  const raw = await response.text();
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export async function apiRequest<T = unknown>(
   path: string,
   init: RequestInit = {},
   options: ApiClientOptions = {},
 ): Promise<T> {
-  const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
+  const baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
   const doFetch = options.fetchImpl ?? fetch;
 
-  const response = await doFetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: mergeHeaders({ "Content-Type": "application/json" }, init.headers),
-  });
-
-  const raw = await response.text();
-  let body: unknown;
-  if (raw) {
-    try {
-      body = JSON.parse(raw);
-    } catch {
-      body = raw;
-    }
+  let response: Response;
+  try {
+    response = await doFetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: mergeHeaders({ "Content-Type": "application/json" }, init.headers),
+    });
+  } catch {
+    throw new ApiError("Request failed.", {
+      code: "NETWORK_ERROR",
+      status: 0,
+      details: {},
+      requestId: null,
+      correlationId: null,
+    });
   }
 
+  const body = await parseResponseBody(response);
+
   if (!response.ok) {
-    throw toApiError(body, response.status);
+    throw toApiError(body, response.status, response);
   }
   return body as T;
 }

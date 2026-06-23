@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * The backend standard error envelope:
- *   { "error": { "code", "message", "details", "request_id" } }
+ *   { "error": { "code", "message", "details", "request_id", "correlation_id" } }
  */
 export const errorEnvelopeSchema = z.object({
   error: z.object({
@@ -10,6 +10,7 @@ export const errorEnvelopeSchema = z.object({
     message: z.string(),
     details: z.record(z.string(), z.unknown()).optional().default({}),
     request_id: z.string().nullable().optional(),
+    correlation_id: z.string().nullable().optional(),
   }),
 });
 
@@ -31,6 +32,20 @@ export const authMeResponseSchema = z.object({
 
 export type Principal = z.infer<typeof principalSchema>;
 export type AuthMeResponse = z.infer<typeof authMeResponseSchema>;
+
+export const healthResponseSchema = z
+  .object({
+    status: z.string().optional(),
+    ok: z.boolean().optional(),
+    service: z.string().optional(),
+    version: z.string().optional(),
+    checks: z.record(z.string(), z.unknown()).optional(),
+    request_id: z.string().nullable().optional(),
+    correlation_id: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
 export const billingGateStatusSchema = z.object({
   tenant_id: z.string().uuid().nullable(),

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { readOnlyBillingStatus } from "@/components/billing-banner";
+import { BackendStatusBadge } from "@/components/layout/backend-status";
 import { useTenantContext } from "@/lib/tenant-context";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,7 @@ export function TopCommandBar({
         </div>
 
         <div className="hidden items-center gap-2 xl:flex">
+          <BackendStatusBadge />
           <Badge variant="default">Local MVP</Badge>
           <Badge variant="locked">No production</Badge>
         </div>
@@ -69,13 +71,13 @@ export function TopCommandBar({
             <Button variant="secondary" size="sm" className="hidden max-w-[220px] justify-start gap-2 md:inline-flex">
               <span className="size-2 rounded-pill bg-yellow" />
               <span className="truncate">
-                {tenant.selectedTenantId ? "Tenant selected" : "Select tenant"}
+                {tenant.isConfirmed ? tenant.role ?? "Tenant confirmed" : tenant.selectedTenantId ? "Tenant pending" : "Select tenant"}
               </span>
               <ChevronDown className="size-4 text-subtle" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            Tenant switcher shell. Backend tenant confirmation still required.
+            Tenant switcher shell. Status: {tenant.status}. Tenant confirmation comes from /auth/me.
           </TooltipContent>
         </Tooltip>
 

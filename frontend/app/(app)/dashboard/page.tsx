@@ -1,3 +1,4 @@
+import { BackendReadinessPanel } from "@/components/layout/backend-status";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState, LocalMockNotice } from "@/components/states";
 
@@ -10,6 +11,7 @@ export default function DashboardPage() {
         description="Dashboard cards and metrics are intentionally deferred. This shell preserves navigation and safe local/mock MVP behavior."
       />
       <LocalMockNotice />
+      <BackendReadinessPanel />
       <EmptyState
         title="Dashboard metrics pending"
         description="Metrics will be wired after the matching backend dashboard/outcomes APIs are exposed."

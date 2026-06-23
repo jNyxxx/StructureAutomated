@@ -2,6 +2,9 @@
 
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 
+import { Button } from "@/components/ui/button";
+import { LoadingState, LocalMockNotice, PermissionDeniedState } from "@/components/states";
+
 export interface FrontendAuthState {
   isLoaded: boolean;
   isSignedIn: boolean;
@@ -66,17 +69,18 @@ export function useFrontendAuth(): FrontendAuthState {
   return useContext(ClerkContext);
 }
 
+function AuthShell({ children }: { children: ReactNode }) {
+  return <main className="min-h-screen bg-bg p-6 text-text lg:p-page-desktop">{children}</main>;
+}
+
 function MockAuthProductionBlock() {
   return (
-    <main className="min-h-screen p-8">
-      <section className="max-w-xl rounded-lg border border-red-200 bg-red-50 p-6">
-        <h1 className="text-xl font-semibold text-red-950">Production auth blocked</h1>
-        <p className="mt-2 text-sm text-red-900">
-          Local/mock Clerk auth cannot run silently in production. Configure the real Clerk provider
-          before enabling protected app routes.
-        </p>
-      </section>
-    </main>
+    <AuthShell>
+      <PermissionDeniedState
+        title="Production auth blocked"
+        description="Local/mock Clerk auth cannot run silently in production. Configure the real Clerk provider before enabling protected app routes."
+      />
+    </AuthShell>
   );
 }
 
@@ -89,25 +93,28 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!auth.isLoaded) {
     return (
-      <main className="min-h-screen p-8">
-        <div className="rounded-lg border p-6 text-sm text-slate-600">Loading secure session…</div>
-      </main>
+      <AuthShell>
+        <LoadingState title="Loading secure session" description="Checking the frontend auth shell before tenant data is rendered." />
+      </AuthShell>
     );
   }
 
   if (!auth.isSignedIn) {
     return (
-      <main className="min-h-screen p-8">
-        <section className="max-w-xl rounded-lg border border-amber-200 bg-amber-50 p-6">
-          <h1 className="text-xl font-semibold text-amber-950">Authentication required</h1>
-          <p className="mt-2 text-sm text-amber-900">
-            App routes are protected. Sign in through Clerk before accessing tenant data.
-          </p>
-          <a className="mt-4 inline-block text-sm font-medium underline" href="/login">
-            Go to sign in
-          </a>
-        </section>
-      </main>
+      <AuthShell>
+        <div className="max-w-2xl space-y-4">
+          <PermissionDeniedState
+            title="Authentication required"
+            description="App routes are protected. Sign in through Clerk before accessing tenant data. If /auth/me is unavailable, tenant data remains locked."
+            primaryAction={
+              <Button asChild>
+                <a href="/login">Go to sign in</a>
+              </Button>
+            }
+          />
+          <LocalMockNotice />
+        </div>
+      </AuthShell>
     );
   }
 
@@ -138,16 +145,15 @@ export function ClerkAuthCard({ mode }: { mode: "login" | "signup" | "verify-ema
   }[mode];
 
   return (
-    <main className="min-h-screen p-8">
-      <section className="max-w-lg rounded-xl border bg-white p-6 shadow-sm">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <main className="min-h-screen bg-bg p-8 text-text">
+      <section className="max-w-lg rounded-xl border border-border bg-panel p-card-padding shadow-panel">
+        <p className="text-caption font-semibold uppercase tracking-wide text-subtle">
           Clerk auth — local/mock mount
         </p>
-        <h1 className="mt-2 text-xl font-semibold">{copy.title}</h1>
-        <p className="mt-2 text-sm text-slate-600">{copy.body}</p>
-        <div className="mt-5 rounded-lg border border-dashed p-4 text-sm text-slate-600">
-          {copy.action} plugs in here when @clerk/nextjs is installed/configured. Local/mock mode is
-          fail-closed in production.
+        <h1 className="mt-2 text-h3">{copy.title}</h1>
+        <p className="mt-2 text-small text-muted">{copy.body}</p>
+        <div className="mt-5 rounded-medium border border-dashed border-border bg-panel2 p-4 text-small text-muted">
+          {copy.action} plugs in here when @clerk/nextjs is installed/configured. Local/mock mode is fail-closed in production.
         </div>
       </section>
     </main>
