@@ -2,15 +2,128 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
+@layer base {
+  :root {
+    color-scheme: dark;
+
+    --background: 228 64% 5%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 219 39% 12%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 218 29% 20%;
+    --muted-foreground: 215 24% 66%;
+    --accent: 258 90% 66%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 219 33% 21%;
+    --input: 219 33% 21%;
+    --ring: 217 91% 60%;
+
+    --as-bg: #050816;
+    --as-bg-2: #07111f;
+    --as-panel: #0b1220;
+    --as-panel-2: #101a2e;
+    --as-panel-3: #111827;
+    --as-border: #243047;
+    --as-border-2: #334155;
+    --as-text: #f8fafc;
+    --as-muted: #93a4bd;
+    --as-subtle: #64748b;
+    --as-blue: #3b82f6;
+    --as-blue-2: #2563eb;
+    --as-violet: #8b5cf6;
+    --as-cyan: #22d3ee;
+    --as-green: #22c55e;
+    --as-yellow: #f59e0b;
+    --as-red: #ef4444;
+    --as-orange: #fb923c;
+    --as-locked: #64748b;
+    --as-surface: #0f172a;
+    --as-surface-light: #182235;
+    --as-good-bg: #062a1b;
+    --as-warn-bg: #2b1f08;
+    --as-red-bg: #2b0b13;
+    --as-blue-bg: #08213f;
+    --as-violet-bg: #1e1238;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    min-height: 100%;
+    background: var(--as-bg);
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 34rem),
+      radial-gradient(circle at top right, rgba(139, 92, 246, 0.14), transparent 30rem),
+      linear-gradient(180deg, var(--as-bg) 0%, var(--as-bg-2) 100%);
+    color: var(--as-text);
+    font-family:
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+      sans-serif;
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 500;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(59, 130, 246, 0.36);
+    color: var(--as-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--as-blue);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-color: var(--as-border-2) transparent;
+    scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.55);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(147, 164, 189, 0.72);
+    background-clip: content-box;
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+@layer components {
+  .as-focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+
+  .as-panel-border {
+    border-color: rgba(36, 48, 71, 0.9);
+  }
 }
