@@ -16,6 +16,7 @@ import NewCampaignPage from "../(app)/campaigns/new/page";
 import DashboardPage from "../(app)/dashboard/page";
 import ProspectsPage from "../(app)/prospects/page";
 import ProspectImportPage from "../(app)/prospects/import/page";
+import ReviewQueuePage from "../(app)/review-queue/page";
 import LoginPage from "../(auth)/login/page";
 
 const signedInAuth: FrontendAuthState = {
@@ -139,6 +140,13 @@ describe("route shells render", () => {
     render(<CampaignDraftsPage params={{ id: "cre-multifamily-demo" }} />);
     expect(screen.getByRole("heading", { name: /CRE Multifamily Owner Outreach drafts/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /ai drafts demo table/i })).toBeTruthy();
+  });
+
+  it("renders the review queue demo safely", () => {
+    render(<ReviewQueuePage />);
+    expect(screen.getByRole("heading", { name: /review queue/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /review queue demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Human approval never bypasses/i)).toBeTruthy();
   });
 });
 
