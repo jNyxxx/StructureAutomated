@@ -18,6 +18,7 @@ from app.models.contact import (
     ContactImportRow,
 )
 from app.models.membership import ROLES, TenantMembership
+from app.models.research import ResearchArtifact, ResearchRun
 from app.models.support_access import SupportAccessGrantModel
 from app.models.tenant import Tenant
 from app.models.user import User
@@ -39,6 +40,8 @@ __all__ = [
     "IMPORT_ROW_STATUSES",
     "IMPORT_STATUSES",
     "Plan",
+    "ResearchArtifact",
+    "ResearchRun",
     "Suppression",
     "SupportAccessGrantModel",
     "Tenant",
