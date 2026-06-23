@@ -1,8 +1,10 @@
+import { PendingBackendPage } from "@/components/layout/pending-backend-page";
+
 export default function IntegrationsSettingsPage() {
   return (
-    <section>
-      <h1 className="text-xl font-semibold">Integrations</h1>
-      <p className="mt-2 text-sm">Integration credentials are managed in a later slice.</p>
-    </section>
+    <PendingBackendPage
+      title="Integrations"
+      description="Integration credentials and provider connections are represented as a shell only. No secrets, provider calls, or webhooks are wired here."
+    />
   );
 }

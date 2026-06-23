@@ -1,8 +1,15 @@
+import { PageHeader } from "@/components/layout/page-header";
+import { LocalMockNotice } from "@/components/states";
+
 export default function SettingsPage() {
   return (
-    <section>
-      <h1 className="text-xl font-semibold">Settings</h1>
-      <p className="mt-2 text-sm">Account and workspace settings arrive in a later slice.</p>
+    <section className="space-y-6">
+      <PageHeader
+        eyebrow="Workspace"
+        title="Settings"
+        description="Account and workspace settings shell. Deeper settings screens remain local/mock or pending backend wiring."
+      />
+      <LocalMockNotice />
     </section>
   );
 }

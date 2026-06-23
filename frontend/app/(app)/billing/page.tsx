@@ -1,19 +1,21 @@
+import { BillingLockedState } from "@/components/states";
+import { PageHeader } from "@/components/layout/page-header";
 import { BillingBanner, readOnlyBillingStatus } from "@/components/billing-banner";
 
 export default function BillingPage() {
   return (
-    <section className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Billing</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Mock MVP billing is shown as a safe read-only contract until backend tenant access is confirmed.
-        </p>
-      </div>
+    <section className="space-y-6">
+      <PageHeader
+        eyebrow="Access gates"
+        title="Billing"
+        description="Mock MVP billing is shown as a safe read-only contract until backend tenant access is confirmed."
+      />
       <BillingBanner status={readOnlyBillingStatus} />
-      <div className="rounded-lg border bg-white p-4 text-sm text-slate-700">
-        <p className="font-medium text-slate-900">Payment actions disabled</p>
-        <p className="mt-1">No checkout, payment method, or provider billing UI exists in Phase 0.</p>
-      </div>
+      <BillingLockedState
+        state="inactive"
+        title="Payment actions disabled"
+        description="No real Stripe checkout, payment method, provider billing, dunning, or money movement exists in this frontend slice. Billing-dependent actions remain read-only/locked."
+      />
     </section>
   );
 }

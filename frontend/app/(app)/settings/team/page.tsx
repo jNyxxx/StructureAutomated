@@ -1,8 +1,10 @@
+import { PendingBackendPage } from "@/components/layout/pending-backend-page";
+
 export default function TeamSettingsPage() {
   return (
-    <section>
-      <h1 className="text-xl font-semibold">Team</h1>
-      <p className="mt-2 text-sm">Team and role management arrives in a later slice.</p>
-    </section>
+    <PendingBackendPage
+      title="Team"
+      description="Team and role management navigation is available. Membership and RBAC APIs are not mounted yet."
+    />
   );
 }
