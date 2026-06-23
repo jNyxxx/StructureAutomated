@@ -8,8 +8,10 @@ import { TenantProvider, TenantStatusCard } from "@/lib/tenant-context";
 
 import AuditLogsPage from "../(app)/audit-logs/page";
 import BillingPage from "../(app)/billing/page";
+import AiDraftsPage from "../(app)/ai-drafts/page";
 import CampaignsPage from "../(app)/campaigns/page";
 import CampaignDetailPage from "../(app)/campaigns/[id]/page";
+import CampaignDraftsPage from "../(app)/campaigns/[id]/drafts/page";
 import NewCampaignPage from "../(app)/campaigns/new/page";
 import DashboardPage from "../(app)/dashboard/page";
 import ProspectsPage from "../(app)/prospects/page";
@@ -124,6 +126,19 @@ describe("route shells render", () => {
     render(<NewCampaignPage />);
     expect(screen.getByRole("heading", { name: /new campaign/i })).toBeTruthy();
     expect(screen.getByText(/Campaign builder shell/i)).toBeTruthy();
+  });
+
+  it("renders the AI drafts workbench shell", () => {
+    render(<AiDraftsPage />);
+    expect(screen.getByRole("heading", { name: /ai drafts/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /ai drafts demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Research\/RAG workbench/i)).toBeTruthy();
+  });
+
+  it("renders campaign-scoped draft shell", () => {
+    render(<CampaignDraftsPage params={{ id: "cre-multifamily-demo" }} />);
+    expect(screen.getByRole("heading", { name: /CRE Multifamily Owner Outreach drafts/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /ai drafts demo table/i })).toBeTruthy();
   });
 });
 
