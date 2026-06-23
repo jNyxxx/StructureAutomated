@@ -2,6 +2,7 @@
 
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 
+import { AuthCard, type AuthCardMode } from "@/components/public/auth-card";
 import { Button } from "@/components/ui/button";
 import { LoadingState, LocalMockNotice, PermissionDeniedState } from "@/components/states";
 
@@ -121,41 +122,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function ClerkAuthCard({ mode }: { mode: "login" | "signup" | "verify-email" }) {
+export function ClerkAuthCard({ mode }: { mode: AuthCardMode }) {
   if (!isLocalMockAuthAllowed()) {
     return <MockAuthProductionBlock />;
   }
 
-  const copy = {
-    login: {
-      title: "Sign in",
-      body: "Clerk owns login, sessions, password reset, email verification, and MFA support.",
-      action: "Official Clerk sign-in mount",
-    },
-    signup: {
-      title: "Create account",
-      body: "Account creation is delegated to Clerk. The app never stores passwords.",
-      action: "Official Clerk sign-up mount",
-    },
-    "verify-email": {
-      title: "Verify your email",
-      body: "Email verification is handled by Clerk before backend tenant access is granted.",
-      action: "Official Clerk verification flow",
-    },
-  }[mode];
-
-  return (
-    <main className="min-h-screen bg-bg p-8 text-text">
-      <section className="max-w-lg rounded-xl border border-border bg-panel p-card-padding shadow-panel">
-        <p className="text-caption font-semibold uppercase tracking-wide text-subtle">
-          Clerk auth — local/mock mount
-        </p>
-        <h1 className="mt-2 text-h3">{copy.title}</h1>
-        <p className="mt-2 text-small text-muted">{copy.body}</p>
-        <div className="mt-5 rounded-medium border border-dashed border-border bg-panel2 p-4 text-small text-muted">
-          {copy.action} plugs in here when @clerk/nextjs is installed/configured. Local/mock mode is fail-closed in production.
-        </div>
-      </section>
-    </main>
-  );
+  return <AuthCard mode={mode} />;
 }
