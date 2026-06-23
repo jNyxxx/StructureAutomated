@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-SAFETY_GATES = ("prompt_injection", "source_trust")
+SAFETY_GATES = ("prompt_injection", "source_trust", "groundedness")
 _SAFETY_GATE_LIST = ",".join(f"'{gate}'" for gate in SAFETY_GATES)
 
 SAFETY_STATUSES = ("passed", "warning", "failed")

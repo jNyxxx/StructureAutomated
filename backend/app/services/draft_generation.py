@@ -21,6 +21,7 @@ from app.services.authz import (
 )
 from app.services.billing import CAN_RUN_AGENTS as BILLING_CAN_RUN_AGENTS
 from app.services.billing import BillingGateService
+from app.services.groundedness import GroundednessService
 from app.services.idempotency import IdempotencyOutcome, IdempotencyState
 from app.services.rag_grounding import RAGGroundingService
 from app.services.safety import SafetyService
@@ -60,6 +61,9 @@ class ResearchStore(Protocol):
         self, *, tenant_id: uuid.UUID, contact_id: uuid.UUID
     ) -> Any | None:
         """Get latest research artifact findings."""
+
+    async def get_artifact(self, *, tenant_id: uuid.UUID, artifact_id: uuid.UUID) -> Any | None:
+        """Retrieve a specific research artifact by ID."""
 
 
 class IdempotencyGate(Protocol):
@@ -140,6 +144,7 @@ class DraftGenerationService:
         object_authz: ObjectAuthorizationService,
         billing: BillingGateService,
         safety_service: SafetyService | None = None,
+        groundedness_service: GroundednessService | None = None,
         compliance: ComplianceGate | None = None,
         idempotency: IdempotencyGate | None = None,
         audit_record: AuditRecorder | None = None,
@@ -153,6 +158,7 @@ class DraftGenerationService:
         self._object_authz = object_authz
         self._billing = billing
         self._safety_service = safety_service
+        self._groundedness_service = groundedness_service
         self._compliance = compliance
         self._idempotency = idempotency
         self._audit_record = audit_record
@@ -361,6 +367,80 @@ class DraftGenerationService:
             f"Best regards,\nCRE Automated Acquisition Team"
         )
 
+        # 8.5 Run groundedness validation if groundedness service is configured
+        groundedness_res = None
+        if self._groundedness_service is not None:
+            groundedness_res = await self._groundedness_service.evaluate_draft_groundedness(
+                principal=principal,
+                subject=subject,
+                body=body,
+                chunks=context_res.chunks,
+                campaign_id=campaign_id,
+                contact_id=contact_id,
+            )
+            if groundedness_res.status == "failed":
+                # Create a blocked draft record and return immediately
+                draft = await self._draft_store.create_draft(
+                    tenant_id=principal.tenant_id,
+                    campaign_id=campaign_id,
+                    contact_id=contact_id,
+                    status="needs_regeneration",
+                    subject=f"Needs Regeneration - {campaign.name}",
+                    body=(
+                        "Draft generation blocked due to groundedness validation failure: "
+                        "unsupported claims."
+                    ),
+                    idempotency_key=idempotency_key,
+                )
+
+                # Link evidence to retrieved grounding chunks
+                for chunk in context_res.chunks:
+                    await self._draft_store.create_evidence(
+                        tenant_id=principal.tenant_id,
+                        draft_id=draft.id,
+                        source_type=chunk.source_type,
+                        source_id=chunk.source_id,
+                        content_snippet=chunk.content[:500],
+                    )
+
+                # Link safety & groundedness results to the draft ID
+                if self._safety_service is not None:
+                    for res in safety_results:
+                        await self._safety_service._safety_store.update_result_draft_id(
+                            tenant_id=principal.tenant_id,
+                            result_id=res.id,
+                            draft_id=draft.id,
+                        )
+                await self._groundedness_service._safety_store.update_result_draft_id(
+                    tenant_id=principal.tenant_id,
+                    result_id=groundedness_res.id,
+                    draft_id=draft.id,
+                )
+
+                # Audit blocked event
+                await self._audit(
+                    event_type="draft.needs_regeneration",
+                    tenant_id=principal.tenant_id,
+                    actor_user_id=principal.user_id,
+                    object_type="draft",
+                    object_id=draft.id,
+                    details={
+                        "campaign_id": str(campaign_id),
+                        "contact_id": str(contact_id),
+                        "reason": "groundedness_failed",
+                    },
+                )
+
+                if self._idempotency is not None and idempotency_key is not None:
+                    await self._idempotency.complete(
+                        key=idempotency_key,
+                        response_payload={"draft_id": str(draft.id)},
+                        status_code=201,
+                        tenant_id=principal.tenant_id,
+                    )
+
+                return DraftCreateResult(draft=draft)
+
         # 9. Create draft record in store
         draft = await self._draft_store.create_draft(
             tenant_id=principal.tenant_id,
@@ -380,6 +460,14 @@ class DraftGenerationService:
                     result_id=res.id,
                     draft_id=draft.id,
                 )
+
+        # Link groundedness results to the draft ID (if groundedness check was run)
+        if self._groundedness_service is not None and groundedness_res is not None:
+            await self._groundedness_service._safety_store.update_result_draft_id(
+                tenant_id=principal.tenant_id,
+                result_id=groundedness_res.id,
+                draft_id=draft.id,
+            )
 
         # 10. Link evidence to retrieved grounding chunks
         for chunk in context_res.chunks:

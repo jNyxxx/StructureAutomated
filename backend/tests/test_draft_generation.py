@@ -151,6 +151,11 @@ class _FakeKnowledgeStore:
             return c
         return None
 
+    async def get_artifact(
+        self, *, tenant_id: uuid.UUID, artifact_id: uuid.UUID
+    ) -> Any | None:
+        return None
+
     async def create_document(
         self,
         *,
@@ -786,10 +791,6 @@ def test_safety_gates_and_fences_not_accidental_added() -> None:
     from app.services.draft_generation import DraftGenerationService
 
     source_code = inspect.getsource(DraftGenerationService)
-
-    # Confirm no groundedness gate added
-    assert "groundedness" not in source_code.lower()
-    assert "hallucination" not in source_code.lower()
 
     # Confirm no human review or sending gate added
     assert "send_draft" not in source_code.lower()
