@@ -1,5 +1,6 @@
 """Services: enforce permissions, billing, idempotency, rate limits, and rules."""
 
+from app.services.followup_scheduler import FollowUpSchedulerService
 from app.services.mock_sender import MockSenderService
 from app.services.rag_grounding import (
     GroundingChunk,
@@ -30,4 +31,5 @@ __all__ = [
     "ReviewService",
     "SendGateService",
     "MockSenderService",
+    "FollowUpSchedulerService",
 ]

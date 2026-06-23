@@ -113,6 +113,7 @@ class SendGateService:
         *,
         draft_id: uuid.UUID,
         now: datetime,
+        is_followup: bool = False,
     ) -> Any:
         """Evaluate if the draft meets all rules and can be sent."""
         # 1. RBAC Check
@@ -418,24 +419,46 @@ class SendGateService:
         existing_msg = await self._sending_store.get_outbound_message_by_draft(
             tenant_id=principal.tenant_id, draft_id=draft_id
         )
-        if existing_msg is not None:
-            await self._sending_store.create_gate_result(
-                tenant_id=principal.tenant_id,
-                draft_id=draft_id,
-                status="denied",
-                deny_reason_code="duplicate_send",
-            )
-            await self._audit(
-                event_type="send_gate.failed",
-                tenant_id=principal.tenant_id,
-                actor_user_id=principal.user_id,
-                object_type="draft",
-                object_id=draft_id,
-                details={"reason": "duplicate_send"},
-            )
-            raise AppError(
-                "DUPLICATE_SEND", "Draft has already been sent or queued.", status_code=409
-            )
+        if is_followup:
+            if existing_msg is None or existing_msg.status != "mock_sent":
+                await self._sending_store.create_gate_result(
+                    tenant_id=principal.tenant_id,
+                    draft_id=draft_id,
+                    status="denied",
+                    deny_reason_code="invalid_draft_state",
+                )
+                await self._audit(
+                    event_type="send_gate.failed",
+                    tenant_id=principal.tenant_id,
+                    actor_user_id=principal.user_id,
+                    object_type="draft",
+                    object_id=draft_id,
+                    details={"reason": "original_message_not_sent"},
+                )
+                raise AppError(
+                    "ORIGINAL_MESSAGE_NOT_SENT",
+                    "Original message was not successfully sent.",
+                    status_code=400,
+                )
+        else:
+            if existing_msg is not None:
+                await self._sending_store.create_gate_result(
+                    tenant_id=principal.tenant_id,
+                    draft_id=draft_id,
+                    status="denied",
+                    deny_reason_code="duplicate_send",
+                )
+                await self._audit(
+                    event_type="send_gate.failed",
+                    tenant_id=principal.tenant_id,
+                    actor_user_id=principal.user_id,
+                    object_type="draft",
+                    object_id=draft_id,
+                    details={"reason": "duplicate_send"},
+                )
+                raise AppError(
+                    "DUPLICATE_SEND", "Draft has already been sent or queued.", status_code=409
+                )
 
         # 10. Rate Limiting Check (Throttling)
         if self._rate_limiter is not None and self._rate_limit_policy is not None:

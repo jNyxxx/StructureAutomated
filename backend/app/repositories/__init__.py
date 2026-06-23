@@ -1,6 +1,11 @@
 """Repositories: tenant-scoped SQL only, executed via the tenant DB helper."""
 
 from app.repositories.draft_repo import DraftRepository
+from app.repositories.followup_repo import (
+    FollowUpRepository,
+    FollowUpRuleRecord,
+    FollowUpScheduleRecord,
+)
 from app.repositories.knowledge_repo import KnowledgeRepository
 from app.repositories.research_repo import ResearchRepository
 from app.repositories.review_repo import ReviewRecord, ReviewRepository
@@ -21,4 +26,7 @@ __all__ = [
     "SendingRepository",
     "SendGateResultRecord",
     "OutboundMessageRecord",
+    "FollowUpRepository",
+    "FollowUpRuleRecord",
+    "FollowUpScheduleRecord",
 ]

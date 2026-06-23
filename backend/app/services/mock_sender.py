@@ -41,10 +41,12 @@ class MockSenderService:
         *,
         sending_store: SendingStore,
         send_gate: SendGateService,
+        followups: Any = None,
         audit_record: Any = None,
     ) -> None:
         self._sending_store = sending_store
         self._send_gate = send_gate
+        self._followups = followups
         self._audit_record = audit_record
 
     async def send_approved_draft(
@@ -94,6 +96,15 @@ class MockSenderService:
             object_id=msg.id,
             details={"draft_id": str(draft_id)},
         )
+
+        # Auto-schedule follow-up checkups if rule exists
+        if self._followups is not None:
+            await self._followups.schedule_followup(
+                principal=principal,
+                draft_id=draft_id,
+                outbound_message_id=msg.id,
+                now=now,
+            )
 
         return MockSendResult(
             outbound_message_id=msg.id,
