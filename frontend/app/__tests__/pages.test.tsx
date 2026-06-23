@@ -65,7 +65,13 @@ describe("route shells render", () => {
   });
 
   it("renders the dashboard shell heading", () => {
-    render(<DashboardPage />);
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <DashboardPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
     expect(screen.getByRole("heading", { name: /dashboard/i })).toBeTruthy();
   });
 
