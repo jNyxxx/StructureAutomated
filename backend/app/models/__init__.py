@@ -3,6 +3,12 @@
 from app.models.auth_session import AuthSession
 from app.models.base import Base
 from app.models.billing import BILLING_STATES, Plan, TenantSubscription
+from app.models.campaign import (
+    CAMPAIGN_CONTACT_STATUSES,
+    CAMPAIGN_STATUSES,
+    Campaign,
+    CampaignContact,
+)
 from app.models.compliance import CHANNELS, ComplianceProfile, Suppression
 from app.models.contact import (
     IMPORT_ROW_STATUSES,
@@ -22,6 +28,10 @@ __all__ = [
     "ROLES",
     "AuthSession",
     "Base",
+    "CAMPAIGN_CONTACT_STATUSES",
+    "CAMPAIGN_STATUSES",
+    "Campaign",
+    "CampaignContact",
     "ComplianceProfile",
     "Contact",
     "ContactImport",
