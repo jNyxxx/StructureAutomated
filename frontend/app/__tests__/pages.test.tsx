@@ -9,6 +9,8 @@ import { TenantProvider, TenantStatusCard } from "@/lib/tenant-context";
 import AuditLogsPage from "../(app)/audit-logs/page";
 import BillingPage from "../(app)/billing/page";
 import DashboardPage from "../(app)/dashboard/page";
+import ProspectsPage from "../(app)/prospects/page";
+import ProspectImportPage from "../(app)/prospects/import/page";
 import LoginPage from "../(auth)/login/page";
 
 const signedInAuth: FrontendAuthState = {
@@ -86,6 +88,20 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /audit logs/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /audit log demo table/i })).toBeTruthy();
     expect(screen.getByText(/send_gate.blocked/i)).toBeTruthy();
+  });
+
+  it("renders the prospects DataTable demo safely", () => {
+    render(<ProspectsPage />);
+    expect(screen.getByRole("heading", { name: /^prospects$/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /prospects demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Northline Properties/i)).toBeTruthy();
+  });
+
+  it("renders the CSV import wizard shell", () => {
+    render(<ProspectImportPage />);
+    expect(screen.getByRole("heading", { name: /import prospects/i })).toBeTruthy();
+    expect(screen.getAllByText(/Upload CSV/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("table", { name: /csv import preview rows/i })).toBeTruthy();
   });
 });
 
