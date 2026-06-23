@@ -1,5 +1,12 @@
 """Services: enforce permissions, billing, idempotency, rate limits, and rules."""
 
+from app.services.deliverability import (
+    CampaignDeliverabilitySummary,
+    DeliverabilityService,
+    DeliverabilitySummary,
+    DeliverabilityTrendPoint,
+    MailboxHealthSummary,
+)
 from app.services.followup_scheduler import FollowUpSchedulerService
 from app.services.mock_sender import MockSenderService
 from app.services.rag_grounding import (
@@ -19,6 +26,11 @@ from app.services.review import ReviewService
 from app.services.send_gate import SendGateService
 
 __all__ = [
+    "CampaignDeliverabilitySummary",
+    "DeliverabilitySummary",
+    "DeliverabilityService",
+    "DeliverabilityTrendPoint",
+    "MailboxHealthSummary",
     "GroundingChunk",
     "GroundingContextResult",
     "KnowledgeChunkRecord",
