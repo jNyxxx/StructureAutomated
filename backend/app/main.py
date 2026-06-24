@@ -25,6 +25,7 @@ from app.observability.logging import setup_logging
 from app.ratelimit.backend import InMemoryRateLimitBackend
 from app.routers import (
     auth,
+    billing,
     campaigns,
     compliance,
     contacts,
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(billing.router)
     app.include_router(imports.router)
     app.include_router(contacts.router)
     app.include_router(campaigns.router)
