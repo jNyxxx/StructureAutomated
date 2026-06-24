@@ -19,6 +19,12 @@ import OutcomesPage from "../(app)/outcomes/page";
 import ProspectsPage from "../(app)/prospects/page";
 import ProspectImportPage from "../(app)/prospects/import/page";
 import ReviewQueuePage from "../(app)/review-queue/page";
+import SettingsPage from "../(app)/settings/page";
+import ComplianceSettingsPage from "../(app)/settings/compliance/page";
+import IntegrationsSettingsPage from "../(app)/settings/integrations/page";
+import SecuritySettingsPage from "../(app)/settings/security/page";
+import SuppressionSettingsPage from "../(app)/settings/suppression/page";
+import TeamSettingsPage from "../(app)/settings/team/page";
 import LoginPage from "../(auth)/login/page";
 
 const signedInAuth: FrontendAuthState = {
@@ -85,10 +91,11 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /dashboard/i })).toBeTruthy();
   });
 
-  it("renders the billing shell and read-only banner", () => {
+  it("renders the billing shell and access model", () => {
     render(<BillingPage />);
     expect(screen.getByRole("heading", { name: /billing/i })).toBeTruthy();
-    expect(screen.getAllByText(/read only/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Real Stripe deferred/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Derived access gates/i)).toBeTruthy();
   });
 
   it("renders the audit log DataTable demo safely", () => {
@@ -163,6 +170,42 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /outcomes and ROI/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /campaign outcomes demo table/i })).toBeTruthy();
     expect(screen.getByText(/No real Stripe\/payment data/i)).toBeTruthy();
+  });
+
+  it("renders the settings hub shell", () => {
+    render(<SettingsPage />);
+    expect(screen.getByRole("heading", { name: /^settings$/i })).toBeTruthy();
+    expect(screen.getByText(/Tenant profile shell/i)).toBeTruthy();
+  });
+
+  it("renders team settings table shell", () => {
+    render(<TeamSettingsPage />);
+    expect(screen.getByRole("heading", { name: /team settings/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /team members demo table/i })).toBeTruthy();
+  });
+
+  it("renders integrations settings shell", () => {
+    render(<IntegrationsSettingsPage />);
+    expect(screen.getByRole("heading", { name: /integrations/i })).toBeTruthy();
+    expect(screen.getByText(/No real provider\/OAuth calls/i)).toBeTruthy();
+  });
+
+  it("renders security settings shell", () => {
+    render(<SecuritySettingsPage />);
+    expect(screen.getByRole("heading", { name: /security settings/i })).toBeTruthy();
+    expect(screen.getAllByText(/Production JWT verifier/i).length).toBeGreaterThan(0);
+  });
+
+  it("renders compliance settings shell", () => {
+    render(<ComplianceSettingsPage />);
+    expect(screen.getByRole("heading", { name: /compliance settings/i })).toBeTruthy();
+    expect(screen.getByText(/US-first compliance baseline/i)).toBeTruthy();
+  });
+
+  it("renders suppression settings table shell", () => {
+    render(<SuppressionSettingsPage />);
+    expect(screen.getByRole("heading", { name: /suppression settings/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /suppression demo table/i })).toBeTruthy();
   });
 });
 
