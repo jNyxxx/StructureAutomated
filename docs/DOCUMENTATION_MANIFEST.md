@@ -51,6 +51,8 @@ Produced by P1-13 (E2E smoke + evidence update). Not counted among the 20 implem
 |------|---------|
 | `docs/evidence/phase-1-final-verification.md` | Slice completion table, E2E smoke test results, quality gate outputs, migration state, deferred items |
 | `docs/evidence/phase-1-readiness-checklist.md` | Structured checklist covering all CLAUDE.md rules, gates, multi-tenancy, mock mode, idempotency, and Phase 1 deferred items |
+| `docs/evidence/frontend-final-verification.md` | Frontend final verification covering FE-0 through FE-16, route and component coverage, quality gates, local/mock limits, and production blockers |
+| `docs/evidence/frontend-readiness-checklist.md` | Frontend readiness checklist covering slices, pages, reusable systems, locked/demo behavior, accessibility/mobile checks, and next backend/API work |
 
 ---
 
