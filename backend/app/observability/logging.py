@@ -69,7 +69,7 @@ def redact(value: Any) -> Any:
     """Recursively redact mapping values whose key looks sensitive."""
     if isinstance(value, dict):
         return {k: (REDACTED if _is_sensitive(str(k)) else redact(v)) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [redact(v) for v in value]
     return value
 

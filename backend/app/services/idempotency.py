@@ -39,7 +39,7 @@ _DEFAULT_LOCK_TTL = timedelta(minutes=5)
 
 def hash_payload(payload: Any) -> str:
     """Stable SHA-256 of a request/response payload (order-insensitive for dicts)."""
-    if isinstance(payload, (bytes, bytearray)):
+    if isinstance(payload, bytes | bytearray):
         data = bytes(payload)
     elif isinstance(payload, str):
         data = payload.encode("utf-8")

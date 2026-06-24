@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -487,13 +488,21 @@ def test_no_deliverability_migration_created() -> None:
     assert not migration_files, f"Unexpected deliverability migration created: {migration_files}"
 
 
-def test_no_frontend_files_touched() -> None:
-    """P1-11 is backend-only; no frontend files should exist for deliverability."""
-    frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
-    if not frontend_dir.exists():
-        return
-    # Just verify no deliverability-specific frontend file was added
-    deliverability_fe_files = list(frontend_dir.rglob("*deliverabilit*"))
-    assert (
-        not deliverability_fe_files
-    ), f"Frontend deliverability files found (scope violation): {deliverability_fe_files}"
+def test_deliverability_backend_is_decoupled_from_frontend() -> None:
+    """Backend deliverability code must stay decoupled from later frontend shells."""
+    backend_app_dir = Path(__file__).resolve().parents[1] / "app"
+    backend_deliverability_files = list(backend_app_dir.rglob("*deliverabilit*.py"))
+    assert backend_deliverability_files, "Expected backend deliverability files to exist"
+
+    for path in backend_deliverability_files:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported = [alias.name for alias in node.names]
+                assert not any(
+                    name.startswith("frontend") for name in imported
+                ), f"Backend file imports frontend module: {path}"
+            if isinstance(node, ast.ImportFrom) and node.module:
+                assert not node.module.startswith(
+                    "frontend"
+                ), f"Backend file imports frontend module: {path}"

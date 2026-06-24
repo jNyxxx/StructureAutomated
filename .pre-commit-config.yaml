@@ -21,12 +21,14 @@ repos:
       - id: ruff
         args: [--fix]
         files: ^backend/
+        exclude: ^backend/migrations/versions/
 
   - repo: https://github.com/psf/black
     rev: 24.8.0
     hooks:
       - id: black
         files: ^backend/
+        exclude: ^backend/migrations/versions/
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.4

@@ -1,7 +1,7 @@
 # Frontend Readiness Checklist
 
-**Status:** FE-16 complete evidence draft  
-**Date:** 2026-06-24  
+**Status:** FE-16 complete evidence draft
+**Date:** 2026-06-24
 **Scope:** Frontend readiness only. Production readiness is not claimed.
 
 ## 1. Completed frontend slices
