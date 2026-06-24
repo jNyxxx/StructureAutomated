@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.repositories.review_repo import ReviewRecord
 from app.schemas.pagination import PageInfo
+from app.services.review import ReviewActionResult
 from app.services.review_read import ReviewItemPage
 
 
@@ -58,3 +59,23 @@ class ReviewItemDetailResponse(BaseModel):
     @classmethod
     def from_record(cls, record: ReviewRecord) -> ReviewItemDetailResponse:
         return cls(review_item=ReviewItemDTO.from_record(record))
+
+
+class ReviewActionRequest(BaseModel):
+    reason: str | None = None
+
+
+class ReviewActionResponse(BaseModel):
+    review_item: ReviewItemDTO | None = None
+    idempotency_replay: bool = False
+
+    @classmethod
+    def from_result(cls, result: ReviewActionResult) -> ReviewActionResponse:
+        return cls(
+            review_item=(
+                ReviewItemDTO.from_record(result.review_item)
+                if result.review_item is not None
+                else None
+            ),
+            idempotency_replay=result.idempotency_replay,
+        )

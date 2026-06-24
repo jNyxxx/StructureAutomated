@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -10,6 +11,7 @@ from app.auth.principal import CurrentPrincipal
 from app.middleware.error_handler import AppError
 from app.services.authz import CAN_APPROVE_DRAFT, CAN_REVIEW_DRAFT, RBACService
 from app.services.billing import CAN_RUN_AGENTS, BillingGateService
+from app.services.idempotency import IdempotencyOutcome, IdempotencyState
 
 
 class GroundingContactStore(Protocol):
@@ -87,6 +89,35 @@ class SafetyStore(Protocol):
         """List safety results."""
 
 
+class IdempotencyGate(Protocol):
+    async def begin(
+        self,
+        *,
+        key: str,
+        request_payload: Any,
+        now: datetime,
+        tenant_id: uuid.UUID | None = None,
+        actor_user_id: uuid.UUID | None = None,
+    ) -> IdempotencyOutcome:
+        """Begin an idempotent operation."""
+
+    async def complete(
+        self,
+        *,
+        key: str,
+        response_payload: Any,
+        status_code: int,
+        tenant_id: uuid.UUID | None = None,
+    ) -> None:
+        """Complete an idempotent operation."""
+
+
+@dataclass(frozen=True)
+class ReviewActionResult:
+    review_item: Any | None
+    idempotency_replay: bool = False
+
+
 class ReviewService:
     """Service managing human review queue workflows."""
 
@@ -100,6 +131,7 @@ class ReviewService:
         billing: BillingGateService,
         rbac: RBACService,
         compliance: ComplianceGate | None = None,
+        idempotency: IdempotencyGate | None = None,
         audit_record: Any = None,
     ) -> None:
         self._review_store = review_store
@@ -109,6 +141,7 @@ class ReviewService:
         self._billing = billing
         self._rbac = rbac
         self._compliance = compliance
+        self._idempotency = idempotency
         self._audit_record = audit_record
 
     async def list_review_queue(
@@ -129,6 +162,115 @@ class ReviewService:
             tenant_id=principal.tenant_id,
             campaign_id=campaign_id,
             status=status,
+        )
+
+    async def _run_idempotent_action(
+        self,
+        *,
+        principal: CurrentPrincipal,
+        review_id: uuid.UUID,
+        action: str,
+        idempotency_key: str | None,
+        now: datetime,
+        reason: str | None = None,
+    ) -> ReviewActionResult:
+        request_payload = {
+            "tenant_id": str(principal.tenant_id),
+            "review_id": str(review_id),
+            "action": action,
+            "reason": reason,
+        }
+        if self._idempotency is not None and idempotency_key is not None:
+            outcome = await self._idempotency.begin(
+                key=idempotency_key,
+                request_payload=request_payload,
+                now=now,
+                tenant_id=principal.tenant_id,
+                actor_user_id=principal.user_id,
+            )
+            if outcome.is_replay:
+                return ReviewActionResult(review_item=None, idempotency_replay=True)
+            if outcome.state is IdempotencyState.IN_PROGRESS:
+                raise AppError(
+                    "REVIEW_ACTION_IN_PROGRESS",
+                    "Review action is already in progress.",
+                    status_code=409,
+                )
+
+        if action == "approve":
+            item = await self.approve_draft(principal, review_id=review_id, now=now)
+        elif action == "reject":
+            item = await self.reject_draft(principal, review_id=review_id, reason=reason, now=now)
+        elif action == "request_regeneration":
+            item = await self.request_regeneration(
+                principal, review_id=review_id, reason=reason, now=now
+            )
+        else:
+            raise AppError("INVALID_REVIEW_ACTION", "Invalid review action.", status_code=400)
+
+        if self._idempotency is not None and idempotency_key is not None:
+            await self._idempotency.complete(
+                key=idempotency_key,
+                response_payload={
+                    "review_id": str(review_id),
+                    "action": action,
+                    "review_item_id": str(item.id) if item is not None else None,
+                },
+                status_code=200,
+                tenant_id=principal.tenant_id,
+            )
+        return ReviewActionResult(review_item=item)
+
+    async def approve_draft_idempotent(
+        self,
+        principal: CurrentPrincipal,
+        *,
+        review_id: uuid.UUID,
+        idempotency_key: str | None,
+        now: datetime,
+    ) -> ReviewActionResult:
+        return await self._run_idempotent_action(
+            principal=principal,
+            review_id=review_id,
+            action="approve",
+            idempotency_key=idempotency_key,
+            now=now,
+        )
+
+    async def reject_draft_idempotent(
+        self,
+        principal: CurrentPrincipal,
+        *,
+        review_id: uuid.UUID,
+        reason: str | None = None,
+        idempotency_key: str | None,
+        now: datetime,
+    ) -> ReviewActionResult:
+        return await self._run_idempotent_action(
+            principal=principal,
+            review_id=review_id,
+            action="reject",
+            idempotency_key=idempotency_key,
+            now=now,
+            reason=reason,
+        )
+
+    async def request_regeneration_idempotent(
+        self,
+        principal: CurrentPrincipal,
+        *,
+        review_id: uuid.UUID,
+        reason: str | None = None,
+        idempotency_key: str | None,
+        now: datetime,
+    ) -> ReviewActionResult:
+        return await self._run_idempotent_action(
+            principal=principal,
+            review_id=review_id,
+            action="request_regeneration",
+            idempotency_key=idempotency_key,
+            now=now,
+            reason=reason,
         )
 
     async def approve_draft(
