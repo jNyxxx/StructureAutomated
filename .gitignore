@@ -1,40 +1,119 @@
-.aider*
+# AutomatedStructure — keep the repo clean and safe
 
 # --- Secrets / environment (never commit real secrets) ---
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.secret
+secrets.*
+
+# --- Local assistant / agent workspaces ---
+.aider*
+.claude/
+.cursor/
+.codex/
+.superpowers/
 
 # --- Python ---
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
 .eggs/
 build/
 dist/
 .venv/
 venv/
+env/
+ENV/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.tox/
+.nox/
 .coverage
+coverage.xml
 htmlcov/
+.pyre/
+.pytype/
 
 # --- Node / Next.js ---
 node_modules/
 .next/
 out/
+.vercel/
+.turbo/
+.cache/
+.parcel-cache/
+.svelte-kit/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 *.tsbuildinfo
 
+# --- Test / browser automation output ---
+coverage/
+playwright-report/
+test-results/
+cypress/videos/
+cypress/screenshots/
+
+# --- Logs / runtime files ---
+logs/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# --- Databases, dumps, and local generated data ---
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+*.bak
+*.backup
+*.tmp
+*.temp
+.tmp/
+temp/
+
+# --- Docker / local infra generated state ---
+.docker-data/
+docker-data/
+postgres-data/
+pgdata/
+redis-data/
+
 # --- Local binaries / tunnels ---
+ngrok
 ngrok.exe
+cloudflared
+cloudflared.exe
+
+# --- Archives and exported design/build packages ---
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
 
 # --- OS / editor ---
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
+desktop.ini
 .idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
 *.swp
-
+*.swo
+*~
