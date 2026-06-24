@@ -16,6 +16,7 @@ import NewCampaignPage from "../(app)/campaigns/new/page";
 import DashboardPage from "../(app)/dashboard/page";
 import DeliverabilityPage from "../(app)/deliverability/page";
 import OutcomesPage from "../(app)/outcomes/page";
+import PrivacyPage from "../(app)/privacy/page";
 import ProspectsPage from "../(app)/prospects/page";
 import ProspectImportPage from "../(app)/prospects/import/page";
 import ReviewQueuePage from "../(app)/review-queue/page";
@@ -103,6 +104,14 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /audit logs/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /audit log demo table/i })).toBeTruthy();
     expect(screen.getByText(/send_gate.blocked/i)).toBeTruthy();
+    expect(screen.getByText(/Redaction visible/i)).toBeTruthy();
+  });
+
+  it("renders the privacy operations shell", () => {
+    render(<PrivacyPage />);
+    expect(screen.getByRole("heading", { name: /privacy/i })).toBeTruthy();
+    expect(screen.getAllByText(/soft delete/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Vector purge/i).length).toBeGreaterThan(0);
   });
 
   it("renders the prospects DataTable demo safely", () => {

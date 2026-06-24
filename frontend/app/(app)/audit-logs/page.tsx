@@ -1,81 +1,39 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
-import { GateReasonBadge, StatusBadge } from "@/components/badges";
+import { GateReasonBadge } from "@/components/badges";
+import { AuditDetailDrawer } from "@/components/audit/audit-detail-drawer";
+import { auditRows, type AuditRow, type AuditSeverity } from "@/components/audit/audit-sample-data";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { LocalMockNotice } from "@/components/states";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface AuditDemoRow {
-  id: string;
-  eventType: string;
-  actor: string;
-  object: string;
-  requestId: string;
-  status: "approved" | "blocked" | "pending_review";
-  createdAt: string;
-  safeDetails: string;
+function SeverityBadge({ severity }: { severity: AuditSeverity }) {
+  if (severity === "critical") return <GateReasonBadge state="blocked" label="critical" />;
+  if (severity === "blocked") return <GateReasonBadge state="blocked" label="blocked" />;
+  if (severity === "warning") return <GateReasonBadge state="warning" label="warning" />;
+  return <GateReasonBadge state="passed" label="info" />;
 }
 
-const auditRows: AuditDemoRow[] = [
-  {
-    id: "audit_demo_001",
-    eventType: "tenant.access_checked",
-    actor: "redacted:user",
-    object: "tenant",
-    requestId: "req_demo_tenant",
-    status: "approved",
-    createdAt: "local demo",
-    safeDetails: "scope: tenant:read",
-  },
-  {
-    id: "audit_demo_002",
-    eventType: "send_gate.blocked",
-    actor: "redacted:system",
-    object: "mock_send",
-    requestId: "req_demo_send_gate",
-    status: "blocked",
-    createdAt: "local demo",
-    safeDetails: "reason: production_not_approved",
-  },
-  {
-    id: "audit_demo_003",
-    eventType: "review.queue_opened",
-    actor: "redacted:user",
-    object: "review_queue",
-    requestId: "req_demo_review",
-    status: "pending_review",
-    createdAt: "local demo",
-    safeDetails: "state: pending_backend_api",
-  },
-];
-
-const columns: DataTableColumn<AuditDemoRow>[] = [
-  {
-    id: "eventType",
-    header: "Event",
-    accessor: "eventType",
-    sortable: true,
-    cell: (row) => <span className="font-semibold text-text">{row.eventType}</span>,
-  },
-  { id: "actor", header: "Actor", accessor: "actor", sortable: true },
-  { id: "object", header: "Object", accessor: "object", sortable: true },
-  {
-    id: "status",
-    header: "Status",
-    accessor: "status",
-    sortable: true,
-    cell: (row) => <StatusBadge status={row.status} />,
-  },
-  { id: "requestId", header: "Request ID", accessor: "requestId", sortable: true },
-  { id: "createdAt", header: "Created", accessor: "createdAt", sortable: true },
+const columns: DataTableColumn<AuditRow>[] = [
+  { id: "timestamp", header: "Timestamp", accessor: "timestamp", sortable: true },
+  { id: "actor", header: "Actor", accessor: "actor", sortable: true, cell: (row) => <span className="font-semibold text-text">{row.actor}</span> },
+  { id: "role", header: "Role", accessor: "role", sortable: true },
+  { id: "action", header: "Action", accessor: "action", sortable: true },
+  { id: "resource", header: "Resource", accessor: "resource", sortable: true },
+  { id: "severity", header: "Severity", accessor: "severity", sortable: true, cell: (row) => <SeverityBadge severity={row.severity} /> },
+  { id: "requestId", header: "request_id", accessor: "requestId", sortable: true, cell: (row) => <span className="break-all text-caption">{row.requestId}</span> },
+  { id: "correlationId", header: "correlation_id", accessor: "correlationId", sortable: true, cell: (row) => <span className="break-all text-caption">{row.correlationId}</span> },
 ];
 
 const savedViews: SavedViewTab[] = [
-  { id: "all", label: "All", count: auditRows.length },
-  { id: "blocked", label: "Blocked", count: 1 },
-  { id: "pending", label: "Pending backend", count: 1, locked: true },
+  { id: "all", label: "All audit events", count: auditRows.length },
+  { id: "blocked", label: "Blocked/critical", count: 2 },
+  { id: "support", label: "Support access", count: 1 },
+  { id: "export", label: "Export API", count: 0, locked: true },
 ];
 
 export default function AuditLogsPage() {
@@ -84,40 +42,29 @@ export default function AuditLogsPage() {
       <PageHeader
         eyebrow="Safe observability"
         title="Audit logs"
-        description="Shared DataTable demo with redacted local rows only. Raw secrets, tokens, contact identifiers, and PII are not rendered."
+        description="Redacted demo audit rows only. Secrets, tokens, raw contact identifiers, tenant IDs, and sessions are never rendered."
+        actions={<><Badge variant="default">Local/mock MVP</Badge><Badge variant="locked">Export locked</Badge></>}
       />
       <LocalMockNotice />
+      <Card className="border-yellow/25 bg-warnbg/60">
+        <CardHeader><div className="flex gap-3"><div className="flex size-10 items-center justify-center rounded-medium bg-warnbg text-yellow"><AlertTriangle className="size-5" /></div><div><CardTitle>Audit API/export pending</CardTitle><CardDescription>Export, raw detail fetch, and support-access enforcement are pending backend APIs. Demo details are redacted in the UI.</CardDescription></div></div></CardHeader>
+        <CardContent className="flex flex-wrap gap-2"><GateReasonBadge state="passed" label="Redaction visible" /><GateReasonBadge state="pending" label="Detail API pending" /><GateReasonBadge state="blocked" label="Export locked" /><GateReasonBadge state="warning" label="Support access audited" /></CardContent>
+      </Card>
       <DataTable
         label="Audit log demo table"
         data={auditRows}
         columns={columns}
-        filters={[{ key: "scope", label: "Scope", value: "redacted demo" }]}
+        filters={[{ key: "scope", label: "Scope", value: "redacted demo" }, { key: "retention", label: "Retention", value: "accountability" }]}
         savedViews={savedViews}
         rowActions={[
-          { label: "Open details", pendingBackend: true },
-          { label: "Export event", pendingBackend: true },
+          { label: "Open redacted details" },
+          { label: "Export audit logs", pendingBackend: true },
+          { label: "Fetch raw JSON", pendingBackend: true },
           { label: "Delete event", disabled: true, pendingBackend: true },
         ]}
-        getRowSearchText={(row) => `${row.eventType} ${row.actor} ${row.object} ${row.requestId} ${row.safeDetails}`}
-        getDrawerTitle={(row) => row.eventType}
-        renderDrawer={(row) => (
-          <div className="space-y-4 text-small text-muted">
-            <div className="flex items-center gap-2 rounded-medium border border-green/25 bg-goodbg p-3">
-              <ShieldCheck className="size-4 text-green" /> Redacted local/demo row only.
-            </div>
-            <dl className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-medium border border-border bg-panel2 p-3">
-                <dt className="font-semibold text-text">Request ID</dt>
-                <dd className="break-all">{row.requestId}</dd>
-              </div>
-              <div className="rounded-medium border border-border bg-panel2 p-3">
-                <dt className="font-semibold text-text">Safe details</dt>
-                <dd>{row.safeDetails}</dd>
-              </div>
-            </dl>
-            <GateReasonBadge state="pending" label="Detail API pending" />
-          </div>
-        )}
+        getRowSearchText={(row) => `${row.timestamp} ${row.actor} ${row.role} ${row.action} ${row.resource} ${row.severity} ${row.requestId} ${row.correlationId}`}
+        getDrawerTitle={(row) => row.action}
+        renderDrawer={(row) => <AuditDetailDrawer row={row} />}
       />
     </section>
   );
