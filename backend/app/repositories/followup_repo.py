@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import and_, insert, or_, select, update
 
 from app.models.followup import FollowUpRule, FollowUpSchedule
 from app.repositories.base import BaseRepository
@@ -100,6 +100,57 @@ class FollowUpRepository(BaseRepository):
         )
         return _rule(row)
 
+    async def list_followup_rules(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[FollowUpRuleRecord], str | None]:
+        stmt = select(FollowUpRule).where(FollowUpRule.tenant_id == tenant_id)
+        if cursor is not None:
+            try:
+                cursor_id = uuid.UUID(cursor)
+            except ValueError:
+                return [], None
+            cursor_row = (
+                (
+                    await self.conn.execute(
+                        select(FollowUpRule).where(
+                            FollowUpRule.tenant_id == tenant_id,
+                            FollowUpRule.id == cursor_id,
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if cursor_row is None:
+                return [], None
+            stmt = stmt.where(
+                or_(
+                    FollowUpRule.created_at < cursor_row.created_at,
+                    and_(
+                        FollowUpRule.created_at == cursor_row.created_at,
+                        FollowUpRule.id < cursor_row.id,
+                    ),
+                )
+            )
+        rows = (
+            (
+                await self.conn.execute(
+                    stmt.order_by(FollowUpRule.created_at.desc(), FollowUpRule.id.desc()).limit(
+                        limit + 1
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        page_rows = rows[:limit]
+        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        return [_rule(row) for row in page_rows], next_cursor
+
     async def get_followup_rule_by_campaign(
         self, *, tenant_id: uuid.UUID, campaign_id: uuid.UUID
     ) -> FollowUpRuleRecord | None:
@@ -189,6 +240,58 @@ class FollowUpRepository(BaseRepository):
             .first()
         )
         return _schedule(row) if row is not None else None
+
+    async def list_followup_schedules(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[FollowUpScheduleRecord], str | None]:
+        stmt = select(FollowUpSchedule).where(FollowUpSchedule.tenant_id == tenant_id)
+        if cursor is not None:
+            try:
+                cursor_id = uuid.UUID(cursor)
+            except ValueError:
+                return [], None
+            cursor_row = (
+                (
+                    await self.conn.execute(
+                        select(FollowUpSchedule).where(
+                            FollowUpSchedule.tenant_id == tenant_id,
+                            FollowUpSchedule.id == cursor_id,
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if cursor_row is None:
+                return [], None
+            stmt = stmt.where(
+                or_(
+                    FollowUpSchedule.created_at < cursor_row.created_at,
+                    and_(
+                        FollowUpSchedule.created_at == cursor_row.created_at,
+                        FollowUpSchedule.id < cursor_row.id,
+                    ),
+                )
+            )
+        rows = (
+            (
+                await self.conn.execute(
+                    stmt.order_by(
+                        FollowUpSchedule.created_at.desc(),
+                        FollowUpSchedule.id.desc(),
+                    ).limit(limit + 1)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        page_rows = rows[:limit]
+        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        return [_schedule(row) for row in page_rows], next_cursor
 
     async def update_followup_schedule_status(
         self,
