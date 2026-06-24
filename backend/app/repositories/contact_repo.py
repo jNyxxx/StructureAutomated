@@ -5,10 +5,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import and_, insert, or_, select, update
 
 from app.models.contact import Contact, ContactImport, ContactImportRow
 from app.repositories.base import BaseRepository
+from app.services.contact_read import ContactReadPage, ContactReadRecord
 from app.services.csv_import import (
     ContactImportRecord,
     ContactImportRowRecord,
@@ -58,6 +59,94 @@ def _import_row(row: ContactImportRow) -> ContactImportRowRecord:
         contact_id=row.contact_id,
         dedupe_hash=row.dedupe_hash,
     )
+
+
+def _contact_read(row: Contact) -> ContactReadRecord:
+    return ContactReadRecord(
+        id=row.id,
+        tenant_id=row.tenant_id,
+        full_name=row.full_name,
+        title=row.title,
+        email=row.email,
+        domain=row.domain,
+        company_name=row.company_name,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+class ContactReadRepository(BaseRepository):
+    """Read-only tenant contact repository."""
+
+    async def list_contacts(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        cursor: str | None,
+        limit: int,
+    ) -> ContactReadPage:
+        query = select(Contact).where(Contact.tenant_id == tenant_id)
+        if cursor is not None:
+            try:
+                cursor_id = uuid.UUID(cursor)
+            except ValueError:
+                cursor_id = None
+            cursor_contact = None
+            if cursor_id is not None:
+                cursor_contact = (
+                    (
+                        await self.conn.execute(
+                            select(Contact).where(
+                                Contact.tenant_id == tenant_id,
+                                Contact.id == cursor_id,
+                            )
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
+            if cursor_contact is None:
+                return ContactReadPage(items=(), next_cursor=None, limit=limit)
+            query = query.where(
+                or_(
+                    Contact.created_at < cursor_contact.created_at,
+                    and_(
+                        Contact.created_at == cursor_contact.created_at,
+                        Contact.id < cursor_contact.id,
+                    ),
+                )
+            )
+
+        rows = (
+            (
+                await self.conn.execute(
+                    query.order_by(Contact.created_at.desc(), Contact.id.desc()).limit(limit + 1)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        page_rows = rows[:limit]
+        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        return ContactReadPage(
+            items=tuple(_contact_read(row) for row in page_rows),
+            next_cursor=next_cursor,
+            limit=limit,
+        )
+
+    async def get_contact_by_id(
+        self, *, tenant_id: uuid.UUID, contact_id: uuid.UUID
+    ) -> ContactReadRecord | None:
+        row = (
+            (
+                await self.conn.execute(
+                    select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
+                )
+            )
+            .scalars()
+            .first()
+        )
+        return _contact_read(row) if row is not None else None
 
 
 class ContactImportRepository(BaseRepository):
