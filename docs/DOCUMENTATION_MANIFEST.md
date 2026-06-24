@@ -56,6 +56,14 @@ Produced by P1-13 (E2E smoke + evidence update). Not counted among the 20 implem
 
 ---
 
+## Supplementary process notes (not counted among the 20 docs)
+
+| File | Purpose |
+|------|---------|
+| `docs/ENGINEERING_SESSION_GUARDRAILS.md` | Pre-flight + in-session guardrails: verify clean/stable tree before work, single-writer rule, no force-push, preserve local/mock notices and gate labels, re-run checks before commit |
+
+---
+
 ## Folded / avoided (no standalone doc)
 
 | Master § | Folded into | Why |
