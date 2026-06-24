@@ -96,8 +96,8 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
               {mode !== "verify-email" ? <Input placeholder="Auth provider field" disabled /> : null}
             </div>
 
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               disabled={item.pending}
               onClick={() => {
                 if (mode === "login" || mode === "signup") {

@@ -36,7 +36,7 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
         </div>
       </div>
 
-      
+
 
       <Separator />
 

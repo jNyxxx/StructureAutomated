@@ -21,7 +21,7 @@ export default function DeliverabilityPage() {
         eyebrow="Send safety dashboard"
         title="Deliverability"
         description="Monitor mailbox pool health, warming progress, and domain authentication status."
-        
+
       />
 
       <DeliverabilitySummaryCards />

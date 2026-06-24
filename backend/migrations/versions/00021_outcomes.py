@@ -159,14 +159,14 @@ def downgrade() -> None:
     op.execute(
         "DROP POLICY IF EXISTS outcome_events_tenant_isolation ON outcome_events"
     )
-    op.drop_index("ix_campaign_roi_assumptions_campaign_id", "campaign_roi_assumptions")
-    op.drop_index("ix_campaign_roi_assumptions_tenant_id", "campaign_roi_assumptions")
+    op.drop_index("ix_campaign_roi_assumptions_campaign_id", table_name="campaign_roi_assumptions")
+    op.drop_index("ix_campaign_roi_assumptions_tenant_id", table_name="campaign_roi_assumptions")
     op.drop_table("campaign_roi_assumptions")
 
-    op.drop_index("ix_outcome_events_occurred_at", "outcome_events")
-    op.drop_index("ix_outcome_events_event_type", "outcome_events")
-    op.drop_index("ix_outcome_events_outbound_message_id", "outcome_events")
-    op.drop_index("ix_outcome_events_contact_id", "outcome_events")
-    op.drop_index("ix_outcome_events_campaign_id", "outcome_events")
-    op.drop_index("ix_outcome_events_tenant_id", "outcome_events")
+    op.drop_index("ix_outcome_events_occurred_at", table_name="outcome_events")
+    op.drop_index("ix_outcome_events_event_type", table_name="outcome_events")
+    op.drop_index("ix_outcome_events_outbound_message_id", table_name="outcome_events")
+    op.drop_index("ix_outcome_events_contact_id", table_name="outcome_events")
+    op.drop_index("ix_outcome_events_campaign_id", table_name="outcome_events")
+    op.drop_index("ix_outcome_events_tenant_id", table_name="outcome_events")
     op.drop_table("outcome_events")

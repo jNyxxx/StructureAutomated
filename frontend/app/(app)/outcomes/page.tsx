@@ -19,7 +19,7 @@ export default function OutcomesPage() {
         eyebrow="Outcome intelligence"
         title="Outcomes and ROI"
         description="Track replies, booked meetings, and revenue outcomes from campaigns."
-        
+
       />
 
       <OutcomeMetricCards />

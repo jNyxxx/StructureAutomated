@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="min-h-screen lg:pl-sidebar">
         <TopCommandBar mobileNav={<MobileNav />} />
         <main className="space-y-6 p-4 sm:p-6 lg:p-page-desktop">
-          
+
           <TenantStatusCard />
           {children}
         </main>

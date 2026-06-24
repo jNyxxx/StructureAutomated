@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         eyebrow="Privacy operations"
         title="Privacy"
         description="Manage user data exports, deletion requests, and retention policies."
-        
+
       />
 
       <PrivacyPostureCard />

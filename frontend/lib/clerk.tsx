@@ -149,7 +149,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
               </Button>
             }
           />
-          
+
         </div>
       </AuthShell>
     );

@@ -19,9 +19,9 @@ export default function BillingPage() {
         eyebrow="Billing and access gates"
         title="Billing"
         description="Manage subscription plan, invoices, and billing configurations."
-        
+
       />
-      
+
       <BillingLockBanner />
 
       <div className="grid gap-4 xl:grid-cols-2">

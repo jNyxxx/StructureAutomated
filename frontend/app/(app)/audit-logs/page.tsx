@@ -43,7 +43,7 @@ export default function AuditLogsPage() {
         eyebrow="Safe observability"
         title="Audit logs"
         description="Immutable history of system access and sensitive operations."
-        
+
       />
 
       <DataTable
