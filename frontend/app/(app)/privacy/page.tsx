@@ -7,7 +7,7 @@ import { PrivacyPostureCard } from "@/components/privacy/privacy-posture-card";
 import { PrivacyRequestPanel } from "@/components/privacy/privacy-request-panel";
 import { PrivacyTimeline } from "@/components/privacy/privacy-timeline";
 import { PageHeader } from "@/components/layout/page-header";
-
+import { LocalMockNotice } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,10 +17,14 @@ export default function PrivacyPage() {
       <PageHeader
         eyebrow="Privacy operations"
         title="Privacy"
-        description="Manage user data exports, deletion requests, and retention policies."
-
+        description="Privacy export, deletion, retention, suppression-minimum, and vector purge workflow shell. Backend privacy APIs are pending."
+        actions={<><Badge variant="default">Local/mock MVP</Badge><Badge variant="locked">Production not approved</Badge></>}
       />
-
+      <LocalMockNotice />
+      <Card className="border-yellow/25 bg-warnbg/60">
+        <CardHeader><div className="flex gap-3"><div className="flex size-10 items-center justify-center rounded-medium bg-warnbg text-yellow"><AlertTriangle className="size-5" /></div><div><CardTitle>Pending backend privacy APIs</CardTitle><CardDescription>Export, delete, download, deletion confirmation, and knowledge/vector purge actions are disabled until backend workflows exist.</CardDescription></div></div></CardHeader>
+        <CardContent className="flex flex-wrap gap-2"><GateReasonBadge state="pending" label="Export API pending" /><GateReasonBadge state="pending" label="Delete API pending" /><GateReasonBadge state="pending" label="Vector purge pending" /><GateReasonBadge state="blocked" label="No fake completion" /></CardContent>
+      </Card>
       <PrivacyPostureCard />
       <div className="grid gap-4 xl:grid-cols-2"><DataRetentionPanel /><PrivacyTimeline /></div>
       <PrivacyRequestPanel />

@@ -182,7 +182,7 @@ export function TenantStatusCard() {
   }
 
   return (
-    <div className="sr-only rounded-xl border border-green/30 bg-goodbg p-4 text-small text-muted shadow-panel">
+    <div className="rounded-xl border border-green/30 bg-goodbg p-4 text-small text-muted shadow-panel">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-semibold text-text">Tenant access confirmed</p>

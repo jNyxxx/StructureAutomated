@@ -27,41 +27,14 @@ export async function fetchReady(options: ApiClientOptions = {}): Promise<Health
 }
 
 export async function fetchAuthMe(options: AuthenticatedApiClientOptions): Promise<AuthMeResponse> {
-  if (process.env.NODE_ENV !== "production") {
-    return {
-      principal: {
-        provider_user_id: "user_clerk_1",
-        user_id: "11111111-1111-1111-1111-111111111111",
-        email: "owner@example.com",
-        tenant_id: options.getTenantId() ?? "22222222-2222-2222-2222-222222222222",
-        role: "tenant_owner",
-        membership_version: 1,
-        mfa_verified: true,
-      },
-    };
-  }
   return authMeResponseSchema.parse(await authenticatedApiRequest("/auth/me", { method: "GET" }, options));
 }
 
 export async function logout(options: AuthenticatedApiClientOptions): Promise<void> {
-  if (process.env.NODE_ENV !== "production") {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("mock_signed_in");
-      window.location.href = "/login";
-    }
-    return;
-  }
   await authenticatedApiRequest("/auth/logout", { method: "POST" }, options);
 }
 
 export async function logoutAll(options: AuthenticatedApiClientOptions): Promise<void> {
-  if (process.env.NODE_ENV !== "production") {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("mock_signed_in");
-      window.location.href = "/login";
-    }
-    return;
-  }
   await authenticatedApiRequest("/auth/logout-all", { method: "POST" }, options);
 }
 
