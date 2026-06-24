@@ -27,10 +27,12 @@ from app.routers import (
     auth,
     campaigns,
     contacts,
+    deliverability,
     drafts,
     followups,
     health,
     imports,
+    outcomes,
     review,
     sending,
 )
@@ -81,6 +83,8 @@ def create_app() -> FastAPI:
     app.include_router(review.router)
     app.include_router(sending.router)
     app.include_router(followups.router)
+    app.include_router(deliverability.router)
+    app.include_router(outcomes.router)
     return app
 
 
