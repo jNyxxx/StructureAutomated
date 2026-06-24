@@ -1,4 +1,4 @@
-"""GET/POST campaign router tests for Phase 2 P2-2."""
+"""Campaign router tests for Phase 2 P2-2/P2-2b."""
 
 import uuid
 from contextlib import asynccontextmanager
@@ -13,14 +13,24 @@ from app.main import create_app
 from app.middleware.error_handler import AppError
 from app.routers import campaigns as campaigns_router
 from app.routers.campaigns import campaign_service
-from app.services.campaign import CampaignCreateResult, CampaignRecord
+from app.services.campaign import (
+    CampaignContactRecord,
+    CampaignContactSelectionResult,
+    CampaignCreateResult,
+    CampaignRecord,
+    CampaignUpdateResult,
+)
 
 _TENANT = uuid.UUID("11111111-1111-1111-1111-111111111111")
 _USER = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 _CAMPAIGN = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 _OTHER_CAMPAIGN = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+_CONTACT = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+_CAMPAIGN_CONTACT = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 _HEADERS = {"Idempotency-Key": "campaign-key-1"}
 _BODY = {"name": "Q3 CRE Owners", "description": "Local demo campaign"}
+_UPDATE_BODY = {"name": "Updated CRE Owners", "status": "ready"}
+_SELECT_BODY = {"contact_id": str(_CONTACT), "status": "selected"}
 
 
 def _principal() -> CurrentPrincipal:
@@ -50,6 +60,30 @@ def _campaign(campaign_id: uuid.UUID = _CAMPAIGN) -> CampaignRecord:
     )
 
 
+def _updated_campaign() -> CampaignRecord:
+    return CampaignRecord(
+        id=_CAMPAIGN,
+        tenant_id=_TENANT,
+        created_by_user_id=_USER,
+        name="Updated CRE Owners",
+        description="Local demo campaign",
+        goal="Book calls",
+        target_segment="CRE owners",
+        notes="Local/mock only",
+        status="ready",
+    )
+
+
+def _campaign_contact() -> CampaignContactRecord:
+    return CampaignContactRecord(
+        id=_CAMPAIGN_CONTACT,
+        tenant_id=_TENANT,
+        campaign_id=_CAMPAIGN,
+        contact_id=_CONTACT,
+        status="selected",
+    )
+
+
 class _FakeCampaignService:
     def __init__(self, *, error: Exception | None = None, replay: bool = False) -> None:
         self.error = error
@@ -76,6 +110,24 @@ class _FakeCampaignService:
             raise self.error
         return _campaign()
 
+    async def update_campaign_idempotent(self, **kwargs: Any) -> CampaignUpdateResult:
+        self.calls.append({"method": "update_campaign_idempotent", **kwargs})
+        if self.error is not None:
+            raise self.error
+        if self.replay:
+            return CampaignUpdateResult(campaign=None, idempotency_replay=True)
+        return CampaignUpdateResult(campaign=_updated_campaign(), idempotency_replay=False)
+
+    async def attach_contact_idempotent(self, **kwargs: Any) -> CampaignContactSelectionResult:
+        self.calls.append({"method": "attach_contact_idempotent", **kwargs})
+        if self.error is not None:
+            raise self.error
+        if self.replay:
+            return CampaignContactSelectionResult(campaign_contact=None, idempotency_replay=True)
+        return CampaignContactSelectionResult(
+            campaign_contact=_campaign_contact(), idempotency_replay=False
+        )
+
 
 def _client(service: _FakeCampaignService | None = None) -> TestClient:
     app = create_app()
@@ -85,9 +137,22 @@ def _client(service: _FakeCampaignService | None = None) -> TestClient:
     return TestClient(app, raise_server_exceptions=False)
 
 
-def test_unauthenticated_request_returns_401() -> None:
+@pytest.mark.parametrize(
+    ("method", "path", "json_body", "headers"),
+    [
+        ("get", "/api/v1/campaigns", None, None),
+        ("patch", f"/api/v1/campaigns/{_CAMPAIGN}", _UPDATE_BODY, _HEADERS),
+        ("post", f"/api/v1/campaigns/{_CAMPAIGN}/contacts", _SELECT_BODY, _HEADERS),
+    ],
+)
+def test_unauthenticated_request_returns_401(
+    method: str,
+    path: str,
+    json_body: dict[str, Any] | None,
+    headers: dict[str, str] | None,
+) -> None:
     client = TestClient(create_app(), raise_server_exceptions=False)
-    resp = client.get("/api/v1/campaigns")
+    resp = client.request(method, path, json=json_body, headers=headers)
     assert resp.status_code == 401
     assert resp.json()["error"]["code"] == "UNAUTHENTICATED"
 
@@ -99,8 +164,9 @@ def test_campaign_routes_are_mounted_under_api_v1() -> None:
     assert "post" in spec["/api/v1/campaigns"]
     assert "/api/v1/campaigns/{campaign_id}" in spec
     assert "get" in spec["/api/v1/campaigns/{campaign_id}"]
-    assert "patch" not in spec["/api/v1/campaigns/{campaign_id}"]
-    assert "/api/v1/campaigns/{campaign_id}/contacts" not in spec
+    assert "patch" in spec["/api/v1/campaigns/{campaign_id}"]
+    assert "/api/v1/campaigns/{campaign_id}/contacts" in spec
+    assert "post" in spec["/api/v1/campaigns/{campaign_id}/contacts"]
 
 
 def test_list_campaigns_returns_resource_keyed_body_with_page_metadata() -> None:
@@ -179,6 +245,100 @@ def test_detail_not_found_or_cross_tenant_policy_uses_standard_envelope() -> Non
     resp = _client(fake).get(f"/api/v1/campaigns/{_CAMPAIGN}")
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "OBJECT_ACCESS_DENIED"
+
+
+def test_patch_campaign_requires_idempotency_key() -> None:
+    fake = _FakeCampaignService()
+    resp = _client(fake).patch(f"/api/v1/campaigns/{_CAMPAIGN}", json=_UPDATE_BODY)
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "IDEMPOTENCY_KEY_REQUIRED"
+    assert fake.calls == []
+
+
+def test_patch_campaign_calls_service_with_tenant_context_and_returns_dto() -> None:
+    fake = _FakeCampaignService()
+    resp = _client(fake).patch(
+        f"/api/v1/campaigns/{_CAMPAIGN}", json=_UPDATE_BODY, headers=_HEADERS
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["campaign"]["id"] == str(_CAMPAIGN)
+    assert body["campaign"]["name"] == "Updated CRE Owners"
+    assert body["campaign"]["status"] == "ready"
+    assert body["idempotency_replay"] is False
+    call = fake.calls[0]
+    assert call["method"] == "update_campaign_idempotent"
+    assert call["principal"].tenant_id == _TENANT
+    assert call["campaign_id"] == _CAMPAIGN
+    assert call["idempotency_key"] == "campaign-key-1"
+
+
+def test_patch_campaign_service_error_maps_to_standard_envelope() -> None:
+    fake = _FakeCampaignService(
+        error=AppError("OBJECT_ACCESS_DENIED", "Object not found.", status_code=403)
+    )
+    resp = _client(fake).patch(
+        f"/api/v1/campaigns/{_CAMPAIGN}", json=_UPDATE_BODY, headers=_HEADERS
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "OBJECT_ACCESS_DENIED"
+
+
+def test_patch_campaign_idempotency_replay_returns_flag_without_campaign() -> None:
+    fake = _FakeCampaignService(replay=True)
+    resp = _client(fake).patch(
+        f"/api/v1/campaigns/{_CAMPAIGN}", json=_UPDATE_BODY, headers=_HEADERS
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"campaign": None, "idempotency_replay": True}
+
+
+def test_select_campaign_contact_requires_idempotency_key() -> None:
+    fake = _FakeCampaignService()
+    resp = _client(fake).post(f"/api/v1/campaigns/{_CAMPAIGN}/contacts", json=_SELECT_BODY)
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "IDEMPOTENCY_KEY_REQUIRED"
+    assert fake.calls == []
+
+
+def test_select_campaign_contact_calls_service_and_returns_dto() -> None:
+    fake = _FakeCampaignService()
+    resp = _client(fake).post(
+        f"/api/v1/campaigns/{_CAMPAIGN}/contacts", json=_SELECT_BODY, headers=_HEADERS
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["campaign_contact"]["id"] == str(_CAMPAIGN_CONTACT)
+    assert body["campaign_contact"]["campaign_id"] == str(_CAMPAIGN)
+    assert body["campaign_contact"]["contact_id"] == str(_CONTACT)
+    assert body["campaign_contact"]["status"] == "selected"
+    assert body["idempotency_replay"] is False
+    call = fake.calls[0]
+    assert call["method"] == "attach_contact_idempotent"
+    assert call["principal"].tenant_id == _TENANT
+    assert call["campaign_id"] == _CAMPAIGN
+    assert call["contact_id"] == _CONTACT
+    assert call["idempotency_key"] == "campaign-key-1"
+
+
+def test_select_campaign_contact_policy_error_maps_to_standard_envelope() -> None:
+    fake = _FakeCampaignService(
+        error=AppError("OBJECT_ACCESS_DENIED", "Object not found.", status_code=403)
+    )
+    resp = _client(fake).post(
+        f"/api/v1/campaigns/{_CAMPAIGN}/contacts", json=_SELECT_BODY, headers=_HEADERS
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "OBJECT_ACCESS_DENIED"
+
+
+def test_select_campaign_contact_idempotency_replay_returns_flag_without_row() -> None:
+    fake = _FakeCampaignService(replay=True)
+    resp = _client(fake).post(
+        f"/api/v1/campaigns/{_CAMPAIGN}/contacts", json=_SELECT_BODY, headers=_HEADERS
+    )
+    assert resp.status_code == 201
+    assert resp.json() == {"campaign_contact": None, "idempotency_replay": True}
 
 
 async def test_di_factory_opens_tenant_session_with_principal_context(

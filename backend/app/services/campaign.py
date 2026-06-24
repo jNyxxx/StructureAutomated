@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Protocol
 
@@ -60,6 +60,18 @@ class CampaignContactRecord:
 @dataclass(frozen=True)
 class CampaignCreateResult:
     campaign: CampaignRecord | None
+    idempotency_replay: bool = False
+
+
+@dataclass(frozen=True)
+class CampaignUpdateResult:
+    campaign: CampaignRecord | None
+    idempotency_replay: bool = False
+
+
+@dataclass(frozen=True)
+class CampaignContactSelectionResult:
+    campaign_contact: CampaignContactRecord | None
     idempotency_replay: bool = False
 
 
@@ -299,6 +311,71 @@ class CampaignService:
         self._rbac.require(principal, AUTHZ_CAN_CREATE_CAMPAIGN)
         return await self._store.list_campaigns(tenant_id=principal.tenant_id)
 
+    async def update_campaign_idempotent(
+        self,
+        *,
+        principal: CurrentPrincipal,
+        campaign_id: uuid.UUID,
+        name: str | None = None,
+        description: str | None = None,
+        goal: str | None = None,
+        target_segment: str | None = None,
+        notes: str | None = None,
+        status: str | None = None,
+        idempotency_key: str | None,
+        now: datetime | None = None,
+    ) -> CampaignUpdateResult:
+        now = now or datetime.now(UTC)
+        await self._billing.require_feature(
+            principal.tenant_id, BILLING_CAN_CREATE_CAMPAIGN, now=now
+        )
+        if status is not None:
+            _validate_campaign_status(status)
+        request_payload = {
+            "tenant_id": str(principal.tenant_id),
+            "campaign_id": str(campaign_id),
+            "name": _clean_required(name, field="name") if name is not None else None,
+            "description": _clean_optional(description),
+            "goal": _clean_optional(goal),
+            "target_segment": _clean_optional(target_segment),
+            "notes": _clean_optional(notes),
+            "status": status,
+        }
+        if self._idempotency is not None and idempotency_key is not None:
+            outcome = await self._idempotency.begin(
+                key=idempotency_key,
+                request_payload=request_payload,
+                now=now,
+                tenant_id=principal.tenant_id,
+                actor_user_id=principal.user_id,
+            )
+            if outcome.state is IdempotencyState.REPLAY:
+                return CampaignUpdateResult(campaign=None, idempotency_replay=True)
+            if outcome.state is IdempotencyState.IN_PROGRESS:
+                raise AppError(
+                    "CAMPAIGN_UPDATE_IN_PROGRESS",
+                    "Campaign update is already in progress.",
+                    status_code=409,
+                )
+        updated = await self.update_campaign(
+            principal=principal,
+            campaign_id=campaign_id,
+            name=request_payload["name"],
+            description=request_payload["description"],
+            goal=request_payload["goal"],
+            target_segment=request_payload["target_segment"],
+            notes=request_payload["notes"],
+            status=status,
+        )
+        if self._idempotency is not None and idempotency_key is not None:
+            await self._idempotency.complete(
+                key=idempotency_key,
+                response_payload={"campaign_id": str(updated.id)},
+                status_code=200,
+                tenant_id=principal.tenant_id,
+            )
+        return CampaignUpdateResult(campaign=updated)
+
     async def update_campaign(
         self,
         *,
@@ -343,6 +420,60 @@ class CampaignService:
             details={"status": updated.status},
         )
         return updated
+
+    async def attach_contact_idempotent(
+        self,
+        *,
+        principal: CurrentPrincipal,
+        campaign_id: uuid.UUID,
+        contact_id: uuid.UUID,
+        status: str = CampaignContactStatus.SELECTED.value,
+        idempotency_key: str | None,
+        now: datetime | None = None,
+    ) -> CampaignContactSelectionResult:
+        now = now or datetime.now(UTC)
+        await self._billing.require_feature(
+            principal.tenant_id, BILLING_CAN_CREATE_CAMPAIGN, now=now
+        )
+        _validate_campaign_contact_status(status)
+        request_payload = {
+            "tenant_id": str(principal.tenant_id),
+            "campaign_id": str(campaign_id),
+            "contact_id": str(contact_id),
+            "status": status,
+        }
+        if self._idempotency is not None and idempotency_key is not None:
+            outcome = await self._idempotency.begin(
+                key=idempotency_key,
+                request_payload=request_payload,
+                now=now,
+                tenant_id=principal.tenant_id,
+                actor_user_id=principal.user_id,
+            )
+            if outcome.state is IdempotencyState.REPLAY:
+                return CampaignContactSelectionResult(
+                    campaign_contact=None, idempotency_replay=True
+                )
+            if outcome.state is IdempotencyState.IN_PROGRESS:
+                raise AppError(
+                    "CAMPAIGN_CONTACT_SELECTION_IN_PROGRESS",
+                    "Campaign contact selection is already in progress.",
+                    status_code=409,
+                )
+        row = await self.attach_contact(
+            principal=principal,
+            campaign_id=campaign_id,
+            contact_id=contact_id,
+            status=status,
+        )
+        if self._idempotency is not None and idempotency_key is not None:
+            await self._idempotency.complete(
+                key=idempotency_key,
+                response_payload={"campaign_contact_id": str(row.id)},
+                status_code=201,
+                tenant_id=principal.tenant_id,
+            )
+        return CampaignContactSelectionResult(campaign_contact=row)
 
     async def attach_contact(
         self,

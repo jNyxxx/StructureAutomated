@@ -7,7 +7,13 @@ import uuid
 from pydantic import BaseModel, Field
 
 from app.schemas.pagination import PageInfo
-from app.services.campaign import CampaignCreateResult, CampaignRecord
+from app.services.campaign import (
+    CampaignContactRecord,
+    CampaignContactSelectionResult,
+    CampaignCreateResult,
+    CampaignRecord,
+    CampaignUpdateResult,
+)
 
 
 class CampaignCreateRequest(BaseModel):
@@ -16,6 +22,20 @@ class CampaignCreateRequest(BaseModel):
     goal: str | None = Field(default=None, max_length=5_000)
     target_segment: str | None = Field(default=None, max_length=5_000)
     notes: str | None = Field(default=None, max_length=5_000)
+
+
+class CampaignUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=5_000)
+    goal: str | None = Field(default=None, max_length=5_000)
+    target_segment: str | None = Field(default=None, max_length=5_000)
+    notes: str | None = Field(default=None, max_length=5_000)
+    status: str | None = None
+
+
+class CampaignContactSelectRequest(BaseModel):
+    contact_id: uuid.UUID
+    status: str = Field(default="selected", max_length=64)
 
 
 class CampaignDTO(BaseModel):
@@ -63,5 +83,51 @@ class CampaignCreateResponse(BaseModel):
     def from_result(cls, result: CampaignCreateResult) -> CampaignCreateResponse:
         return cls(
             campaign=(CampaignDTO.from_record(result.campaign) if result.campaign else None),
+            idempotency_replay=result.idempotency_replay,
+        )
+
+
+class CampaignUpdateResponse(BaseModel):
+    campaign: CampaignDTO | None = None
+    idempotency_replay: bool = False
+
+    @classmethod
+    def from_result(cls, result: CampaignUpdateResult) -> CampaignUpdateResponse:
+        return cls(
+            campaign=(CampaignDTO.from_record(result.campaign) if result.campaign else None),
+            idempotency_replay=result.idempotency_replay,
+        )
+
+
+class CampaignContactDTO(BaseModel):
+    id: uuid.UUID
+    campaign_id: uuid.UUID
+    contact_id: uuid.UUID
+    status: str
+
+    @classmethod
+    def from_record(cls, record: CampaignContactRecord) -> CampaignContactDTO:
+        return cls(
+            id=record.id,
+            campaign_id=record.campaign_id,
+            contact_id=record.contact_id,
+            status=record.status,
+        )
+
+
+class CampaignContactSelectionResponse(BaseModel):
+    campaign_contact: CampaignContactDTO | None = None
+    idempotency_replay: bool = False
+
+    @classmethod
+    def from_result(
+        cls, result: CampaignContactSelectionResult
+    ) -> CampaignContactSelectionResponse:
+        return cls(
+            campaign_contact=(
+                CampaignContactDTO.from_record(result.campaign_contact)
+                if result.campaign_contact
+                else None
+            ),
             idempotency_replay=result.idempotency_replay,
         )

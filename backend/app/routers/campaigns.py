@@ -24,11 +24,15 @@ from app.repositories.billing_repo import BillingRepository
 from app.repositories.campaign_repo import CampaignRepository
 from app.repositories.idempotency_repo import IdempotencyRepository
 from app.schemas.campaigns import (
+    CampaignContactSelectionResponse,
+    CampaignContactSelectRequest,
     CampaignCreateRequest,
     CampaignCreateResponse,
     CampaignDetailResponse,
     CampaignDTO,
     CampaignListResponse,
+    CampaignUpdateRequest,
+    CampaignUpdateResponse,
 )
 from app.schemas.pagination import PageInfo, PageParams
 from app.services.authz import ObjectAuthorizationService, RBACService
@@ -142,3 +146,65 @@ async def get_campaign(
     """Return one tenant-scoped campaign."""
     campaign = await service.get_campaign(principal=principal, campaign_id=campaign_id)
     return CampaignDetailResponse.from_record(campaign)
+
+
+@router.patch("/{campaign_id}", response_model=CampaignUpdateResponse)
+async def update_campaign(
+    campaign_id: uuid.UUID,
+    body: CampaignUpdateRequest,
+    principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    service: Annotated[CampaignService, Depends(campaign_service)],
+    key: Annotated[str, Depends(idempotency_key)],
+) -> CampaignUpdateResponse:
+    """Update basic campaign metadata/status with idempotency."""
+    try:
+        result = await service.update_campaign_idempotent(
+            principal=principal,
+            campaign_id=campaign_id,
+            name=body.name,
+            description=body.description,
+            goal=body.goal,
+            target_segment=body.target_segment,
+            notes=body.notes,
+            status=body.status,
+            idempotency_key=key,
+            now=datetime.now(UTC),
+        )
+    except IdempotencyConflictError as exc:
+        raise AppError(
+            exc.code,
+            "Idempotency-Key was reused with a different request.",
+            status_code=409,
+        ) from exc
+    return CampaignUpdateResponse.from_result(result)
+
+
+@router.post(
+    "/{campaign_id}/contacts",
+    status_code=201,
+    response_model=CampaignContactSelectionResponse,
+)
+async def select_campaign_contact(
+    campaign_id: uuid.UUID,
+    body: CampaignContactSelectRequest,
+    principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    service: Annotated[CampaignService, Depends(campaign_service)],
+    key: Annotated[str, Depends(idempotency_key)],
+) -> CampaignContactSelectionResponse:
+    """Select a tenant contact for a campaign with idempotency."""
+    try:
+        result = await service.attach_contact_idempotent(
+            principal=principal,
+            campaign_id=campaign_id,
+            contact_id=body.contact_id,
+            status=body.status,
+            idempotency_key=key,
+            now=datetime.now(UTC),
+        )
+    except IdempotencyConflictError as exc:
+        raise AppError(
+            exc.code,
+            "Idempotency-Key was reused with a different request.",
+            status_code=409,
+        ) from exc
+    return CampaignContactSelectionResponse.from_result(result)
