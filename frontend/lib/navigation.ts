@@ -186,6 +186,7 @@ export function getNavStatusIcon(status: NavStatus): LucideIcon {
 }
 
 export function isActiveRoute(pathname: string, href: string): boolean {
-  if (href === "/dashboard") return pathname === href;
+  const exactOnlyRoutes = new Set(["/dashboard", "/prospects", "/settings"]);
+  if (exactOnlyRoutes.has(href)) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

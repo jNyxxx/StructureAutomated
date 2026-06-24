@@ -68,7 +68,7 @@ export function TopCommandBar({
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="secondary" size="sm" className="hidden max-w-[220px] justify-start gap-2 md:inline-flex">
+            <Button variant="secondary" size="sm" className="hidden max-w-[220px] justify-start gap-2 md:inline-flex" aria-label="Tenant switcher shell" title="Tenant switcher shell; backend tenant switch API is pending">
               <span className="size-2 rounded-pill bg-yellow" />
               <span className="truncate">
                 {tenant.isConfirmed ? tenant.role ?? "Tenant confirmed" : tenant.selectedTenantId ? "Tenant pending" : "Select tenant"}

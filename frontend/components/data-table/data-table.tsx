@@ -137,10 +137,10 @@ export function DataTable<TData extends { id: string }>({
         }}
         filters={filters}
       >
-        <Button type="button" variant="secondary" size="sm" disabled>
+        <Button type="button" variant="secondary" size="sm" disabled aria-label="Save view disabled because backend saved-view API is pending" title="Backend saved-view API is pending">
           Save view
         </Button>
-        <Button type="button" variant="locked" size="sm" disabled>
+        <Button type="button" variant="locked" size="sm" disabled aria-label="Bulk actions disabled because backend mutation APIs are pending" title="Backend bulk mutation APIs are pending">
           Bulk API locked
         </Button>
       </DataTableToolbar>
@@ -195,7 +195,7 @@ export function DataTable<TData extends { id: string }>({
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center justify-end gap-2">
                       {renderDrawer ? (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setDrawerRow(row)}>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setDrawerRow(row)} aria-label={`View details for row ${row.id}`}>
                           View
                         </Button>
                       ) : null}

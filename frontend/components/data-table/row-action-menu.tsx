@@ -41,6 +41,7 @@ export function RowActionMenu<TData>({ row, actions }: { row: TData; actions: Ro
                 action.onSelect?.(row);
                 setOpen(false);
               }}
+              title={action.pendingBackend ? "Backend API pending" : action.disabled ? "Action disabled in local/mock MVP" : action.label}
               className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-small text-muted hover:bg-panel2 hover:text-text disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span>{action.label}</span>

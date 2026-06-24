@@ -25,7 +25,7 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
   const pathname = usePathname();
 
   return (
-    <aside className={cn("flex h-full flex-col border-r border-border bg-panel/95", className)}>
+    <aside className={cn("flex h-full flex-col border-r border-border bg-panel/95", className)} aria-label="Application sidebar">
       <div className="flex h-topbar items-center gap-3 px-5">
         <div className="flex size-10 items-center justify-center rounded-medium bg-bluebg text-blue">
           <Terminal className="size-5" />
@@ -51,7 +51,7 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
 
       <Separator />
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Primary app navigation">
         {appNavSections.map((section) => (
           <div key={section.label}>
             <p className="px-2 pb-2 text-caption font-semibold uppercase tracking-wide text-subtle">
@@ -75,12 +75,13 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
                         : "text-muted hover:bg-panel2 hover:text-text",
                     )}
                     aria-current={active ? "page" : undefined}
-                    title={item.description}
+                    aria-label={`${item.label}: ${getNavStatusLabel(item.status)}. ${item.description}`}
+                    title={`${item.label}: ${getNavStatusLabel(item.status)}. ${item.description}`}
                   >
                     <Icon className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     {locked ? (
-                      <Lock className={cn("size-3 shrink-0", active ? "text-white" : "text-subtle")} />
+                      <><Lock className={cn("size-3 shrink-0", active ? "text-white" : "text-subtle")} /><span className="sr-only">{getNavStatusLabel(item.status)}</span></>
                     ) : (
                       <span
                         className={cn(
