@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import and_, insert, or_, select, update
 
 from app.models.sending import OutboundMessage, SendGateResult
 from app.repositories.base import BaseRepository
@@ -142,6 +142,76 @@ class SendingRepository(BaseRepository):
                     select(OutboundMessage).where(
                         OutboundMessage.tenant_id == tenant_id,
                         OutboundMessage.draft_id == draft_id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        return _outbound_message(row) if row is not None else None
+
+    async def list_outbound_messages(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[OutboundMessageRecord], str | None]:
+        stmt = select(OutboundMessage).where(OutboundMessage.tenant_id == tenant_id)
+        if cursor is not None:
+            try:
+                cursor_id = uuid.UUID(cursor)
+            except ValueError:
+                return [], None
+            cursor_row = (
+                (
+                    await self.conn.execute(
+                        select(OutboundMessage).where(
+                            OutboundMessage.tenant_id == tenant_id,
+                            OutboundMessage.id == cursor_id,
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if cursor_row is None:
+                return [], None
+            stmt = stmt.where(
+                or_(
+                    OutboundMessage.created_at < cursor_row.created_at,
+                    and_(
+                        OutboundMessage.created_at == cursor_row.created_at,
+                        OutboundMessage.id < cursor_row.id,
+                    ),
+                )
+            )
+
+        rows = (
+            (
+                await self.conn.execute(
+                    stmt.order_by(
+                        OutboundMessage.created_at.desc(),
+                        OutboundMessage.id.desc(),
+                    ).limit(limit + 1)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        page_rows = rows[:limit]
+        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        return [_outbound_message(row) for row in page_rows], next_cursor
+
+    async def get_outbound_message_by_id(
+        self, *, tenant_id: uuid.UUID, message_id: uuid.UUID
+    ) -> OutboundMessageRecord | None:
+        row = (
+            (
+                await self.conn.execute(
+                    select(OutboundMessage).where(
+                        OutboundMessage.tenant_id == tenant_id,
+                        OutboundMessage.id == message_id,
                     )
                 )
             )

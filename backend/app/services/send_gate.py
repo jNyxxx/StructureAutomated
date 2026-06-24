@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -15,6 +16,7 @@ from app.services.authz import (
     TenantOwnedObject,
 )
 from app.services.billing import CAN_SEND, BillingAccessDenied, BillingGateService
+from app.services.idempotency import IdempotencyOutcome, IdempotencyState
 from app.services.rate_limit import RateLimitPolicy, RateLimitService
 
 
@@ -75,6 +77,36 @@ class SafetyStore(Protocol):
         """List safety results."""
 
 
+class IdempotencyGate(Protocol):
+    async def begin(
+        self,
+        *,
+        key: str,
+        request_payload: Any,
+        now: datetime,
+        tenant_id: uuid.UUID | None = None,
+        actor_user_id: uuid.UUID | None = None,
+    ) -> IdempotencyOutcome:
+        """Begin an idempotent operation."""
+
+    async def complete(
+        self,
+        *,
+        key: str,
+        response_payload: Any,
+        status_code: int,
+        tenant_id: uuid.UUID | None = None,
+    ) -> None:
+        """Complete an idempotent operation."""
+
+
+@dataclass(frozen=True)
+class SendGateDryRunResult:
+    gate_result: Any | None
+    idempotency_replay: bool = False
+    mock_only: bool = True
+
+
 class SendGateService:
     """Evaluates send gates before allowing mock message transmission."""
 
@@ -92,6 +124,7 @@ class SendGateService:
         compliance: ComplianceGate | None = None,
         rate_limiter: RateLimitService | None = None,
         rate_limit_policy: RateLimitPolicy | None = None,
+        idempotency: IdempotencyGate | None = None,
         audit_record: Any = None,
     ) -> None:
         self._sending_store = sending_store
@@ -105,7 +138,60 @@ class SendGateService:
         self._compliance = compliance
         self._rate_limiter = rate_limiter
         self._rate_limit_policy = rate_limit_policy
+        self._idempotency = idempotency
         self._audit_record = audit_record
+
+    async def evaluate_gate_idempotent(
+        self,
+        principal: CurrentPrincipal,
+        *,
+        draft_id: uuid.UUID,
+        idempotency_key: str | None,
+        now: datetime,
+        is_followup: bool = False,
+    ) -> SendGateDryRunResult:
+        request_payload = {
+            "tenant_id": str(principal.tenant_id),
+            "draft_id": str(draft_id),
+            "action": "send_gate_dry_run",
+            "is_followup": is_followup,
+        }
+        if self._idempotency is not None and idempotency_key is not None:
+            outcome = await self._idempotency.begin(
+                key=idempotency_key,
+                request_payload=request_payload,
+                now=now,
+                tenant_id=principal.tenant_id,
+                actor_user_id=principal.user_id,
+            )
+            if outcome.is_replay:
+                return SendGateDryRunResult(gate_result=None, idempotency_replay=True)
+            if outcome.state is IdempotencyState.IN_PROGRESS:
+                raise AppError(
+                    "SEND_GATE_DRY_RUN_IN_PROGRESS",
+                    "Send-gate dry run is already in progress.",
+                    status_code=409,
+                )
+
+        result = await self.evaluate_gate(
+            principal=principal,
+            draft_id=draft_id,
+            now=now,
+            is_followup=is_followup,
+        )
+
+        if self._idempotency is not None and idempotency_key is not None:
+            await self._idempotency.complete(
+                key=idempotency_key,
+                response_payload={
+                    "draft_id": str(draft_id),
+                    "gate_result_id": str(result.id) if result is not None else None,
+                    "mock_only": True,
+                },
+                status_code=200,
+                tenant_id=principal.tenant_id,
+            )
+        return SendGateDryRunResult(gate_result=result)
 
     async def evaluate_gate(
         self,

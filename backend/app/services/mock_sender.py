@@ -9,6 +9,7 @@ from typing import Any, Protocol
 
 from app.auth.principal import CurrentPrincipal
 from app.middleware.error_handler import AppError
+from app.services.idempotency import IdempotencyOutcome, IdempotencyState
 from app.services.send_gate import SendGateService
 
 
@@ -24,6 +25,29 @@ class SendingStore(Protocol):
         """Create outbound message."""
 
 
+class IdempotencyGate(Protocol):
+    async def begin(
+        self,
+        *,
+        key: str,
+        request_payload: Any,
+        now: datetime,
+        tenant_id: uuid.UUID | None = None,
+        actor_user_id: uuid.UUID | None = None,
+    ) -> IdempotencyOutcome:
+        """Begin an idempotent operation."""
+
+    async def complete(
+        self,
+        *,
+        key: str,
+        response_payload: Any,
+        status_code: int,
+        tenant_id: uuid.UUID | None = None,
+    ) -> None:
+        """Complete an idempotent operation."""
+
+
 @dataclass(frozen=True)
 class MockSendResult:
     """Production-shaped result of mock sending operation."""
@@ -31,6 +55,14 @@ class MockSendResult:
     outbound_message_id: uuid.UUID
     status: str
     sent_at: datetime | None
+    mock_only: bool = True
+
+
+@dataclass(frozen=True)
+class MockSendIntentResult:
+    result: MockSendResult | None
+    idempotency_replay: bool = False
+    mock_only: bool = True
 
 
 class MockSenderService:
@@ -42,12 +74,61 @@ class MockSenderService:
         sending_store: SendingStore,
         send_gate: SendGateService,
         followups: Any = None,
+        idempotency: IdempotencyGate | None = None,
         audit_record: Any = None,
     ) -> None:
         self._sending_store = sending_store
         self._send_gate = send_gate
         self._followups = followups
+        self._idempotency = idempotency
         self._audit_record = audit_record
+
+    async def send_approved_draft_idempotent(
+        self,
+        principal: CurrentPrincipal,
+        *,
+        draft_id: uuid.UUID,
+        idempotency_key: str | None,
+        now: datetime,
+    ) -> MockSendIntentResult:
+        request_payload = {
+            "tenant_id": str(principal.tenant_id),
+            "draft_id": str(draft_id),
+            "action": "mock_send_intent",
+            "mock_only": True,
+        }
+        if self._idempotency is not None and idempotency_key is not None:
+            outcome = await self._idempotency.begin(
+                key=idempotency_key,
+                request_payload=request_payload,
+                now=now,
+                tenant_id=principal.tenant_id,
+                actor_user_id=principal.user_id,
+            )
+            if outcome.is_replay:
+                return MockSendIntentResult(result=None, idempotency_replay=True)
+            if outcome.state is IdempotencyState.IN_PROGRESS:
+                raise AppError(
+                    "MOCK_SEND_INTENT_IN_PROGRESS",
+                    "Mock send intent is already in progress.",
+                    status_code=409,
+                )
+
+        result = await self.send_approved_draft(principal=principal, draft_id=draft_id, now=now)
+
+        if self._idempotency is not None and idempotency_key is not None:
+            await self._idempotency.complete(
+                key=idempotency_key,
+                response_payload={
+                    "draft_id": str(draft_id),
+                    "outbound_message_id": str(result.outbound_message_id),
+                    "status": result.status,
+                    "mock_only": True,
+                },
+                status_code=201,
+                tenant_id=principal.tenant_id,
+            )
+        return MockSendIntentResult(result=result)
 
     async def send_approved_draft(
         self,
