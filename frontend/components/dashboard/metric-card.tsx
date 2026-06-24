@@ -37,7 +37,7 @@ export function MetricCard({
           <div className={cn("flex size-10 items-center justify-center rounded-medium", toneClass)}>
             <Icon className="size-5" />
           </div>
-          <Badge variant={badgeVariant}>{status}</Badge>
+          <Badge variant={badgeVariant} pulse={tone === "success" || tone === "warning" || tone === "default"}>{status}</Badge>
         </div>
       </CardHeader>
       <CardContent>

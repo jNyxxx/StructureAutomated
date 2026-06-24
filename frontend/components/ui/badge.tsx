@@ -25,8 +25,22 @@ export const badgeVariants = cva(
 
 export interface BadgeProps
   extends HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  pulse?: boolean;
+}
 
-export function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+export function Badge({ className, variant, pulse, ...props }: BadgeProps) {
+  const pulseClass = pulse
+    ? {
+        default: "ambient-ring-info",
+        success: "ambient-ring-success",
+        warning: "ambient-ring-warning",
+        danger: "",
+        violet: "",
+        locked: "",
+        outline: "",
+      }[variant || "default"]
+    : "";
+
+  return <div className={cn(badgeVariants({ variant }), pulseClass, className)} {...props} />;
 }

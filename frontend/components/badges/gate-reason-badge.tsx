@@ -19,16 +19,20 @@ export function GateReasonBadge({
   state,
   label,
   className,
+  pulse = true,
 }: {
   state: GateState;
   label?: string;
   className?: string;
+  pulse?: boolean;
 }) {
   const config = gateConfig[state];
   const Icon = config.icon;
 
+  const shouldPulse = pulse && (state === "passed" || state === "warning" || state === "pending");
+
   return (
-    <Badge variant={config.variant} className={cn("gap-1.5", className)}>
+    <Badge variant={config.variant} pulse={shouldPulse} className={cn("gap-1.5", className)}>
       <Icon className="size-3.5" />
       {label ?? config.label}
     </Badge>
