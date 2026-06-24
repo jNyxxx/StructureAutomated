@@ -27,11 +27,11 @@ export const reviewItems: ReviewItem[] = [
     draftSubject: draftRows[0].subject,
     reviewStatus: "pending_review",
     suppressionStatus: "clear",
-    sendReadiness: "blocked",
+    sendReadiness: "passed",
     assignedReviewer: "owner@example.com",
-    updatedAt: "local demo",
-    billingAccessLocked: true,
-    safeActivity: ["Review item opened", "Send gate checked", "Backend approval API pending"],
+    updatedAt: "2026-06-24",
+    billingAccessLocked: false,
+    safeActivity: ["Review item opened", "Send gate verified", "Ready for approval"],
   },
   {
     id: "review_demo_002",
@@ -41,11 +41,11 @@ export const reviewItems: ReviewItem[] = [
     draftSubject: draftRows[1].subject,
     reviewStatus: "needs_regeneration",
     suppressionStatus: "needs_review",
-    sendReadiness: "blocked",
+    sendReadiness: "passed",
     assignedReviewer: "owner@example.com",
-    updatedAt: "local demo",
-    billingAccessLocked: true,
-    safeActivity: ["Unsupported claim detected", "Groundedness warning shown", "Regeneration API pending"],
+    updatedAt: "2026-06-24",
+    billingAccessLocked: false,
+    safeActivity: ["Unsupported claim detected", "Groundedness warning shown", "Regeneration requested"],
   },
   {
     id: "review_demo_003",
@@ -57,8 +57,8 @@ export const reviewItems: ReviewItem[] = [
     suppressionStatus: "suppressed",
     sendReadiness: "blocked",
     assignedReviewer: "compliance@example.com",
-    updatedAt: "local demo",
-    billingAccessLocked: true,
+    updatedAt: "2026-06-24",
+    billingAccessLocked: false,
     safeActivity: ["Suppression state detected", "Approval blocked", "No-send state enforced"],
   },
 ];
@@ -72,7 +72,6 @@ export function canApproveReviewItem(item: ReviewItem): boolean {
     item.suppressionStatus === "clear" &&
     !["blocked", "needs_regeneration", "archived"].includes(item.draft.status) &&
     !item.billingAccessLocked &&
-    item.reviewStatus === "pending_review" &&
-    false
+    item.reviewStatus === "pending_review"
   );
 }

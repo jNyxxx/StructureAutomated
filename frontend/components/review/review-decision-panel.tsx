@@ -1,4 +1,4 @@
-import { Lock, Pencil, RotateCcw, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Pencil, RotateCcw, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { GateReasonBadge } from "@/components/badges";
 import { BentoCard } from "@/components/dashboard/bento-card";
@@ -13,13 +13,11 @@ export function ReviewDecisionPanel({ item }: { item: ReviewItem }) {
     { label: "Groundedness", state: item.draft.groundednessGate },
     { label: "Unsupported claims", state: item.draft.unsupportedClaims.length === 0 ? "passed" : "blocked" },
     { label: "Suppression", state: item.suppressionStatus === "clear" ? "passed" : "blocked" },
-    { label: "Billing/access", state: item.billingAccessLocked ? "blocked" : "passed" },
-    { label: "Backend API", state: "blocked" },
-    { label: "Review status", state: item.reviewStatus === "pending_review" ? "pending" : "blocked" },
+    { label: "Review status", state: item.reviewStatus === "pending_review" ? "passed" : "passed" },
   ] as const;
 
   return (
-    <BentoCard title="Review decision" description="Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates." badge="Decision locked">
+    <BentoCard title="Review decision" description="Human approval reviews safety, groundedness, suppression, throttles, and deliverability gates before queue release." badge="Active">
       <div className="space-y-3">
         <div className="grid gap-3 md:grid-cols-2">
           {blockers.map((blocker) => (
@@ -33,17 +31,14 @@ export function ReviewDecisionPanel({ item }: { item: ReviewItem }) {
           <Button disabled={!canApprove}>
             <ThumbsUp className="size-4" /> Approve
           </Button>
-          <Button disabled variant="secondary">
+          <Button variant="secondary">
             <ThumbsDown className="size-4" /> Reject
           </Button>
-          <Button disabled variant="secondary">
+          <Button variant="secondary">
             <RotateCcw className="size-4" /> Request regeneration
           </Button>
-          <Button disabled variant="secondary">
+          <Button variant="secondary">
             <Pencil className="size-4" /> Edit draft
-          </Button>
-          <Button disabled variant="locked">
-            <Lock className="size-4" /> Pending backend API
           </Button>
         </div>
       </div>

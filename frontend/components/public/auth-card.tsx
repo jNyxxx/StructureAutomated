@@ -96,7 +96,16 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
               {mode !== "verify-email" ? <Input placeholder="Auth provider field" disabled /> : null}
             </div>
 
-            <Button className="w-full" disabled={item.pending}>
+            <Button 
+              className="w-full" 
+              disabled={item.pending}
+              onClick={() => {
+                if (mode === "login" || mode === "signup") {
+                  localStorage.setItem("mock_signed_in", "true");
+                  window.location.href = "/dashboard";
+                }
+              }}
+            >
               {item.pending ? "Pending auth provider" : item.title}
             </Button>
 

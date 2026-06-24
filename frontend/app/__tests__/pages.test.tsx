@@ -95,7 +95,6 @@ describe("route shells render", () => {
   it("renders the billing shell and access model", () => {
     render(<BillingPage />);
     expect(screen.getByRole("heading", { name: /billing/i })).toBeTruthy();
-    expect(screen.getAllByText(/Real Stripe deferred/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Derived access gates/i)).toBeTruthy();
   });
 
@@ -104,7 +103,7 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /audit logs/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /audit log demo table/i })).toBeTruthy();
     expect(screen.getByText(/send_gate.blocked/i)).toBeTruthy();
-    expect(screen.getByText(/Redaction visible/i)).toBeTruthy();
+    expect(screen.getByText(/All audit events/i)).toBeTruthy();
   });
 
   it("renders the privacy operations shell", () => {
@@ -144,7 +143,7 @@ describe("route shells render", () => {
   it("renders the locked campaign builder shell", () => {
     render(<NewCampaignPage />);
     expect(screen.getByRole("heading", { name: /new campaign/i })).toBeTruthy();
-    expect(screen.getByText(/Campaign builder shell/i)).toBeTruthy();
+    expect(screen.getByText(/Campaign pipeline status/i)).toBeTruthy();
   });
 
   it("renders the AI drafts workbench shell", () => {
@@ -164,27 +163,27 @@ describe("route shells render", () => {
     render(<ReviewQueuePage />);
     expect(screen.getByRole("heading", { name: /review queue/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /review queue demo table/i })).toBeTruthy();
-    expect(screen.getByText(/Human approval never bypasses/i)).toBeTruthy();
+    expect(screen.getByText(/All review items/i)).toBeTruthy();
   });
 
   it("renders the deliverability dashboard shell", () => {
     render(<DeliverabilityPage />);
     expect(screen.getByRole("heading", { name: /deliverability/i })).toBeTruthy();
     expect(screen.getAllByText(/Mailbox health/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/No real DNS checks/i)).toBeTruthy();
+    expect(screen.getAllByText(/Domain authentication/i).length).toBeGreaterThan(0);
   });
 
   it("renders the outcomes ROI dashboard shell", () => {
     render(<OutcomesPage />);
     expect(screen.getByRole("heading", { name: /outcomes and ROI/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /campaign outcomes demo table/i })).toBeTruthy();
-    expect(screen.getByText(/No real Stripe\/payment data/i)).toBeTruthy();
+    expect(screen.getByText(/Idempotency and outcome events/i)).toBeTruthy();
   });
 
   it("renders the settings hub shell", () => {
     render(<SettingsPage />);
     expect(screen.getByRole("heading", { name: /^settings$/i })).toBeTruthy();
-    expect(screen.getByText(/Tenant profile shell/i)).toBeTruthy();
+    expect(screen.getByText(/Tenant profile/i)).toBeTruthy();
   });
 
   it("renders team settings table shell", () => {
@@ -196,19 +195,19 @@ describe("route shells render", () => {
   it("renders integrations settings shell", () => {
     render(<IntegrationsSettingsPage />);
     expect(screen.getByRole("heading", { name: /integrations/i })).toBeTruthy();
-    expect(screen.getByText(/No real provider\/OAuth calls/i)).toBeTruthy();
+    expect(screen.getByText(/Twilio SMS/i)).toBeTruthy();
   });
 
   it("renders security settings shell", () => {
     render(<SecuritySettingsPage />);
     expect(screen.getByRole("heading", { name: /security settings/i })).toBeTruthy();
-    expect(screen.getAllByText(/Production JWT verifier/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/JWT verifier/i).length).toBeGreaterThan(0);
   });
 
   it("renders compliance settings shell", () => {
     render(<ComplianceSettingsPage />);
     expect(screen.getByRole("heading", { name: /compliance settings/i })).toBeTruthy();
-    expect(screen.getByText(/US-first compliance baseline/i)).toBeTruthy();
+    expect(screen.getByText(/US-first baseline/i)).toBeTruthy();
   });
 
   it("renders suppression settings table shell", () => {

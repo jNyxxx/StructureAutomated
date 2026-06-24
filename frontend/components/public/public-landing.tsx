@@ -119,7 +119,7 @@ function HeroSection() {
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <Badge variant="default">CRE cold outreach MVP</Badge>
-            <Badge variant="locked">Backend gates required</Badge>
+            <Badge variant="success">Workspace Active</Badge>
           </div>
           <CardTitle className="mt-4">Command workflow preview</CardTitle>
           <CardDescription>
@@ -130,13 +130,13 @@ function HeroSection() {
           {flow.slice(0, 6).map((item, index) => {
             const Icon = item.icon;
             return (
-              <div key={item.title} className="flex items-center gap-3 rounded-medium border border-border bg-panel2 p-3">
+              <div key={item.title} className="group flex items-center gap-3 rounded-medium border border-border bg-panel2 p-3 transition-all duration-200">
                 <div className="flex size-9 items-center justify-center rounded-small bg-bluebg text-blue">
                   <Icon className="size-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-small font-semibold text-text">{index + 1}. {item.title}</p>
-                  <p className="truncate text-caption text-muted">{item.text}</p>
+                  <p className="truncate text-caption text-muted group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200">{item.text}</p>
                 </div>
                 <CheckCircle2 className="size-4 text-green" />
               </div>

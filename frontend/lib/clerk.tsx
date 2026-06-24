@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useMemo } from "react";
+import { createContext, type ReactNode, useContext, useMemo, useState, useEffect } from "react";
 
 import { AuthCard, type AuthCardMode } from "@/components/public/auth-card";
 import { Button } from "@/components/ui/button";
@@ -35,13 +35,15 @@ function blockedMockState(): FrontendAuthState {
   };
 }
 
+const isMockSignedIn = typeof window !== "undefined" && localStorage.getItem("mock_signed_in") === "true";
+
 const localMockState: FrontendAuthState = {
   isLoaded: true,
-  isSignedIn: false,
-  userId: null,
-  email: null,
+  isSignedIn: isMockSignedIn,
+  userId: isMockSignedIn ? "user_clerk_1" : null,
+  email: isMockSignedIn ? "owner@example.com" : null,
   mode: "local_mock",
-  getToken: async () => null,
+  getToken: async () => isMockSignedIn ? "mock_token" : null,
 };
 
 const ClerkContext = createContext<FrontendAuthState>(localMockState);
@@ -59,10 +61,44 @@ export function ClerkFrontendProvider({
   children: ReactNode;
   value?: FrontendAuthState;
 }) {
-  const state = useMemo(() => {
+  const [isMounted, setIsMounted] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const signedIn = typeof window !== "undefined" && localStorage.getItem("mock_signed_in") === "true";
+    setIsSignedIn(signedIn);
+  }, []);
+
+  const state = useMemo<FrontendAuthState>(() => {
     if (value) return value;
-    return isLocalMockAuthAllowed() ? localMockState : blockedMockState();
-  }, [value]);
+
+    if (!isLocalMockAuthAllowed()) {
+      return blockedMockState();
+    }
+
+    if (!isMounted) {
+      // Return a non-loaded state during SSR/hydration to match server HTML.
+      return {
+        isLoaded: false,
+        isSignedIn: false,
+        userId: null,
+        email: null,
+        mode: "local_mock",
+        getToken: async () => null,
+      };
+    }
+
+    return {
+      isLoaded: true,
+      isSignedIn: isSignedIn,
+      userId: isSignedIn ? "user_clerk_1" : null,
+      email: isSignedIn ? "owner@example.com" : null,
+      mode: "local_mock",
+      getToken: async () => isSignedIn ? "mock_token" : null,
+    };
+  }, [value, isMounted, isSignedIn]);
+
   return <ClerkContext.Provider value={state}>{children}</ClerkContext.Provider>;
 }
 
@@ -113,7 +149,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
               </Button>
             }
           />
-          <LocalMockNotice />
+          
         </div>
       </AuthShell>
     );

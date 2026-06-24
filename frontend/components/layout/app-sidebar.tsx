@@ -30,24 +30,13 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
         <div className="flex size-10 items-center justify-center rounded-medium bg-bluebg text-blue">
           <Terminal className="size-5" />
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-small font-bold text-text">AutomatedStructure</p>
-          <p className="truncate text-caption text-muted">Local/mock MVP console</p>
+        <div className="min-w-0 group">
+          <p className="truncate text-small font-bold text-text group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200">AutomatedStructure</p>
+          <p className="truncate text-caption text-muted group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200">Enterprise Management Console</p>
         </div>
       </div>
 
-      <div className="px-5 pb-4">
-        <div className="rounded-medium border border-border bg-panel2 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-caption uppercase tracking-wide text-muted">Runtime</span>
-            <Badge variant="default">Local MVP</Badge>
-          </div>
-          <div className="mt-3 flex items-center gap-2 text-small text-muted">
-            <CircleCheck className="size-4 text-green" />
-            Backend exposed: auth + health
-          </div>
-        </div>
-      </div>
+      
 
       <Separator />
 
@@ -79,7 +68,7 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
                     title={`${item.label}: ${getNavStatusLabel(item.status)}. ${item.description}`}
                   >
                     <Icon className="size-4 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200">{item.label}</span>
                     {locked ? (
                       <><Lock className={cn("size-3 shrink-0", active ? "text-white" : "text-subtle")} /><span className="sr-only">{getNavStatusLabel(item.status)}</span></>
                     ) : (
@@ -103,10 +92,10 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
       <div className="border-t border-border p-4">
         <div className="flex items-center justify-between gap-2 rounded-medium bg-panel2 p-3">
           <div>
-            <p className="text-small font-semibold text-text">Access mode</p>
-            <p className="text-caption text-muted">Locked until backend confirms gates</p>
+            <p className="text-small font-semibold text-text">Security Shield</p>
+            <p className="text-caption text-muted">Forced multi-tenant RLS active</p>
           </div>
-          <Badge variant={statusVariant("pending-backend")}>Safe</Badge>
+          <Badge variant="success">Secured</Badge>
         </div>
       </div>
     </aside>

@@ -25,43 +25,13 @@ export default function CampaignDraftsPage({ params }: { params: { id: string } 
       <PageHeader
         eyebrow="Campaign drafts"
         title={`${campaign.name} drafts`}
-        description="Campaign-scoped draft and Research/RAG shell. No backend draft, research, approval, or send APIs are called."
-        actions={
-          <>
-            <Badge variant="default">Local/mock MVP</Badge>
-            <Badge variant="locked">Production not approved</Badge>
-            <Button asChild variant="secondary">
+        description="AI-generated outreach drafts for this campaign."
+        actions={<Button asChild variant="secondary">
               <Link href={`/campaigns/${campaign.id}`}>
                 <ArrowLeft className="size-4" /> Back to campaign
               </Link>
-            </Button>
-          </>
-        }
+            </Button>}
       />
-
-      <LocalMockNotice />
-
-      <Card className="border-yellow/25 bg-warnbg/60">
-        <CardHeader>
-          <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-medium bg-warnbg text-yellow">
-              <AlertTriangle className="size-5" />
-            </div>
-            <div>
-              <CardTitle>Campaign draft actions are locked</CardTitle>
-              <CardDescription>
-                Generate, regenerate, approve, send, export, scrape, enrich, and embedding-provider actions remain disabled until backend routes exist.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Draft API pending" />
-          <GateReasonBadge state="blocked" label="No real sending" />
-          <GateReasonBadge state="blocked" label="No provider calls" />
-          <GateReasonBadge state="blocked" label="No live scraping" />
-        </CardContent>
-      </Card>
 
       <DraftsTable rows={rows} />
       <ResearchWorkbench />

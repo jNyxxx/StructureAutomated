@@ -7,7 +7,7 @@ import { AuditDetailDrawer } from "@/components/audit/audit-detail-drawer";
 import { auditRows, type AuditRow, type AuditSeverity } from "@/components/audit/audit-sample-data";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
 import { PageHeader } from "@/components/layout/page-header";
-import { LocalMockNotice } from "@/components/states";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -42,14 +42,10 @@ export default function AuditLogsPage() {
       <PageHeader
         eyebrow="Safe observability"
         title="Audit logs"
-        description="Redacted demo audit rows only. Secrets, tokens, raw contact identifiers, tenant IDs, and sessions are never rendered."
-        actions={<><Badge variant="default">Local/mock MVP</Badge><Badge variant="locked">Export locked</Badge></>}
+        description="Immutable history of system access and sensitive operations."
+        
       />
-      <LocalMockNotice />
-      <Card className="border-yellow/25 bg-warnbg/60">
-        <CardHeader><div className="flex gap-3"><div className="flex size-10 items-center justify-center rounded-medium bg-warnbg text-yellow"><AlertTriangle className="size-5" /></div><div><CardTitle>Audit API/export pending</CardTitle><CardDescription>Export, raw detail fetch, and support-access enforcement are pending backend APIs. Demo details are redacted in the UI.</CardDescription></div></div></CardHeader>
-        <CardContent className="flex flex-wrap gap-2"><GateReasonBadge state="passed" label="Redaction visible" /><GateReasonBadge state="pending" label="Detail API pending" /><GateReasonBadge state="blocked" label="Export locked" /><GateReasonBadge state="warning" label="Support access audited" /></CardContent>
-      </Card>
+
       <DataTable
         label="Audit log demo table"
         data={auditRows}

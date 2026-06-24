@@ -19,7 +19,7 @@ export function PendingBackendPage({
         title="Pending backend wiring"
         description="This route is visible for navigation and design validation. The matching HTTP API is not mounted yet, so create, update, send, export, billing, provider, and destructive actions remain locked."
       />
-      <LocalMockNotice />
+      
     </section>
   );
 }

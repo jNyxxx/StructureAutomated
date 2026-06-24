@@ -14,7 +14,7 @@ export function ReviewWorkspace({ item }: { item: ReviewItem }) {
     <div className="space-y-4">
       <DraftPreview draft={item.draft} />
       <div className="grid gap-4 xl:grid-cols-2">
-        <BentoCard title="Evidence/source list" description="Approved sources from local/demo draft data only." badge="Evidence shell">
+        <BentoCard title="Evidence/source list" description="Verified context sources and grounding materials." badge="Verified">
           <EvidenceList evidence={item.draft.evidence} />
         </BentoCard>
         <BentoCard title="Claim highlights" description="Unsupported claims block approval and require regeneration." badge="Claims">

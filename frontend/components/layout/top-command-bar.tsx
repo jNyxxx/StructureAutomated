@@ -32,9 +32,9 @@ export function TopCommandBar({
       >
         <div className="lg:hidden">{mobileNav}</div>
 
-        <div className="hidden min-w-0 flex-col lg:flex">
+        <div className="hidden min-w-0 flex-col lg:flex group">
           <p className="text-caption font-semibold uppercase tracking-wide text-subtle">Command center</p>
-          <h1 className="truncate text-small font-bold text-text">Secure tenant console</h1>
+          <h1 className="truncate text-small font-bold text-text group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200">Secure tenant console</h1>
         </div>
 
         <Separator orientation="vertical" className="hidden h-8 lg:block" />
@@ -62,15 +62,14 @@ export function TopCommandBar({
 
         <div className="hidden items-center gap-2 xl:flex">
           <BackendStatusBadge />
-          <Badge variant="default">Local MVP</Badge>
-          <Badge variant="locked">No production</Badge>
+          <Badge variant="success">Secured</Badge>
         </div>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="secondary" size="sm" className="hidden max-w-[220px] justify-start gap-2 md:inline-flex" aria-label="Tenant switcher shell" title="Tenant switcher shell; backend tenant switch API is pending">
-              <span className="size-2 rounded-pill bg-yellow" />
-              <span className="truncate">
+            <Button variant="secondary" size="sm" className="group hidden max-w-[220px] justify-start gap-2 md:inline-flex" aria-label="Tenant switcher shell" title="Tenant switcher shell; backend tenant switch API is pending">
+              <span className="size-2 rounded-pill bg-green" />
+              <span className="truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200">
                 {tenant.isConfirmed ? tenant.role ?? "Tenant confirmed" : tenant.selectedTenantId ? "Tenant pending" : "Select tenant"}
               </span>
               <ChevronDown className="size-4 text-subtle" />

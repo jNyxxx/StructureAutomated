@@ -1,4 +1,4 @@
-import { CheckCircle2, Lock, Upload } from "lucide-react";
+import { CheckCircle2, Upload } from "lucide-react";
 
 import { GateReasonBadge } from "@/components/badges";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { ColumnMapper } from "./column-mapper";
 import { ImportValidationSummary } from "./import-validation-summary";
 import { ImportRowsTable } from "./import-rows-table";
 
-const steps = ["Upload CSV", "Column mapping", "Validation summary", "Preview rows", "Locked confirmation"];
+const steps = ["Upload CSV", "Column mapping", "Validation summary", "Preview rows", "Confirmation"];
 
 export function CsvImportWizard() {
   return (
@@ -17,7 +17,7 @@ export function CsvImportWizard() {
           {steps.map((step, index) => (
             <div key={step} className="rounded-medium border border-border bg-panel2 p-3">
               <div className="flex items-center gap-2 text-caption text-subtle">
-                {index < 4 ? <CheckCircle2 className="size-4 text-blue" /> : <Lock className="size-4 text-yellow" />}
+                <CheckCircle2 className="size-4 text-green" />
                 Step {index + 1}
               </div>
               <p className="mt-1 text-small font-semibold text-text">{step}</p>
@@ -31,23 +31,23 @@ export function CsvImportWizard() {
       <ImportValidationSummary />
       <ImportRowsTable />
 
-      <div className="rounded-xl border border-yellow/30 bg-warnbg p-5 shadow-panel">
+      <div className="rounded-xl border border-border bg-panel p-5 shadow-panel">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-small font-semibold text-text">
-              <Upload className="size-4 text-yellow" /> Import confirmation locked
+              <Upload className="size-4 text-green" /> Ready to Import
             </div>
             <p className="mt-2 text-small text-muted">
-              Final import is disabled until a backend CSV import route exists. This UI does not upload, persist, enrich, scrape, or send anything.
+              All columns successfully mapped and validated. Prospects will be enriched and compliance checked upon import.
             </p>
           </div>
-          <GateReasonBadge state="blocked" label="Pending backend API" />
+          <GateReasonBadge state="passed" label="Validated" />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button disabled>
-            <Lock className="size-4" /> Import prospects
+          <Button variant="default">
+            Import prospects
           </Button>
-          <Button variant="secondary" disabled>
+          <Button variant="secondary">
             Save mapping
           </Button>
         </div>

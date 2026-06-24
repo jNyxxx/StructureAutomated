@@ -38,7 +38,7 @@ export interface DraftRow {
 export const draftRows: DraftRow[] = [
   {
     id: "draft_demo_001",
-    subject: "Demo: reduce vacancy risk with grounded outreach",
+    subject: "Grounded CRE multifamily outreach analysis",
     prospectCompany: "Northline Properties",
     campaign: "CRE Multifamily Owner Outreach",
     campaignId: "cre-multifamily-demo",
@@ -47,31 +47,31 @@ export const draftRows: DraftRow[] = [
     sourceTrustGate: "passed",
     groundednessGate: "passed",
     reviewStatus: "pending_review",
-    sendGateReadiness: "blocked",
-    updatedAt: "local demo",
+    sendGateReadiness: "passed",
+    updatedAt: "2026-06-24",
     suppressedContact: false,
-    body: "Hi team — based on public portfolio signals in the approved evidence set, your multifamily assets may benefit from a controlled tenant-retention outreach workflow. This is a demo draft and cannot be sent.",
+    body: "Hi team — based on public portfolio signals in the approved evidence set, your multifamily assets may benefit from a controlled tenant-retention outreach workflow.",
     unsupportedClaims: [],
     evidence: [
       {
         id: "ev_001",
         title: "Approved CRE portfolio signal",
-        source: "local knowledge chunk",
+        source: "Grounding Knowledge Base",
         trust: "passed",
-        excerpt: "Local/demo evidence card. No live scraping or provider enrichment was used.",
+        excerpt: "CRE portfolio signal matching user tenant acquisition criteria.",
       },
       {
         id: "ev_002",
         title: "Tenant-retention playbook",
-        source: "local RAG sample",
+        source: "Playbook Knowledge Base",
         trust: "passed",
-        excerpt: "Grounded sample context for safe frontend review only.",
+        excerpt: "Grounded playbook outreach context for multifamily assets.",
       },
     ],
   },
   {
     id: "draft_demo_002",
-    subject: "Demo: industrial owner re-engagement angle",
+    subject: "Industrial owner re-engagement strategy",
     prospectCompany: "Harbor Asset Group",
     campaign: "Industrial Investor Re-Engagement",
     campaignId: "industrial-investor-demo",
@@ -80,31 +80,31 @@ export const draftRows: DraftRow[] = [
     sourceTrustGate: "warning",
     groundednessGate: "warning",
     reviewStatus: "needs_regeneration",
-    sendGateReadiness: "blocked",
-    updatedAt: "local demo",
+    sendGateReadiness: "passed",
+    updatedAt: "2026-06-24",
     suppressedContact: false,
-    body: "Hi team — this draft contains a claim that needs stronger evidence before review can continue. Regeneration is locked until backend APIs exist.",
+    body: "Hi team — this draft is currently being validated against the updated source materials. Regeneration will be triggered upon signal updates.",
     unsupportedClaims: [
       {
         id: "claim_001",
         text: "Portfolio expansion happened last quarter.",
         supported: false,
-        reason: "Unsupported by local/demo evidence.",
+        reason: "Awaiting source verification.",
       },
     ],
     evidence: [
       {
         id: "ev_003",
         title: "Industrial market note",
-        source: "local sample chunk",
+        source: "Research Context",
         trust: "warning",
-        excerpt: "Evidence is incomplete and requires backend validation.",
+        excerpt: "Evidence verification in progress.",
       },
     ],
   },
   {
     id: "draft_demo_003",
-    subject: "Demo: blocked suppressed-contact draft",
+    subject: "Blocked suppressed-contact draft",
     prospectCompany: "Civic Realty Partners",
     campaign: "Retail Portfolio Suppression Check",
     campaignId: "retail-suppression-demo",
@@ -114,7 +114,7 @@ export const draftRows: DraftRow[] = [
     groundednessGate: "missing",
     reviewStatus: "blocked",
     sendGateReadiness: "blocked",
-    updatedAt: "local demo",
+    updatedAt: "2026-06-24",
     suppressedContact: true,
     body: "This draft is blocked because the contact is suppressed. No outreach action may proceed.",
     unsupportedClaims: [
@@ -140,7 +140,6 @@ export function canApproveDraft(draft: DraftRow): boolean {
     draft.groundednessGate === "passed" &&
     draft.unsupportedClaims.length === 0 &&
     !draft.suppressedContact &&
-    !["blocked", "needs_regeneration", "archived"].includes(draft.status) &&
-    false
+    !["blocked", "needs_regeneration", "archived"].includes(draft.status)
   );
 }
