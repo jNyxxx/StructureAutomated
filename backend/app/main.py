@@ -23,7 +23,7 @@ from app.middleware.request_id import RequestIdMiddleware
 from app.observability.boot_guard import BootGuardError, database_failures, enforce_config
 from app.observability.logging import setup_logging
 from app.ratelimit.backend import InMemoryRateLimitBackend
-from app.routers import auth, campaigns, contacts, health, imports
+from app.routers import auth, campaigns, contacts, drafts, health, imports, review
 from app.services.rate_limit import RateLimitPolicy, RateLimitService
 
 
@@ -67,6 +67,8 @@ def create_app() -> FastAPI:
     app.include_router(imports.router)
     app.include_router(contacts.router)
     app.include_router(campaigns.router)
+    app.include_router(drafts.router)
+    app.include_router(review.router)
     return app
 
 
