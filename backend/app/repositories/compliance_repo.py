@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import and_, insert, or_, select, update
 
 from app.models.compliance import ComplianceProfile, Suppression
 from app.repositories.base import BaseRepository
@@ -119,6 +119,75 @@ class ComplianceRepository(BaseRepository):
             .first()
         )
         return _suppression(row) if row is not None else None
+
+    async def get_suppression(
+        self, *, tenant_id: uuid.UUID, suppression_id: uuid.UUID
+    ) -> SuppressionRecord | None:
+        row = (
+            (
+                await self.conn.execute(
+                    select(Suppression).where(
+                        Suppression.tenant_id == tenant_id,
+                        Suppression.id == suppression_id,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        return _suppression(row) if row is not None else None
+
+    async def list_suppressions(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[SuppressionRecord], str | None]:
+        stmt = select(Suppression).where(Suppression.tenant_id == tenant_id)
+        if cursor is not None:
+            try:
+                cursor_id = uuid.UUID(cursor)
+            except ValueError:
+                return [], None
+            cursor_row = (
+                (
+                    await self.conn.execute(
+                        select(Suppression).where(
+                            Suppression.tenant_id == tenant_id,
+                            Suppression.id == cursor_id,
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if cursor_row is None:
+                return [], None
+            stmt = stmt.where(
+                or_(
+                    Suppression.created_at < cursor_row.created_at,
+                    and_(
+                        Suppression.created_at == cursor_row.created_at,
+                        Suppression.id < cursor_row.id,
+                    ),
+                )
+            )
+
+        rows = (
+            (
+                await self.conn.execute(
+                    stmt.order_by(Suppression.created_at.desc(), Suppression.id.desc()).limit(
+                        limit + 1
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        page_rows = rows[:limit]
+        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        return [_suppression(row) for row in page_rows], next_cursor
 
     async def add_suppression(
         self,

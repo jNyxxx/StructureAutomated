@@ -26,6 +26,7 @@ from app.ratelimit.backend import InMemoryRateLimitBackend
 from app.routers import (
     auth,
     campaigns,
+    compliance,
     contacts,
     deliverability,
     drafts,
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(imports.router)
     app.include_router(contacts.router)
     app.include_router(campaigns.router)
+    app.include_router(compliance.router)
     app.include_router(drafts.router)
     app.include_router(review.router)
     app.include_router(sending.router)
