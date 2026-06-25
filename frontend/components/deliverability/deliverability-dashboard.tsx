@@ -5,9 +5,11 @@ import { AlertTriangle, Globe2 } from "lucide-react";
 
 import { GateReasonBadge } from "@/components/badges";
 import { BentoCard } from "@/components/dashboard/bento-card";
+import { ErrorState } from "@/components/states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchDeliverability, fetchDeliverabilityMailboxes } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useTenantContext } from "@/lib/tenant-context";
 import { DeliverabilitySummaryCards } from "./deliverability-summary-cards";
 import { DeliverabilityTrendChart } from "./deliverability-trend-chart";
@@ -29,13 +31,20 @@ import { WarmupTimeline } from "./warmup-timeline";
 export function DeliverabilityDashboard() {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [summary, setSummary] = useState<DeliverabilitySummaryView>(deliverabilitySummary);
   const [mailboxes, setMailboxes] = useState<MailboxHealth[]>(mailboxHealth);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
 
   const loadDeliverability = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Deliverability backend mock API read did not complete in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setSummary(deliverabilitySummary);
       setMailboxes(mailboxHealth);
       setUsingFallback(true);
@@ -52,21 +61,30 @@ export function DeliverabilityDashboard() {
       setSummary(deliverabilityToView(deliverabilityRes.deliverability));
       setMailboxes(mailboxDtoToHealth(mailboxRes.mailbox_health));
       setUsingFallback(false);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load deliverability, falling back to read-only local/mock deliverability data:", err);
-      setSummary(deliverabilitySummary);
-      setMailboxes(mailboxHealth);
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("NETWORK_ERROR: Deliverability backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load deliverability, falling back to read-only local/mock deliverability data:", err);
+        setSummary(deliverabilitySummary);
+        setMailboxes(mailboxHealth);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId]);
+  }, [auth, selectedTenantId, strictBackendMode]);
 
   useEffect(() => {
     loadDeliverability();
   }, [loadDeliverability]);
 
   const trend = useMemo(() => deliverabilityToTrend(summary), [summary]);
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: deliverability unavailable" description={strictError} />;
+  }
 
   return (
     <>

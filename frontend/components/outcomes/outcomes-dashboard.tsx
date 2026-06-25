@@ -5,10 +5,12 @@ import { AlertTriangle, Lock, ScrollText } from "lucide-react";
 
 import { GateReasonBadge } from "@/components/badges";
 import { BentoCard } from "@/components/dashboard/bento-card";
+import { ErrorState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchOutcomes, fetchOutcomesRoi } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import type { RoiSummary } from "@/lib/schemas";
 import { useTenantContext } from "@/lib/tenant-context";
 import { CampaignOutcomesTable } from "./campaign-outcomes-table";
@@ -32,6 +34,7 @@ import { RoiTrendChart } from "./roi-trend-chart";
 export function OutcomesDashboard() {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [metrics, setMetrics] = useState<OutcomeMetricsView>(outcomeMetrics);
   const [funnel, setFunnel] = useState(funnelSummary);
   const [rows, setRows] = useState<CampaignOutcomeRow[]>(campaignOutcomeRows);
@@ -39,9 +42,15 @@ export function OutcomesDashboard() {
   const [runtime, setRuntime] = useState("read-only local/mock data");
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
 
   const loadOutcomes = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Outcomes require backend mock API reads in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setMetrics(outcomeMetrics);
       setFunnel(funnelSummary);
       setRows(campaignOutcomeRows);
@@ -64,24 +73,33 @@ export function OutcomesDashboard() {
       setRoi(roiRes.roi);
       setRuntime("backend mock API");
       setUsingFallback(false);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load outcomes/ROI, falling back to read-only local/mock outcomes data:", err);
-      setMetrics(outcomeMetrics);
-      setFunnel(funnelSummary);
-      setRows(campaignOutcomeRows);
-      setRoi(null);
-      setRuntime("fixture fallback");
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("NETWORK_ERROR: Outcomes backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load outcomes/ROI, falling back to read-only local/mock outcomes data:", err);
+        setMetrics(outcomeMetrics);
+        setFunnel(funnelSummary);
+        setRows(campaignOutcomeRows);
+        setRoi(null);
+        setRuntime("fixture fallback");
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId]);
+  }, [auth, selectedTenantId, strictBackendMode]);
 
   useEffect(() => {
     loadOutcomes();
   }, [loadOutcomes]);
 
   const trend = useMemo(() => roiToTrend(roi, metrics.replies), [metrics.replies, roi]);
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: outcomes unavailable" description={strictError} />;
+  }
 
   return (
     <>

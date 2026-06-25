@@ -5,10 +5,12 @@ import { AlertCircle, CheckCircle2, Loader2, Lock, ShieldAlert } from "lucide-re
 
 import { GateReasonBadge } from "@/components/badges";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
+import { ErrorState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
 import { createSuppression, fetchSuppressions, reinstateSuppression } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useTenantContext } from "@/lib/tenant-context";
 import type { Suppression } from "@/lib/schemas";
 import { suppressionRows, type SuppressionRow } from "./settings-sample-data";
@@ -42,9 +44,11 @@ function mapSuppression(suppression: Suppression, index: number): SuppressionRow
 export function SuppressionTable() {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [rows, setRows] = useState<SuppressionRow[]>(suppressionRows);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
   const [state, setState] = useState<ActionState>("idle");
   const [activeAction, setActiveAction] = useState<SuppressionAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,6 +56,11 @@ export function SuppressionTable() {
 
   const loadSuppressions = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Suppressions backend mock API read did not complete in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setRows(suppressionRows);
       setUsingFallback(true);
       setLoading(false);
@@ -70,14 +79,19 @@ export function SuppressionTable() {
       const mapped = res.suppressions.map(mapSuppression);
       setRows(mapped.length > 0 ? mapped : suppressionRows);
       setUsingFallback(mapped.length === 0);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load suppressions, falling back to local/mock data:", err);
-      setRows(suppressionRows);
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("Suppressions backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load suppressions, falling back to local/mock data:", err);
+        setRows(suppressionRows);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId]);
+  }, [auth, selectedTenantId, strictBackendMode]);
 
   useEffect(() => {
     loadSuppressions();
@@ -150,6 +164,10 @@ export function SuppressionTable() {
       }
       setState("error");
     }
+  }
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: suppressions failed" description={strictError} />;
   }
 
   const views: SavedViewTab[] = [

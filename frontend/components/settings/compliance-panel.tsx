@@ -5,10 +5,12 @@ import { AlertCircle, CheckCircle2, Loader2, ShieldAlert } from "lucide-react";
 
 import { GateReasonBadge } from "@/components/badges";
 import { BentoCard } from "@/components/dashboard/bento-card";
+import { ErrorState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
 import { fetchComplianceProfile, updateComplianceProfile } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useTenantContext } from "@/lib/tenant-context";
 import type { ComplianceProfile } from "@/lib/schemas";
 
@@ -54,15 +56,22 @@ function profileStatus(profile: ComplianceProfile) {
 export function CompliancePanel() {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [profile, setProfile] = useState<ComplianceProfile>(fallbackProfile);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
   const [state, setState] = useState<ActionState>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<{ message: string; code: string; requestId: string | null } | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Compliance profile backend mock API read did not complete in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setProfile(fallbackProfile);
       setUsingFallback(true);
       setLoading(false);
@@ -77,14 +86,19 @@ export function CompliancePanel() {
       });
       setProfile(res.compliance_profile);
       setUsingFallback(false);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load compliance profile, falling back to read-only local/mock data:", err);
-      setProfile(fallbackProfile);
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("Compliance profile backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load compliance profile, falling back to read-only local/mock data:", err);
+        setProfile(fallbackProfile);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId]);
+  }, [auth, selectedTenantId, strictBackendMode]);
 
   useEffect(() => {
     loadProfile();
@@ -126,6 +140,10 @@ export function CompliancePanel() {
   }
 
   const controls = profileStatus(profile);
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: compliance profile failed" description={strictError} />;
+  }
 
   return (
     <BentoCard

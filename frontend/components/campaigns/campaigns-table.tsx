@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Clock3, Lock, ShieldAlert } from "lucide-react";
 
-import { GateReasonBadge, StatusBadge } from "@/components/badges";
+import { GateReasonBadge } from "@/components/badges";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
+import { ErrorState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { fetchCampaigns } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useTenantContext } from "@/lib/tenant-context";
 import { campaignRows, campaignToRow, type CampaignRow } from "./campaign-sample-data";
 
@@ -63,12 +65,19 @@ const columns: DataTableColumn<CampaignRow>[] = [
 export function CampaignsTable() {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [rows, setRows] = useState<CampaignRow[]>(campaignRows);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
 
   const loadCampaigns = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Campaigns require backend mock API reads in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setRows(campaignRows);
       setUsingFallback(true);
       setLoading(false);
@@ -87,14 +96,19 @@ export function CampaignsTable() {
       const mapped = res.campaigns.map(campaignToRow);
       setRows(mapped.length > 0 ? mapped : campaignRows);
       setUsingFallback(mapped.length === 0);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load campaigns, falling back to read-only local/mock data:", err);
-      setRows(campaignRows);
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("NETWORK_ERROR: Campaigns backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load campaigns, falling back to read-only local/mock data:", err);
+        setRows(campaignRows);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId]);
+  }, [auth, selectedTenantId, strictBackendMode]);
 
   useEffect(() => {
     loadCampaigns();
@@ -106,6 +120,10 @@ export function CampaignsTable() {
     { id: "blocked", label: "Blocked", count: rows.filter((row) => row.status === "blocked").length },
     { id: "live", label: "Live send", count: 0, locked: true },
   ];
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: campaigns unavailable" description={strictError} />;
+  }
 
   return (
     <DataTable

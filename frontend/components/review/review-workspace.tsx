@@ -8,8 +8,10 @@ import { GroundednessPanel } from "@/components/drafts/groundedness-panel";
 import { ClaimHighlighter } from "@/components/drafts/claim-highlighter";
 import { DraftGatePanel } from "@/components/drafts/draft-gate-panel";
 import { BentoCard } from "@/components/dashboard/bento-card";
+import { ErrorState } from "@/components/states";
 import { fetchReviewItem } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useTenantContext } from "@/lib/tenant-context";
 import { ReviewActivityTimeline } from "./review-activity-timeline";
 import { ReviewDecisionPanel } from "./review-decision-panel";
@@ -19,12 +21,19 @@ import { reviewDtoToItem, type ReviewItem } from "./review-sample-data";
 export function ReviewWorkspace({ item, onListRefresh }: { item: ReviewItem; onListRefresh?: () => Promise<void> }) {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [activeItem, setActiveItem] = useState<ReviewItem>(item);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
 
   const loadReviewItem = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Review item detail backend mock API read did not complete in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setActiveItem(item);
       setUsingFallback(true);
       setLoading(false);
@@ -42,14 +51,19 @@ export function ReviewWorkspace({ item, onListRefresh }: { item: ReviewItem; onL
       );
       setActiveItem(reviewDtoToItem(res.review_item, item));
       setUsingFallback(false);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load review item detail, falling back to read-only local/mock review data:", err);
-      setActiveItem(item);
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("Review item detail backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load review item detail, falling back to read-only local/mock review data:", err);
+        setActiveItem(item);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId, item]);
+  }, [auth, selectedTenantId, item, strictBackendMode]);
 
   const refreshAfterAction = useCallback(async () => {
     await loadReviewItem();
@@ -59,6 +73,10 @@ export function ReviewWorkspace({ item, onListRefresh }: { item: ReviewItem; onL
   useEffect(() => {
     loadReviewItem();
   }, [loadReviewItem]);
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: review item detail failed" description={strictError} />;
+  }
 
   return (
     <div className="space-y-4">

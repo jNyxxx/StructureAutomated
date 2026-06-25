@@ -5,9 +5,11 @@ import { AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
 
 import { GateReasonBadge, StatusBadge } from "@/components/badges";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
+import { ErrorState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { fetchReviewItems } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useTenantContext } from "@/lib/tenant-context";
 import { ReviewWorkspace } from "./review-workspace";
 import { reviewDtoToItem, reviewItems, type ReviewItem } from "./review-sample-data";
@@ -44,12 +46,19 @@ const columns: DataTableColumn<ReviewItem>[] = [
 export function ReviewQueueTable() {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [rows, setRows] = useState<ReviewItem[]>(reviewItems);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
 
   const loadReviewItems = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Review queue backend mock API read did not complete in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setRows(reviewItems);
       setUsingFallback(true);
       setLoading(false);
@@ -68,14 +77,19 @@ export function ReviewQueueTable() {
       const mapped = res.review_items.map((item) => reviewDtoToItem(item, reviewItems.find((row) => row.id === item.id)));
       setRows(mapped.length > 0 ? mapped : reviewItems);
       setUsingFallback(mapped.length === 0);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load review queue, falling back to read-only local/mock review data:", err);
-      setRows(reviewItems);
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("Review queue backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load review queue, falling back to read-only local/mock review data:", err);
+        setRows(reviewItems);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId]);
+  }, [auth, selectedTenantId, strictBackendMode]);
 
   useEffect(() => {
     loadReviewItems();
@@ -88,6 +102,10 @@ export function ReviewQueueTable() {
     { id: "blocked", label: "Blocked", count: rows.filter((row) => row.reviewStatus === "blocked").length },
     { id: "bulk", label: "Bulk approval", count: 0, locked: true },
   ];
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: review queue unavailable" description={strictError} />;
+  }
 
   return (
     <DataTable

@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ApiError } from "@/lib/api-client";
 import { fetchCampaign, fetchProspects, selectCampaignContact, updateCampaign } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useTenantContext } from "@/lib/tenant-context";
 
 type ActionState = "idle" | "submitting" | "success" | "error";
@@ -22,6 +23,7 @@ type ActionState = "idle" | "submitting" | "success" | "error";
 export default function CampaignDetailPage({ params }: { params: { id: string } }) {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const fallbackCampaign = getCampaignById(params.id);
   const [campaign, setCampaign] = useState<CampaignRow | undefined>(fallbackCampaign);
   const [loading, setLoading] = useState(true);
@@ -32,9 +34,15 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [selectState, setSelectState] = useState<ActionState>("idle");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<{ message: string; code: string; requestId: string | null } | null>(null);
+  const [strictError, setStrictError] = useState<string | null>(null);
 
   const loadCampaign = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("Campaign detail requires backend mock API reads in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setCampaign(fallbackCampaign);
       setUsingFallback(Boolean(fallbackCampaign));
       setLoading(false);
@@ -52,14 +60,19 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       );
       setCampaign(campaignToRow(res.campaign));
       setUsingFallback(false);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load campaign detail, falling back to read-only local/mock data:", err);
-      setCampaign(fallbackCampaign);
-      setUsingFallback(Boolean(fallbackCampaign));
+      if (strictBackendMode) {
+        setStrictError("NETWORK_ERROR: Campaign detail backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load campaign detail, falling back to read-only local/mock data:", err);
+        setCampaign(fallbackCampaign);
+        setUsingFallback(Boolean(fallbackCampaign));
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId, params.id, fallbackCampaign]);
+  }, [auth, selectedTenantId, params.id, fallbackCampaign, strictBackendMode]);
 
   const loadSelectableContact = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) return;
@@ -166,6 +179,10 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       }
       setSelectState("error");
     }
+  }
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: campaign detail failed" description={strictError} />;
   }
 
   if (!campaign) {

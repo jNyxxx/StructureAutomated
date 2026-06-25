@@ -752,6 +752,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete process.env.NEXT_PUBLIC_STRICT_BACKEND_MODE;
   vi.unstubAllGlobals();
 });
 
@@ -825,6 +826,18 @@ describe("route shells render", () => {
     expect(screen.getByText(/Northline Properties/i)).toBeTruthy();
     expect(screen.getByText(/enrichment, campaign, export, and delete actions remain locked/i)).toBeTruthy();
     expect(screen.getByText(/No real sending/i)).toBeTruthy();
+  });
+
+  it("strict backend mode shows prospects backend error instead of fixture rows", async () => {
+    process.env["NEXT_PUBLIC_" + "STRICT_BACKEND_MODE"] = "true";
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<ProspectsPage />);
+
+    await waitFor(() => expect(screen.getByText(/Strict backend mode: prospects unavailable/i)).toBeTruthy());
+    expect(screen.getByText(/NETWORK_ERROR/i)).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    expect(screen.queryByText(/Northline Properties/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Export contact/i })).toBeNull();
   });
 
   it("renders the CSV import wizard with LocalMockNotice and locked unsafe actions", () => {
@@ -966,6 +979,18 @@ describe("route shells render", () => {
     expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
     expect(screen.getByText(/research, drafts, sends, follow-up, export, scraping, and providers remain locked/i)).toBeTruthy();
     expect(screen.getByText(/No real sending/i)).toBeTruthy();
+  });
+
+  it("strict backend mode shows campaigns backend error instead of fixture rows", async () => {
+    process.env["NEXT_PUBLIC_" + "STRICT_BACKEND_MODE"] = "true";
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<CampaignsPage />);
+
+    await waitFor(() => expect(screen.getByText(/Strict backend mode: campaigns unavailable/i)).toBeTruthy());
+    expect(screen.getByText(/NETWORK_ERROR/i)).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    expect(screen.queryByText(/CRE Multifamily Owner Outreach/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Mock send/i })).toBeNull();
   });
 
   it("renders a campaign detail shell with LocalMockNotice and GateReasonBadge", async () => {
@@ -1607,6 +1632,17 @@ describe("route shells render", () => {
     await waitFor(() => expect(screen.getAllByText(/fixture fallback/i).length).toBeGreaterThan(0));
     expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
     expect(screen.getByText(/No real sending/i)).toBeTruthy();
+  });
+
+  it("strict backend mode shows review backend error instead of fixture rows", async () => {
+    process.env["NEXT_PUBLIC_" + "STRICT_BACKEND_MODE"] = "true";
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<ReviewQueuePage />);
+
+    await waitFor(() => expect(screen.getByText(/Strict backend mode: review queue unavailable/i)).toBeTruthy());
+    expect(screen.getByText(/Review queue backend mock API read failed/i)).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    expect(screen.queryByText(/Approve in workspace/i)).toBeNull();
   });
 
   it("renders the deliverability dashboard shell", async () => {

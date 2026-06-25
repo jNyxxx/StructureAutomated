@@ -5,8 +5,10 @@ import { AlertTriangle, CheckCircle2, CopyX, ShieldAlert } from "lucide-react";
 
 import { GateReasonBadge, StatusBadge } from "@/components/badges";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
+import { ErrorState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { fetchProspects } from "@/lib/backend-api";
+import { isStrictBackendMode } from "@/lib/runtime-mode";
 import { useFrontendAuth } from "@/lib/clerk";
 import { useTenantContext } from "@/lib/tenant-context";
 import type { Prospect } from "@/lib/schemas";
@@ -82,12 +84,19 @@ function mapProspect(prospect: Prospect): ProspectRow {
 export function ProspectsTable() {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
+  const strictBackendMode = isStrictBackendMode();
   const [rows, setRows] = useState<ProspectRow[]>(prospectRows);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [strictError, setStrictError] = useState<string | null>(null);
 
   const loadProspects = useCallback(async () => {
     if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      if (strictBackendMode) {
+        setStrictError("NETWORK_ERROR: Prospects require authenticated backend mock API reads in strict backend mode.");
+        setLoading(false);
+        return;
+      }
       setRows(prospectRows);
       setUsingFallback(true);
       setLoading(false);
@@ -106,14 +115,19 @@ export function ProspectsTable() {
       const mapped = res.prospects.map(mapProspect);
       setRows(mapped.length > 0 ? mapped : prospectRows);
       setUsingFallback(mapped.length === 0);
+      setStrictError(null);
     } catch (err) {
-      console.error("Failed to load prospects, falling back to read-only local/mock data:", err);
-      setRows(prospectRows);
-      setUsingFallback(true);
+      if (strictBackendMode) {
+        setStrictError("NETWORK_ERROR: Prospects backend mock API read failed in strict backend mode.");
+      } else {
+        console.error("Failed to load prospects, falling back to read-only local/mock data:", err);
+        setRows(prospectRows);
+        setUsingFallback(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, [auth, selectedTenantId]);
+  }, [auth, selectedTenantId, strictBackendMode]);
 
   useEffect(() => {
     loadProspects();
@@ -125,6 +139,10 @@ export function ProspectsTable() {
     { id: "blocked", label: "Suppressed/blocked", count: rows.filter((row) => row.suppressionStatus === "suppressed" || row.campaignStatus === "blocked").length },
     { id: "campaign", label: "Campaign API", count: 0, locked: true },
   ];
+
+  if (strictError) {
+    return <ErrorState title="Strict backend mode: prospects unavailable" description={strictError} />;
+  }
 
   return (
     <DataTable
