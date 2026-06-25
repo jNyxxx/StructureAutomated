@@ -56,6 +56,17 @@ Produced by P1-13 (E2E smoke + evidence update). Not counted among the 20 implem
 
 ---
 
+## Phase 2 evidence files
+
+Produced by Phase 2 backend API completion (P2-1 through P2-8). Not counted among the 20 implementation docs.
+
+| File | Purpose |
+|------|---------|
+| `docs/evidence/phase-2-backend-api-final-verification.md` | Route group table, mounted routers list, OpenAPI count (44), quality gate results, security/gating summary, mock/local-only summary, deferred blockers, verdict |
+| `docs/evidence/phase-2-backend-readiness-checklist.md` | Structured checklist covering CLAUDE.md rules, quality gates, route coverage, multi-tenancy/RLS, mock-mode discipline, and deferred items |
+
+---
+
 ## Supplementary process notes (not counted among the 20 docs)
 
 | File | Purpose |
