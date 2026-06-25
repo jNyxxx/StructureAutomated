@@ -14,12 +14,12 @@ export function ReviewDecisionPanel({ item }: { item: ReviewItem }) {
     { label: "Unsupported claims", state: item.draft.unsupportedClaims.length === 0 ? "passed" : "blocked" },
     { label: "Suppression", state: item.suppressionStatus === "clear" ? "passed" : "blocked" },
     { label: "Billing/access", state: item.billingAccessLocked ? "blocked" : "passed" },
-    { label: "Backend API", state: "blocked" },
+    { label: "Mutation actions", state: "blocked" },
     { label: "Review status", state: item.reviewStatus === "pending_review" ? "pending" : "blocked" },
   ] as const;
 
   return (
-    <BentoCard title="Review decision" description="Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates." badge="Decision locked">
+    <BentoCard title="Review decision" description="Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates. Review write actions remain disabled." badge="Decision locked">
       <div className="space-y-3">
         <div className="grid gap-3 md:grid-cols-2">
           {blockers.map((blocker) => (
@@ -31,7 +31,7 @@ export function ReviewDecisionPanel({ item }: { item: ReviewItem }) {
         </div>
         <div className="flex flex-wrap gap-2 pt-2">
           <Button disabled={!canApprove}>
-            <ThumbsUp className="size-4" /> Approve
+            <ThumbsUp className="size-4" /> Review approval locked
           </Button>
           <Button disabled variant="secondary">
             <ThumbsDown className="size-4" /> Reject
@@ -43,7 +43,7 @@ export function ReviewDecisionPanel({ item }: { item: ReviewItem }) {
             <Pencil className="size-4" /> Edit draft
           </Button>
           <Button disabled variant="locked">
-            <Lock className="size-4" /> Pending backend API
+            <Lock className="size-4" /> Actions locked
           </Button>
         </div>
       </div>

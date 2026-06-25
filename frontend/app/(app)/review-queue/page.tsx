@@ -14,7 +14,7 @@ export default function ReviewQueuePage() {
       <PageHeader
         eyebrow="Human review gate"
         title="Review queue"
-        description="Demo-safe review workspace using local rows only. Approval, rejection, regeneration, edits, mock send, follow-up, and export APIs are not mounted yet."
+        description="Read-only review workspace using backend mock API data with fixture fallback. Approve, reject, request-regeneration, send, follow-up, and export actions remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -37,13 +37,13 @@ export default function ReviewQueuePage() {
             <div>
               <CardTitle>Pending backend API notice</CardTitle>
               <CardDescription>
-                Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates. This page does not mutate backend data.
+                Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates. This page only calls read-side backend mock review APIs and does not mutate backend data.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Review API pending" />
+          <GateReasonBadge state="passed" label="Review API read-only" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No provider calls" />
           <GateReasonBadge state="blocked" label="No live scraping" />

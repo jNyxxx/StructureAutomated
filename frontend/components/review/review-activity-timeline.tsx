@@ -6,7 +6,7 @@ import type { ReviewItem } from "./review-sample-data";
 
 export function ReviewActivityTimeline({ item }: { item: ReviewItem }) {
   return (
-    <BentoCard title="Review activity trail" description="Redacted local/demo audit trail. No live audit API is called." badge="Audit shell">
+    <BentoCard title="Review activity trail" description="Read-only local/mock review activity trail. No review mutation or live audit write is called." badge="Audit shell">
       <div className="space-y-3">
         {item.safeActivity.map((event, index) => (
           <div key={event} className="rounded-medium border border-border bg-panel2 p-3">
@@ -25,7 +25,7 @@ export function ReviewActivityTimeline({ item }: { item: ReviewItem }) {
           </div>
         ))}
         <div className="flex items-center gap-2 text-caption text-subtle">
-          <Clock3 className="size-3.5" /> Backend audit, approvals, and sends are not wired in this slice.
+          <Clock3 className="size-3.5" /> Approval, regeneration, and send actions are not wired in this slice.
         </div>
       </div>
     </BentoCard>

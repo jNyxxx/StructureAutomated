@@ -1,12 +1,16 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
 
 import { GateReasonBadge, StatusBadge } from "@/components/badges";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
+import { fetchReviewItems } from "@/lib/backend-api";
+import { useFrontendAuth } from "@/lib/clerk";
+import { useTenantContext } from "@/lib/tenant-context";
 import { ReviewWorkspace } from "./review-workspace";
-import { reviewItems, type ReviewItem } from "./review-sample-data";
+import { reviewDtoToItem, reviewItems, type ReviewItem } from "./review-sample-data";
 
 function SuppressionBadge({ status }: { status: ReviewItem["suppressionStatus"] }) {
   const config = {
@@ -37,33 +41,72 @@ const columns: DataTableColumn<ReviewItem>[] = [
   { id: "updatedAt", header: "Updated", accessor: "updatedAt", sortable: true },
 ];
 
-const views: SavedViewTab[] = [
-  { id: "all", label: "All review items", count: reviewItems.length },
-  { id: "pending", label: "Pending review", count: 1 },
-  { id: "regeneration", label: "Needs regeneration", count: 1 },
-  { id: "blocked", label: "Blocked", count: 1 },
-  { id: "bulk", label: "Bulk approval", count: 0, locked: true },
-];
-
 export function ReviewQueueTable() {
+  const auth = useFrontendAuth();
+  const { selectedTenantId } = useTenantContext();
+  const [rows, setRows] = useState<ReviewItem[]>(reviewItems);
+  const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const loadReviewItems = useCallback(async () => {
+    if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      setRows(reviewItems);
+      setUsingFallback(true);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetchReviewItems(
+        {
+          getToken: auth.getToken,
+          getTenantId: () => selectedTenantId,
+        },
+        { limit: 25 },
+      );
+      const mapped = res.review_items.map((item) => reviewDtoToItem(item, reviewItems.find((row) => row.id === item.id)));
+      setRows(mapped.length > 0 ? mapped : reviewItems);
+      setUsingFallback(mapped.length === 0);
+    } catch (err) {
+      console.error("Failed to load review queue, falling back to read-only local/mock review data:", err);
+      setRows(reviewItems);
+      setUsingFallback(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, selectedTenantId]);
+
+  useEffect(() => {
+    loadReviewItems();
+  }, [loadReviewItems]);
+
+  const views: SavedViewTab[] = [
+    { id: "all", label: "All review items", count: rows.length },
+    { id: "pending", label: "Pending review", count: rows.filter((row) => row.reviewStatus === "pending_review").length },
+    { id: "regeneration", label: "Needs regeneration", count: rows.filter((row) => row.reviewStatus === "needs_regeneration").length },
+    { id: "blocked", label: "Blocked", count: rows.filter((row) => row.reviewStatus === "blocked").length },
+    { id: "bulk", label: "Bulk approval", count: 0, locked: true },
+  ];
+
   return (
     <DataTable
       label="Review queue demo table"
-      data={reviewItems}
+      data={rows}
       columns={columns}
       savedViews={views}
       pageSize={6}
       filters={[
-        { key: "runtime", label: "Runtime", value: "local/demo" },
-        { key: "api", label: "API", value: "pending backend" },
+        { key: "runtime", label: "Runtime", value: loading ? "loading..." : usingFallback ? "fixture fallback" : "backend mock API" },
+        { key: "api", label: "API", value: "read-only" },
       ]}
       rowActions={[
         { label: "Open review workspace" },
-        { label: "Approve", pendingBackend: true },
-        { label: "Reject", pendingBackend: true },
-        { label: "Request regeneration", pendingBackend: true },
-        { label: "Mock send", pendingBackend: true },
-        { label: "Export", pendingBackend: true },
+        { label: "Approve", pendingBackend: true, disabled: true },
+        { label: "Reject", pendingBackend: true, disabled: true },
+        { label: "Request regeneration", pendingBackend: true, disabled: true },
+        { label: "Mock send", pendingBackend: true, disabled: true },
+        { label: "Export", pendingBackend: true, disabled: true },
       ]}
       getRowSearchText={(row) => `${row.prospectCompany} ${row.campaign} ${row.draftSubject} ${row.reviewStatus} ${row.assignedReviewer}`}
       getDrawerTitle={(row) => row.draftSubject}

@@ -349,3 +349,33 @@ export type Draft = z.infer<typeof draftSchema>;
 export type DraftDetailResponse = z.infer<typeof draftDetailResponseSchema>;
 export type DraftEvidence = z.infer<typeof draftEvidenceSchema>;
 export type DraftEvidenceListResponse = z.infer<typeof draftEvidenceListResponseSchema>;
+
+// Review Queue
+export const reviewItemSchema = z.object({
+  id: z.string().uuid(),
+  draft_id: z.string().uuid(),
+  campaign_id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  status: z.string(),
+  reviewer_user_id: z.string().uuid().nullable().optional(),
+  action_reason: z.string().nullable().optional(),
+  reviewed_at: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const reviewItemListResponseSchema = z.object({
+  review_items: z.array(reviewItemSchema),
+  page: pageInfoSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export const reviewItemDetailResponseSchema = z.object({
+  review_item: reviewItemSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type ReviewItemDto = z.infer<typeof reviewItemSchema>;
+export type ReviewItemListResponse = z.infer<typeof reviewItemListResponseSchema>;
+export type ReviewItemDetailResponse = z.infer<typeof reviewItemDetailResponseSchema>;

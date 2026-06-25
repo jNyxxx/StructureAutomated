@@ -1,4 +1,5 @@
 import { draftRows, type DraftRow, type GateState } from "@/components/drafts/draft-sample-data";
+import type { ReviewItemDto } from "@/lib/schemas";
 
 export type ReviewStatus = "pending_review" | "needs_regeneration" | "blocked" | "approved";
 export type SuppressionStatus = "clear" | "suppressed" | "needs_review";
@@ -20,7 +21,7 @@ export interface ReviewItem {
 
 export const reviewItems: ReviewItem[] = [
   {
-    id: "review_demo_001",
+    id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
     draft: draftRows[0],
     prospectCompany: draftRows[0].prospectCompany,
     campaign: draftRows[0].campaign,
@@ -31,10 +32,10 @@ export const reviewItems: ReviewItem[] = [
     assignedReviewer: "owner@example.com",
     updatedAt: "local demo",
     billingAccessLocked: true,
-    safeActivity: ["Review item opened", "Send gate checked", "Backend approval API pending"],
+    safeActivity: ["Review item opened", "Send gate checked", "Backend approval API locked"],
   },
   {
-    id: "review_demo_002",
+    id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
     draft: draftRows[1],
     prospectCompany: draftRows[1].prospectCompany,
     campaign: draftRows[1].campaign,
@@ -45,10 +46,10 @@ export const reviewItems: ReviewItem[] = [
     assignedReviewer: "owner@example.com",
     updatedAt: "local demo",
     billingAccessLocked: true,
-    safeActivity: ["Unsupported claim detected", "Groundedness warning shown", "Regeneration API pending"],
+    safeActivity: ["Unsupported claim detected", "Groundedness warning shown", "Regeneration API locked"],
   },
   {
-    id: "review_demo_003",
+    id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
     draft: draftRows[2],
     prospectCompany: draftRows[2].prospectCompany,
     campaign: draftRows[2].campaign,
@@ -62,6 +63,41 @@ export const reviewItems: ReviewItem[] = [
     safeActivity: ["Suppression state detected", "Approval blocked", "No-send state enforced"],
   },
 ];
+
+function mapReviewStatus(status: string): ReviewStatus {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("approve")) return "approved";
+  if (normalized.includes("regen")) return "needs_regeneration";
+  if (normalized.includes("reject") || normalized.includes("block")) return "blocked";
+  return "pending_review";
+}
+
+export function getReviewItemById(id: string): ReviewItem | undefined {
+  return reviewItems.find((item) => item.id === id);
+}
+
+export function reviewDtoToItem(review: ReviewItemDto, existing?: ReviewItem): ReviewItem {
+  const draft = existing?.draft ?? draftRows.find((row) => row.id === review.draft_id) ?? draftRows[0];
+  const reviewStatus = mapReviewStatus(review.status);
+  return {
+    id: review.id,
+    draft,
+    prospectCompany: existing?.prospectCompany ?? draft.prospectCompany,
+    campaign: existing?.campaign ?? draft.campaign,
+    draftSubject: draft.subject,
+    reviewStatus,
+    suppressionStatus: existing?.suppressionStatus ?? (draft.suppressedContact ? "suppressed" : "clear"),
+    sendReadiness: "blocked",
+    assignedReviewer: review.reviewer_user_id ? "backend mock reviewer" : existing?.assignedReviewer ?? "unassigned",
+    updatedAt: new Date(review.updated_at).toLocaleDateString(),
+    billingAccessLocked: true,
+    safeActivity: [
+      "Review item loaded from backend mock API",
+      review.action_reason ? `Action reason: ${review.action_reason}` : "No action reason recorded",
+      "Approve, reject, regeneration, and send actions locked",
+    ],
+  };
+}
 
 export function canApproveReviewItem(item: ReviewItem): boolean {
   return (

@@ -166,6 +166,43 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/review/items/cccccccc-cccc-cccc-cccc-cccccccccccc")) {
+        return jsonResponse({
+          review_item: {
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            draft_id: "66666666-6666-6666-6666-666666666666",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            contact_id: "22222222-2222-2222-2222-222222222222",
+            status: "pending_review",
+            reviewer_user_id: "11111111-1111-1111-1111-111111111111",
+            action_reason: null,
+            reviewed_at: null,
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/review/items")) {
+        return jsonResponse({
+          review_items: [
+            {
+              id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+              draft_id: "66666666-6666-6666-6666-666666666666",
+              campaign_id: "44444444-4444-4444-4444-444444444444",
+              contact_id: "22222222-2222-2222-2222-222222222222",
+              status: "pending_review",
+              reviewer_user_id: null,
+              action_reason: null,
+              reviewed_at: null,
+              created_at: "2026-06-24T12:00:00Z",
+              updated_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: { next_cursor: null, limit: 25 },
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/drafts/66666666-6666-6666-6666-666666666666/evidence")) {
         return jsonResponse({
           evidence: [
@@ -496,11 +533,34 @@ describe("route shells render", () => {
     expect(screen.getByText(/Draft detail\/evidence read-only/i)).toBeTruthy();
   });
 
-  it("renders the review queue demo safely", () => {
-    render(<ReviewQueuePage />);
+  it("renders the review queue demo safely", async () => {
+    renderWithTenant(<ReviewQueuePage />);
     expect(screen.getByRole("heading", { name: /review queue/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /review queue demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(/backend mock API/i).length).toBeGreaterThan(0));
+    expect(screen.getByText(/Review API read-only/i)).toBeTruthy();
     expect(screen.getByText(/Human approval never bypasses/i)).toBeTruthy();
+  });
+
+  it("loads review item detail from backend mock API while actions stay locked", async () => {
+    renderWithTenant(<ReviewQueuePage />);
+    fireEvent.click(screen.getByRole("button", { name: /View details for row cccccccc-cccc-cccc-cccc-cccccccccccc/i }));
+
+    await waitFor(() => expect(screen.getAllByText(/Review item loaded from backend mock API/i).length).toBeGreaterThan(0));
+    expect(screen.getByRole("button", { name: /Approve/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Reject/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Request regeneration/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Mock send/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("renders review fixture fallback when backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<ReviewQueuePage />);
+
+    await waitFor(() => expect(screen.getAllByText(/fixture fallback/i).length).toBeGreaterThan(0));
+    expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
+    expect(screen.getByText(/No real sending/i)).toBeTruthy();
   });
 
   it("renders the deliverability dashboard shell", () => {

@@ -17,6 +17,8 @@ import {
   fetchCampaign,
   fetchDraft,
   fetchDraftEvidence,
+  fetchReviewItems,
+  fetchReviewItem,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -599,6 +601,109 @@ describe("draft detail/evidence read fetchers (Phase 2)", () => {
     let caught: unknown;
     try {
       await fetchDraftEvidence(authOptions(failing), "66666666-6666-6666-6666-666666666666");
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
+  });
+});
+
+describe("review queue read fetchers (Phase 2)", () => {
+  it("fetchReviewItems parses review item list responses with pagination", async () => {
+    const res = await fetchReviewItems(
+      authOptions(
+        mockFetch(200, {
+          review_items: [
+            {
+              id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+              draft_id: "66666666-6666-6666-6666-666666666666",
+              campaign_id: "44444444-4444-4444-4444-444444444444",
+              contact_id: "22222222-2222-2222-2222-222222222222",
+              status: "pending_review",
+              reviewer_user_id: null,
+              action_reason: null,
+              reviewed_at: null,
+              created_at: "2026-06-24T12:00:00Z",
+              updated_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: { next_cursor: null, limit: 25 },
+          mock_only: true,
+        }),
+      ),
+      { limit: 25 },
+    );
+
+    expect(res.review_items.length).toBe(1);
+    expect(res.review_items[0].status).toBe("pending_review");
+    expect(res.page.limit).toBe(25);
+  });
+
+  it("fetchReviewItem parses review item detail responses", async () => {
+    const res = await fetchReviewItem(
+      authOptions(
+        mockFetch(200, {
+          review_item: {
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            draft_id: "66666666-6666-6666-6666-666666666666",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            contact_id: "22222222-2222-2222-2222-222222222222",
+            status: "pending_review",
+            reviewer_user_id: "11111111-1111-1111-1111-111111111111",
+            action_reason: null,
+            reviewed_at: null,
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
+          },
+          mock_only: true,
+        }),
+      ),
+      "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    );
+
+    expect(res.review_item.id).toBe("cccccccc-cccc-cccc-cccc-cccccccccccc");
+    expect(res.review_item.reviewer_user_id).toBe("11111111-1111-1111-1111-111111111111");
+  });
+
+  it("maps a review backend error envelope to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await fetchReviewItems(
+        authOptions(
+          mockFetch(403, {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Review denied.",
+              details: { scope: "read:review" },
+              request_id: "req_review",
+              correlation_id: "corr_review",
+            },
+          }),
+        ),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("PERMISSION_DENIED");
+    expect(err.status).toBe(403);
+    expect(err.requestId).toBe("req_review");
+  });
+
+  it("maps a review item transport failure to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await fetchReviewItem(authOptions(failing), "cccccccc-cccc-cccc-cccc-cccccccccccc");
     } catch (error) {
       caught = error;
     }

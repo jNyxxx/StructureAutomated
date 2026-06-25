@@ -1,31 +1,83 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
 import { DraftPreview } from "@/components/drafts/draft-preview";
 import { EvidenceList } from "@/components/drafts/evidence-list";
 import { GroundednessPanel } from "@/components/drafts/groundedness-panel";
 import { ClaimHighlighter } from "@/components/drafts/claim-highlighter";
 import { DraftGatePanel } from "@/components/drafts/draft-gate-panel";
 import { BentoCard } from "@/components/dashboard/bento-card";
+import { fetchReviewItem } from "@/lib/backend-api";
+import { useFrontendAuth } from "@/lib/clerk";
+import { useTenantContext } from "@/lib/tenant-context";
 import { ReviewActivityTimeline } from "./review-activity-timeline";
 import { ReviewDecisionPanel } from "./review-decision-panel";
 import { SendReadinessPanel } from "./send-readiness-panel";
-import type { ReviewItem } from "./review-sample-data";
+import { reviewDtoToItem, type ReviewItem } from "./review-sample-data";
 
 export function ReviewWorkspace({ item }: { item: ReviewItem }) {
+  const auth = useFrontendAuth();
+  const { selectedTenantId } = useTenantContext();
+  const [activeItem, setActiveItem] = useState<ReviewItem>(item);
+  const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const loadReviewItem = useCallback(async () => {
+    if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      setActiveItem(item);
+      setUsingFallback(true);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetchReviewItem(
+        {
+          getToken: auth.getToken,
+          getTenantId: () => selectedTenantId,
+        },
+        item.id,
+      );
+      setActiveItem(reviewDtoToItem(res.review_item, item));
+      setUsingFallback(false);
+    } catch (err) {
+      console.error("Failed to load review item detail, falling back to read-only local/mock review data:", err);
+      setActiveItem(item);
+      setUsingFallback(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, selectedTenantId, item]);
+
+  useEffect(() => {
+    loadReviewItem();
+  }, [loadReviewItem]);
+
   return (
     <div className="space-y-4">
-      <DraftPreview draft={item.draft} />
+      <div className="rounded-medium border border-border bg-panel2 p-3 text-caption text-muted">
+        {loading
+          ? "Loading read-only backend mock review item..."
+          : usingFallback
+            ? "Backend unavailable or auth missing. Showing read-only local/mock review data fixture fallback."
+            : "Review item loaded from backend mock API. Approve, reject, regeneration, and send actions remain disabled."}
+      </div>
+      <DraftPreview draft={activeItem.draft} />
       <div className="grid gap-4 xl:grid-cols-2">
-        <BentoCard title="Evidence/source list" description="Approved sources from local/demo draft data only." badge="Evidence shell">
-          <EvidenceList evidence={item.draft.evidence} />
+        <BentoCard title="Evidence/source list" description="Read-only local/mock evidence for the selected review item. No provider, scraper, or embeddings write is called." badge="Evidence shell">
+          <EvidenceList evidence={activeItem.draft.evidence} />
         </BentoCard>
-        <BentoCard title="Claim highlights" description="Unsupported claims block approval and require regeneration." badge="Claims">
-          <ClaimHighlighter claims={item.draft.unsupportedClaims} />
+        <BentoCard title="Claim highlights" description="Unsupported claims block approval and require regeneration, but regeneration remains disabled in this slice." badge="Claims">
+          <ClaimHighlighter claims={activeItem.draft.unsupportedClaims} />
         </BentoCard>
       </div>
-      <GroundednessPanel draft={item.draft} />
-      <DraftGatePanel draft={item.draft} />
-      <ReviewDecisionPanel item={item} />
-      <SendReadinessPanel item={item} />
-      <ReviewActivityTimeline item={item} />
+      <GroundednessPanel draft={activeItem.draft} />
+      <DraftGatePanel draft={activeItem.draft} />
+      <ReviewDecisionPanel item={activeItem} />
+      <SendReadinessPanel item={activeItem} />
+      <ReviewActivityTimeline item={activeItem} />
     </div>
   );
 }

@@ -19,6 +19,8 @@ import {
   campaignDetailResponseSchema,
   draftDetailResponseSchema,
   draftEvidenceListResponseSchema,
+  reviewItemListResponseSchema,
+  reviewItemDetailResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
@@ -36,6 +38,8 @@ import {
   type CampaignDetailResponse,
   type DraftDetailResponse,
   type DraftEvidenceListResponse,
+  type ReviewItemListResponse,
+  type ReviewItemDetailResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -290,6 +294,31 @@ export async function fetchDraftEvidence(
   const path = `/api/v1/drafts/${draftId}/evidence${queryString ? `?${queryString}` : ""}`;
   return draftEvidenceListResponseSchema.parse(
     await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchReviewItems(
+  options: AuthenticatedApiClientOptions,
+  params?: { cursor?: string | null; limit?: number; campaignId?: string | null; status?: string | null }
+): Promise<ReviewItemListResponse> {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.campaignId) query.set("campaign_id", params.campaignId);
+  if (params?.status) query.set("status", params.status);
+  const queryString = query.toString();
+  const path = `/api/v1/review/items${queryString ? `?${queryString}` : ""}`;
+  return reviewItemListResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchReviewItem(
+  options: AuthenticatedApiClientOptions,
+  reviewId: string,
+): Promise<ReviewItemDetailResponse> {
+  return reviewItemDetailResponseSchema.parse(
+    await authenticatedApiRequest(`/api/v1/review/items/${reviewId}`, { method: "GET" }, options)
   );
 }
 
