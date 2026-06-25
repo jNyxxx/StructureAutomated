@@ -14,7 +14,7 @@ export default function ReviewQueuePage() {
       <PageHeader
         eyebrow="Human review gate"
         title="Review queue"
-        description="Review workspace using backend mock API data with fixture fallback. Approve, reject, and request-regeneration are local/mock actions; send, send-gate, follow-up, outbound dispatch, and export remain locked."
+        description="Review workspace using backend mock API data with fixture fallback. Review actions, send-gate dry-run, and mock send intent are local/mock only; real sending, follow-up, outbound provider dispatch, and export remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -35,9 +35,9 @@ export default function ReviewQueuePage() {
               <AlertTriangle className="size-5" />
             </div>
             <div>
-              <CardTitle>Safe local/mock review actions only</CardTitle>
+              <CardTitle>Safe local/mock review and send checks only</CardTitle>
               <CardDescription>
-                Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates. Approve, reject, and request-regeneration call backend mock APIs only; no live AI/provider/send action is enabled.
+                Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates. Review actions, send-gate dry-run, and mock send intent call backend mock APIs only; no real email, provider dispatch, webhook, or production action is enabled.
               </CardDescription>
             </div>
           </div>
@@ -45,6 +45,8 @@ export default function ReviewQueuePage() {
         <CardContent className="flex flex-wrap gap-2">
           <GateReasonBadge state="passed" label="Review mock actions" />
           <GateReasonBadge state="passed" label="Review read refresh" />
+          <GateReasonBadge state="passed" label="Send-gate mock" />
+          <GateReasonBadge state="passed" label="Mock send intent" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No provider calls" />
           <GateReasonBadge state="blocked" label="No live scraping" />
