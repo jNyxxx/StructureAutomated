@@ -321,6 +321,58 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/followups/schedules/a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1/mock-run")) {
+        return jsonResponse({
+          followup_schedule: {
+            id: "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            contact_id: "22222222-2222-2222-2222-222222222222",
+            original_outbound_message_id: "89898989-8989-8989-8989-898989898989",
+            original_draft_id: "66666666-6666-6666-6666-666666666666",
+            followup_rule_id: "90909090-9090-9090-9090-909090909090",
+            status: "mock_run_complete",
+            run_after: "2026-06-25T12:35:00Z",
+            created_at: "2026-06-24T12:36:00Z",
+            updated_at: "2026-06-24T12:38:00Z",
+            mock_only: true,
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/followups/rules")) {
+        return jsonResponse({
+          followup_rule: {
+            id: "90909090-9090-9090-9090-909090909090",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            delay_seconds: 86400,
+            created_at: "2026-06-24T12:36:00Z",
+            updated_at: "2026-06-24T12:36:00Z",
+            mock_only: true,
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/followups/schedules")) {
+        return jsonResponse({
+          followup_schedule: {
+            id: "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            contact_id: "22222222-2222-2222-2222-222222222222",
+            original_outbound_message_id: "89898989-8989-8989-8989-898989898989",
+            original_draft_id: "66666666-6666-6666-6666-666666666666",
+            followup_rule_id: "90909090-9090-9090-9090-909090909090",
+            status: "scheduled",
+            run_after: "2026-06-25T12:35:00Z",
+            created_at: "2026-06-24T12:37:00Z",
+            updated_at: "2026-06-24T12:37:00Z",
+            mock_only: true,
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/review/items/cccccccc-cccc-cccc-cccc-cccccccccccc")) {
         return jsonResponse({
           review_item: {
@@ -1219,6 +1271,117 @@ describe("route shells render", () => {
     const sendIntentCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/send-intents") && init?.method === "POST");
     expect(sendIntentCall).toBeTruthy();
     expect(new Headers(sendIntentCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-send-intents-/);
+  });
+
+  it("creates follow-up rule, schedule, and mock-run through backend mock APIs with idempotency", async () => {
+    renderWithTenant(<ReviewQueuePage />);
+    fireEvent.click(screen.getByRole("button", { name: /View details for row cccccccc-cccc-cccc-cccc-cccccccccccc/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Run send-gate dry-run/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Run send-gate dry-run/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create mock send intent/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Create mock send intent/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create follow-up rule/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Create follow-up rule/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock follow-up rule created/i)).toBeTruthy());
+    expect(screen.getByText(/90909090-9090-9090-9090-909090909090/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Create follow-up schedule/i }).hasAttribute("disabled")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /Create follow-up schedule/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock follow-up schedule created/i)).toBeTruthy());
+    expect(screen.getByText(/a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Run follow-up mock-run/i }).hasAttribute("disabled")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /Run follow-up mock-run/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock follow-up mock-run completed/i)).toBeTruthy());
+    expect(screen.getByText(/mock_run_complete/i)).toBeTruthy();
+    expect(screen.getAllByText(/No real email was sent/i).length).toBeGreaterThan(0);
+
+    const fetchMock = vi.mocked(fetch);
+    const ruleCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/followups/rules") && init?.method === "POST");
+    const scheduleCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/followups/schedules") && !String(input).includes("mock-run") && init?.method === "POST");
+    const mockRunCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/followups/schedules/a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1/mock-run") && init?.method === "POST");
+    expect(ruleCall).toBeTruthy();
+    expect(scheduleCall).toBeTruthy();
+    expect(mockRunCall).toBeTruthy();
+    expect(new Headers(ruleCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-followups-rules-/);
+    expect(new Headers(scheduleCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-followups-schedules-/);
+    expect(new Headers(mockRunCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-followups-schedules-mock-run-/);
+  });
+
+  it("shows typed backend follow-up errors without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path.includes("/api/v1/send-gate/dry-run") && init?.method === "POST") {
+          return jsonResponse({ send_gate_result: { id: "78787878-7878-7878-7878-787878787878", draft_id: "66666666-6666-6666-6666-666666666666", status: "allowed", deny_reason_code: null, created_at: "2026-06-24T12:35:00Z", mock_only: true }, idempotency_replay: false, mock_only: true });
+        }
+        if (path.includes("/api/v1/send-intents") && init?.method === "POST") {
+          return jsonResponse({ result: { outbound_message_id: "89898989-8989-8989-8989-898989898989", status: "mock_queued", sent_at: null, mock_only: true }, idempotency_replay: false, mock_only: true });
+        }
+        if (path.includes("/api/v1/followups/rules") && init?.method === "POST") {
+          return jsonResponse({ error: { code: "FOLLOWUP_RULE_DENIED", message: "Follow-up rule denied.", details: { reason: "billing" }, request_id: "req_followup", correlation_id: "corr_followup" } }, 403);
+        }
+        if (path.includes("/api/v1/review/items/cccccccc-cccc-cccc-cccc-cccccccccccc")) return jsonResponse({ review_item: { id: "cccccccc-cccc-cccc-cccc-cccccccccccc", draft_id: "66666666-6666-6666-6666-666666666666", campaign_id: "44444444-4444-4444-4444-444444444444", contact_id: "22222222-2222-2222-2222-222222222222", status: "pending_review", reviewer_user_id: "11111111-1111-1111-1111-111111111111", action_reason: null, reviewed_at: null, created_at: "2026-06-24T12:00:00Z", updated_at: "2026-06-24T12:00:00Z" }, mock_only: true });
+        if (path.includes("/api/v1/review/items")) return jsonResponse({ review_items: [{ id: "cccccccc-cccc-cccc-cccc-cccccccccccc", draft_id: "66666666-6666-6666-6666-666666666666", campaign_id: "44444444-4444-4444-4444-444444444444", contact_id: "22222222-2222-2222-2222-222222222222", status: "pending_review", reviewer_user_id: null, action_reason: null, reviewed_at: null, created_at: "2026-06-24T12:00:00Z", updated_at: "2026-06-24T12:00:00Z" }], page: { next_cursor: null, limit: 25 }, mock_only: true });
+        if (path.includes("/auth/me")) return jsonResponse({ principal: { provider_user_id: "clerk_123", user_id: "11111111-1111-1111-1111-111111111111", email: "owner@example.com", tenant_id: "22222222-2222-2222-2222-222222222222", role: "tenant_owner", membership_version: 1, mfa_verified: true } });
+        if (path.includes("/api/v1/billing/access")) return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        if (path.includes("/api/v1/billing/subscription")) return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<ReviewQueuePage />);
+    fireEvent.click(screen.getByRole("button", { name: /View details for row cccccccc-cccc-cccc-cccc-cccccccccccc/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Run send-gate dry-run/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Run send-gate dry-run/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create mock send intent/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Create mock send intent/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create follow-up rule/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Create follow-up rule/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock follow-up action failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/Follow-up rule denied/i)).toBeTruthy();
+    expect(screen.getByText(/FOLLOWUP_RULE_DENIED/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock follow-up rule created/i)).toBeNull();
+  });
+
+  it("shows NETWORK_ERROR follow-up mock-run failure without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path.includes("/api/v1/send-gate/dry-run") && init?.method === "POST") return jsonResponse({ send_gate_result: { id: "78787878-7878-7878-7878-787878787878", draft_id: "66666666-6666-6666-6666-666666666666", status: "allowed", deny_reason_code: null, created_at: "2026-06-24T12:35:00Z", mock_only: true }, idempotency_replay: false, mock_only: true });
+        if (path.includes("/api/v1/send-intents") && init?.method === "POST") return jsonResponse({ result: { outbound_message_id: "89898989-8989-8989-8989-898989898989", status: "mock_queued", sent_at: null, mock_only: true }, idempotency_replay: false, mock_only: true });
+        if (path.includes("/api/v1/followups/rules") && init?.method === "POST") return jsonResponse({ followup_rule: { id: "90909090-9090-9090-9090-909090909090", campaign_id: "44444444-4444-4444-4444-444444444444", delay_seconds: 86400, created_at: "2026-06-24T12:36:00Z", updated_at: "2026-06-24T12:36:00Z", mock_only: true }, idempotency_replay: false, mock_only: true });
+        if (path.includes("/api/v1/followups/schedules/a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1/mock-run") && init?.method === "POST") throw new Error("backend unavailable");
+        if (path.includes("/api/v1/followups/schedules") && init?.method === "POST") return jsonResponse({ followup_schedule: { id: "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1", campaign_id: "44444444-4444-4444-4444-444444444444", contact_id: "22222222-2222-2222-2222-222222222222", original_outbound_message_id: "89898989-8989-8989-8989-898989898989", original_draft_id: "66666666-6666-6666-6666-666666666666", followup_rule_id: "90909090-9090-9090-9090-909090909090", status: "scheduled", run_after: "2026-06-25T12:35:00Z", created_at: "2026-06-24T12:37:00Z", updated_at: "2026-06-24T12:37:00Z", mock_only: true }, idempotency_replay: false, mock_only: true });
+        if (path.includes("/api/v1/review/items/cccccccc-cccc-cccc-cccc-cccccccccccc")) return jsonResponse({ review_item: { id: "cccccccc-cccc-cccc-cccc-cccccccccccc", draft_id: "66666666-6666-6666-6666-666666666666", campaign_id: "44444444-4444-4444-4444-444444444444", contact_id: "22222222-2222-2222-2222-222222222222", status: "pending_review", reviewer_user_id: "11111111-1111-1111-1111-111111111111", action_reason: null, reviewed_at: null, created_at: "2026-06-24T12:00:00Z", updated_at: "2026-06-24T12:00:00Z" }, mock_only: true });
+        if (path.includes("/api/v1/review/items")) return jsonResponse({ review_items: [{ id: "cccccccc-cccc-cccc-cccc-cccccccccccc", draft_id: "66666666-6666-6666-6666-666666666666", campaign_id: "44444444-4444-4444-4444-444444444444", contact_id: "22222222-2222-2222-2222-222222222222", status: "pending_review", reviewer_user_id: null, action_reason: null, reviewed_at: null, created_at: "2026-06-24T12:00:00Z", updated_at: "2026-06-24T12:00:00Z" }], page: { next_cursor: null, limit: 25 }, mock_only: true });
+        if (path.includes("/auth/me")) return jsonResponse({ principal: { provider_user_id: "clerk_123", user_id: "11111111-1111-1111-1111-111111111111", email: "owner@example.com", tenant_id: "22222222-2222-2222-2222-222222222222", role: "tenant_owner", membership_version: 1, mfa_verified: true } });
+        if (path.includes("/api/v1/billing/access")) return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        if (path.includes("/api/v1/billing/subscription")) return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<ReviewQueuePage />);
+    fireEvent.click(screen.getByRole("button", { name: /View details for row cccccccc-cccc-cccc-cccc-cccccccccccc/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Run send-gate dry-run/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Run send-gate dry-run/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create mock send intent/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Create mock send intent/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create follow-up rule/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Create follow-up rule/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create follow-up schedule/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Create follow-up schedule/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Run follow-up mock-run/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Run follow-up mock-run/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock follow-up action failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/NETWORK_ERROR/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock follow-up mock-run completed/i)).toBeNull();
   });
 
   it("shows typed backend send-gate errors without claiming success", async () => {
