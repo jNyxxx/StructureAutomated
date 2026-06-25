@@ -65,6 +65,56 @@ beforeEach(() => {
           },
         });
       }
+      if (path.includes("/api/v1/billing/access")) {
+        return jsonResponse({
+          access: {
+            is_active: true,
+            can_send: true,
+            can_run_agents: true,
+            can_create_campaign: true,
+            can_export: true,
+            mock_only: true,
+          },
+        });
+      }
+      if (path.includes("/api/v1/billing/subscription")) {
+        return jsonResponse({
+          subscription: {
+            plan: {
+              key: "cre-demo",
+              name: "CRE Outreach MVP Demo",
+              features: {
+                can_send: true,
+                can_run_agents: true,
+                can_create_campaign: true,
+                can_export: true,
+              },
+              mock_only: true,
+            },
+            tenant_status: "active",
+            grace_until: null,
+            mock_only: true,
+          },
+        });
+      }
+      if (path.includes("/api/v1/usage")) {
+        return jsonResponse({
+          usage: {
+            contacts_total: 69,
+            contact_imports_total: 3,
+            campaigns_total: 2,
+            drafts_total: 15,
+            outbound_mock_sent: 5,
+            outbound_blocked: 0,
+            send_gate_denied: 0,
+            followups_mock_sent: 0,
+            followups_skipped: 0,
+            research_runs_total: 10,
+            outcome_events_total: 0,
+            mock_only: true,
+          },
+        });
+      }
       return jsonResponse({ status: "ok" });
     }),
   );
@@ -93,10 +143,17 @@ describe("route shells render", () => {
   });
 
   it("renders the billing shell and access model", () => {
-    render(<BillingPage />);
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <BillingPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
     expect(screen.getByRole("heading", { name: /billing/i })).toBeTruthy();
     expect(screen.getAllByText(/Real Stripe deferred/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Derived access gates/i)).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
   });
 
   it("renders the audit log DataTable demo safely", () => {

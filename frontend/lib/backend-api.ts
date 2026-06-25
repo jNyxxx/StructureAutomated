@@ -1,7 +1,18 @@
 import { z } from "zod";
 
 import { ApiError, apiRequest, authenticatedApiRequest, type AuthenticatedApiClientOptions, type ApiClientOptions } from "./api-client";
-import { authMeResponseSchema, healthResponseSchema, type AuthMeResponse, type HealthResponse } from "./schemas";
+import {
+  authMeResponseSchema,
+  healthResponseSchema,
+  billingSubscriptionResponseSchema,
+  billingAccessResponseSchema,
+  usageResponseSchema,
+  type AuthMeResponse,
+  type HealthResponse,
+  type BillingSubscriptionResponse,
+  type BillingAccessResponse,
+  type UsageResponse,
+} from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
 
@@ -108,6 +119,24 @@ export function isAuthMeResponse(body: unknown): body is AuthMeResponse {
 
 export function parseHealthResponse(body: unknown): HealthResponse {
   return healthResponseSchema.parse(body);
+}
+
+export async function fetchBillingSubscription(options: AuthenticatedApiClientOptions): Promise<BillingSubscriptionResponse> {
+  return billingSubscriptionResponseSchema.parse(
+    await authenticatedApiRequest("/api/v1/billing/subscription", { method: "GET" }, options)
+  );
+}
+
+export async function fetchBillingAccess(options: AuthenticatedApiClientOptions): Promise<BillingAccessResponse> {
+  return billingAccessResponseSchema.parse(
+    await authenticatedApiRequest("/api/v1/billing/access", { method: "GET" }, options)
+  );
+}
+
+export async function fetchUsage(options: AuthenticatedApiClientOptions): Promise<UsageResponse> {
+  return usageResponseSchema.parse(
+    await authenticatedApiRequest("/api/v1/usage", { method: "GET" }, options)
+  );
 }
 
 export function formatZodError(error: z.ZodError): string {

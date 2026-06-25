@@ -1,5 +1,5 @@
 import { BentoCard } from "@/components/dashboard/bento-card";
-import { currentBilling } from "./billing-sample-data";
+import type { UsageSnapshot } from "@/lib/schemas";
 
 function Meter({ label, used, limit }: { label: string; used: number; limit: number }) {
   const pct = Math.min(100, Math.round((used / limit) * 100));
@@ -16,15 +16,24 @@ function Meter({ label, used, limit }: { label: string; used: number; limit: num
   );
 }
 
-export function UsageMeter() {
-  const usage = currentBilling.usage;
+export function UsageMeter({ usage, loading }: { usage: UsageSnapshot | null; loading: boolean }) {
+  if (loading || !usage) {
+    return (
+      <BentoCard title="Usage meters" description="Local/mock usage only. Quota is not enforced in this demo." badge="Loading">
+        <div className="flex h-32 items-center justify-center text-small text-muted">
+          Loading actual usage metrics...
+        </div>
+      </BentoCard>
+    );
+  }
+
   return (
-    <BentoCard title="Usage meters" description="Local/mock usage only. Backend billing/quota enforcement is not wired from this UI." badge="Read-only">
+    <BentoCard title="Usage meters" description="Local/mock usage only. Real Stripe quotas are deferred." badge="Read-only">
       <div className="grid gap-3 md:grid-cols-2">
-        <Meter label="Prospects" {...usage.prospects} />
-        <Meter label="Campaigns" {...usage.campaigns} />
-        <Meter label="Draft runs" {...usage.draftRuns} />
-        <Meter label="Exports" {...usage.exports} />
+        <Meter label="Prospects" used={usage.contacts_total} limit={250} />
+        <Meter label="Campaigns" used={usage.campaigns_total} limit={10} />
+        <Meter label="Draft runs" used={usage.drafts_total} limit={100} />
+        <Meter label="Outbound messages" used={usage.outbound_mock_sent} limit={500} />
       </div>
     </BentoCard>
   );

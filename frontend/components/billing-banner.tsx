@@ -1,4 +1,4 @@
-import type { BillingGateStatus } from "@/lib/schemas";
+import type { BillingGateStatus, BillingAccess, BillingSubscription } from "@/lib/schemas";
 
 export const readOnlyBillingStatus: BillingGateStatus = {
   tenant_id: null,
@@ -15,13 +15,56 @@ export const readOnlyBillingStatus: BillingGateStatus = {
 };
 
 const modeClass: Record<BillingGateStatus["mode"], string> = {
-  normal: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  limited: "border-amber-200 bg-amber-50 text-amber-900",
-  read_only: "border-slate-200 bg-slate-50 text-slate-700",
-  locked: "border-red-200 bg-red-50 text-red-900",
-  loading: "border-slate-200 bg-slate-50 text-slate-700",
-  error: "border-red-200 bg-red-50 text-red-900",
+  normal: "border-green/20 bg-goodbg/60 text-green",
+  limited: "border-yellow/20 bg-warnbg/60 text-yellow",
+  read_only: "border-border bg-panel2/60 text-muted",
+  locked: "border-red/20 bg-redbg/60 text-red",
+  loading: "border-border bg-panel2/60 text-muted",
+  error: "border-red/20 bg-redbg/60 text-red",
 };
+
+export function deriveBillingGateStatus(
+  access: BillingAccess | null,
+  subscription: BillingSubscription | null,
+  tenantId: string | null
+): BillingGateStatus {
+  if (!access || !subscription) {
+    return {
+      ...readOnlyBillingStatus,
+      tenant_id: tenantId,
+    };
+  }
+
+  let mode: BillingGateStatus["mode"] = "read_only";
+  let message = "Billing status is loaded. Some features might be restricted.";
+
+  const status = subscription.tenant_status;
+
+  if (status === "active" || status === "trialing") {
+    mode = "normal";
+    message = `Subscription is ${status}. All gated features are active.`;
+  } else if (status === "past_due") {
+    mode = "limited";
+    message = "Subscription payment is past due. Access continues during grace period.";
+  } else if (status === "canceled" || status === "unpaid" || status === "inactive") {
+    mode = "locked";
+    message = `Subscription is ${status}. Gated features, campaign creation, and sending are locked.`;
+  }
+
+  return {
+    tenant_id: tenantId,
+    tenant_status: status as any,
+    mode,
+    is_active: access.is_active,
+    gates: {
+      can_send: access.can_send,
+      can_run_agents: access.can_run_agents,
+      can_create_campaign: access.can_create_campaign,
+      can_export: access.can_export,
+    },
+    message,
+  };
+}
 
 export function BillingBanner({ status = readOnlyBillingStatus }: { status?: BillingGateStatus }) {
   return (

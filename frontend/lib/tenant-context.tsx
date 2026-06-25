@@ -1,11 +1,11 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { ApiError } from "@/lib/api-client";
-import { fetchAuthMe } from "@/lib/backend-api";
+import { fetchAuthMe, fetchBillingAccess, fetchBillingSubscription } from "@/lib/backend-api";
 import { useFrontendAuth } from "@/lib/clerk";
-import type { Principal } from "@/lib/schemas";
+import type { Principal, BillingAccess, BillingSubscription } from "@/lib/schemas";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState, LoadingState, PermissionDeniedState } from "@/components/states";
 
@@ -24,6 +24,9 @@ export interface TenantContextValue {
   requestId: string | null;
   correlationId: string | null;
   setSelectedTenantId: (tenantId: string | null) => void;
+  billingAccess: BillingAccess | null;
+  billingSubscription: BillingSubscription | null;
+  refreshBilling: () => Promise<void>;
 }
 
 const TenantContext = createContext<TenantContextValue | null>(null);
@@ -45,6 +48,28 @@ export function TenantProvider({
   const [status, setStatus] = useState<TenantSessionStatus>("idle");
   const [requestId, setRequestId] = useState<string | null>(null);
   const [correlationId, setCorrelationId] = useState<string | null>(null);
+  const [billingAccess, setBillingAccess] = useState<BillingAccess | null>(null);
+  const [billingSubscription, setBillingSubscription] = useState<BillingSubscription | null>(null);
+
+  const refreshBilling = useCallback(async () => {
+    if (!auth.isSignedIn || !selectedTenantId) return;
+    try {
+      const [accessRes, subRes] = await Promise.all([
+        fetchBillingAccess({
+          getToken: auth.getToken,
+          getTenantId: () => selectedTenantId,
+        }),
+        fetchBillingSubscription({
+          getToken: auth.getToken,
+          getTenantId: () => selectedTenantId,
+        }),
+      ]);
+      setBillingAccess(accessRes.access);
+      setBillingSubscription(subRes.subscription);
+    } catch (err) {
+      console.error("Failed to refresh billing status:", err);
+    }
+  }, [auth, selectedTenantId]);
 
   useEffect(() => {
     let active = true;
@@ -58,6 +83,8 @@ export function TenantProvider({
 
     if (!auth.isSignedIn) {
       setPrincipal(null);
+      setBillingAccess(null);
+      setBillingSubscription(null);
       setStatus("session_unavailable");
       return () => {
         active = false;
@@ -69,17 +96,39 @@ export function TenantProvider({
       getToken: auth.getToken,
       getTenantId: () => selectedTenantId,
     })
-      .then((response) => {
+      .then(async (response) => {
         if (!active) return;
         setPrincipal(response.principal);
-        setSelectedTenantId((current) => current ?? response.principal.tenant_id);
+        const resolvedTenantId = selectedTenantId ?? response.principal.tenant_id;
+        setSelectedTenantId(resolvedTenantId);
         setRequestId(null);
         setCorrelationId(null);
         setStatus("ready");
+
+        // Fetch billing info when session is loaded/ready
+        try {
+          const [accessRes, subRes] = await Promise.all([
+            fetchBillingAccess({
+              getToken: auth.getToken,
+              getTenantId: () => resolvedTenantId,
+            }),
+            fetchBillingSubscription({
+              getToken: auth.getToken,
+              getTenantId: () => resolvedTenantId,
+            }),
+          ]);
+          if (!active) return;
+          setBillingAccess(accessRes.access);
+          setBillingSubscription(subRes.subscription);
+        } catch (err) {
+          console.error("Failed to load billing status:", err);
+        }
       })
       .catch((error: unknown) => {
         if (!active) return;
         setPrincipal(null);
+        setBillingAccess(null);
+        setBillingSubscription(null);
         if (error instanceof ApiError) {
           setRequestId(error.requestId);
           setCorrelationId(error.correlationId);
@@ -112,8 +161,21 @@ export function TenantProvider({
       requestId,
       correlationId,
       setSelectedTenantId,
+      billingAccess,
+      billingSubscription,
+      refreshBilling,
     }),
-    [correlationId, effectiveConfirmedTenantId, principal, requestId, selectedTenantId, status],
+    [
+      correlationId,
+      effectiveConfirmedTenantId,
+      principal,
+      requestId,
+      selectedTenantId,
+      status,
+      billingAccess,
+      billingSubscription,
+      refreshBilling,
+    ],
   );
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
