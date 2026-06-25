@@ -38,6 +38,7 @@ from app.routers import (
     review,
     sending,
 )
+from app.routers import settings as settings_router
 from app.services.rate_limit import RateLimitPolicy, RateLimitService
 
 
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(drafts.router)
     app.include_router(review.router)
     app.include_router(sending.router)
+    app.include_router(settings_router.router)
     app.include_router(followups.router)
     app.include_router(deliverability.router)
     app.include_router(outcomes.router)
