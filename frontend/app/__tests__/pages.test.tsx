@@ -74,6 +74,25 @@ beforeEach(() => {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       if (path.includes("/ready")) return jsonResponse({ status: "ready" });
+      if (path.includes("/api/v1/tenants/current") && init?.method === "PATCH") {
+        return jsonResponse({
+          tenant: {
+            id: "22222222-2222-2222-2222-222222222222",
+            name: "Automated Structure Mock Tenant Updated",
+            status: "active",
+            settings: {
+              timezone: "Asia/Manila",
+              locale: "en-PH",
+              mock_settings_update: true,
+            },
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:30:00Z",
+            mock_only: true,
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/tenants/current")) {
         return jsonResponse({
           tenant: {
@@ -132,6 +151,19 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/compliance/profile") && init?.method === "PUT") {
+        return jsonResponse({
+          compliance_profile: {
+            jurisdiction: "US",
+            sending_review_required: true,
+            live_sending_allowed: false,
+            sms_allowed: false,
+            mock_only: true,
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/compliance/profile")) {
         return jsonResponse({
           compliance_profile: {
@@ -141,6 +173,40 @@ beforeEach(() => {
             sms_allowed: false,
             mock_only: true,
           },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/suppressions/dddddddd-dddd-dddd-dddd-dddddddddddd/reinstate")) {
+        return jsonResponse({
+          suppression: {
+            id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+            channel: "email",
+            reason: "manual backend mock block reinstated",
+            source: "mock_api",
+            never_contact: false,
+            created_at: "2026-06-24T12:00:00Z",
+            revoked_at: "2026-06-24T12:30:00Z",
+            active: false,
+            mock_only: true,
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/suppressions") && init?.method === "POST") {
+        return jsonResponse({
+          suppression: {
+            id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            channel: "email",
+            reason: "Local/mock manual suppression from settings UI",
+            source: "backend_mock_api",
+            never_contact: true,
+            created_at: "2026-06-24T12:30:00Z",
+            revoked_at: null,
+            active: true,
+            mock_only: true,
+          },
+          idempotency_replay: false,
           mock_only: true,
         });
       }
@@ -1605,6 +1671,46 @@ describe("route shells render", () => {
     expect(screen.getAllByText(/Tenant profile settings/i).length).toBeGreaterThan(0);
   });
 
+  it("updates tenant settings through the backend mock API with idempotency", async () => {
+    renderWithTenant(<SettingsPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Save local\/mock tenant settings/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Save local\/mock tenant settings/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock tenant settings update succeeded/i)).toBeTruthy());
+    expect(screen.getAllByText(/No provider sync/i).length).toBeGreaterThan(0);
+
+    const fetchMock = vi.mocked(fetch);
+    const updateCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/tenants/current") && init?.method === "PATCH");
+    expect(updateCall).toBeTruthy();
+    expect(new Headers(updateCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-tenants-current-update-/);
+  });
+
+  it("shows typed backend tenant settings errors without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path.includes("/api/v1/tenants/current") && init?.method === "PATCH") {
+          return jsonResponse({ error: { code: "TENANT_UPDATE_DENIED", message: "Tenant update denied.", request_id: "req_tenant_update", correlation_id: "corr_tenant_update" } }, 403);
+        }
+        if (path.includes("/api/v1/tenants/current")) return jsonResponse({ tenant: { id: "22222222-2222-2222-2222-222222222222", name: "Automated Structure Test Tenant", status: "active", settings: { timezone: "UTC", locale: "en-US" }, created_at: "2026-06-24T12:00:00Z", updated_at: "2026-06-24T12:00:00Z", mock_only: true }, mock_only: true });
+        if (path.includes("/auth/me")) return jsonResponse({ principal: { provider_user_id: "clerk_123", user_id: "11111111-1111-1111-1111-111111111111", email: "owner@example.com", tenant_id: "22222222-2222-2222-2222-222222222222", role: "tenant_owner", membership_version: 1, mfa_verified: true } });
+        if (path.includes("/api/v1/billing/access")) return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        if (path.includes("/api/v1/billing/subscription")) return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<SettingsPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Save local\/mock tenant settings/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Save local\/mock tenant settings/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock tenant settings update failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/Tenant update denied/i)).toBeTruthy();
+    expect(screen.getByText(/TENANT_UPDATE_DENIED/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock tenant settings update succeeded/i)).toBeNull();
+  });
+
   it("renders team settings table shell", () => {
     render(
       <ClerkFrontendProvider value={signedInAuth}>
@@ -1641,7 +1747,7 @@ describe("route shells render", () => {
     expect(screen.getByText(/US-first baseline/i)).toBeTruthy();
   });
 
-  it("loads compliance settings from the backend mock API while actions stay locked", async () => {
+  it("loads compliance settings from the backend mock API while provider actions stay locked", async () => {
     render(
       <ClerkFrontendProvider value={signedInAuth}>
         <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
@@ -1651,8 +1757,23 @@ describe("route shells render", () => {
     );
 
     await waitFor(() => expect(screen.getByText(/Compliance profile loaded from backend mock API/i)).toBeTruthy());
-    expect(screen.getByText(/Compliance API read-only/i)).toBeTruthy();
+    expect(screen.getByText(/Compliance mock update/i)).toBeTruthy();
     expect(screen.getByText(/No real sending/i)).toBeTruthy();
+    expect(screen.getAllByText(/No provider sync/i).length).toBeGreaterThan(0);
+  });
+
+  it("updates compliance profile through the backend mock API with idempotency", async () => {
+    renderWithTenant(<ComplianceSettingsPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Update local\/mock compliance profile/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Update local\/mock compliance profile/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock compliance profile update succeeded/i)).toBeTruthy());
+    expect(screen.getByText(/No provider sync, real webhook, live sending, SMS, or production compliance automation was triggered/i)).toBeTruthy();
+
+    const fetchMock = vi.mocked(fetch);
+    const updateCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/compliance/profile") && init?.method === "PUT");
+    expect(updateCall).toBeTruthy();
+    expect(new Headers(updateCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-compliance-profile-update-/);
   });
 
   it("renders compliance fixture fallback when backend auth is unavailable", async () => {
@@ -1674,7 +1795,7 @@ describe("route shells render", () => {
     expect(screen.getByRole("table", { name: /suppression demo table/i })).toBeTruthy();
   });
 
-  it("loads suppressions from the backend mock API while actions stay locked", async () => {
+  it("loads suppressions from the backend mock API while provider actions stay locked", async () => {
     render(
       <ClerkFrontendProvider value={signedInAuth}>
         <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
@@ -1684,8 +1805,60 @@ describe("route shells render", () => {
     );
 
     await waitFor(() => expect(screen.getByText(/manual backend mock block/i)).toBeTruthy());
-    expect(screen.getByText(/Suppression API read-only/i)).toBeTruthy();
-    expect(screen.getByText(/Add suppression locked/i)).toBeTruthy();
+    expect(screen.getAllByText(/Suppression mock actions/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/No provider sync/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Provider sync locked/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("creates suppression through the backend mock API with idempotency", async () => {
+    renderWithTenant(<SuppressionSettingsPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create local\/mock suppression/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Create local\/mock suppression/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock suppression created/i)).toBeTruthy());
+    expect(screen.getByText(/eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee/i)).toBeTruthy();
+
+    const fetchMock = vi.mocked(fetch);
+    const createCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/suppressions") && !String(input).includes("/reinstate") && init?.method === "POST");
+    expect(createCall).toBeTruthy();
+    expect(new Headers(createCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-suppressions-create-/);
+  });
+
+  it("reinstates suppression through the backend mock API with idempotency", async () => {
+    renderWithTenant(<SuppressionSettingsPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Reinstate local\/mock suppression/i }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Reinstate local\/mock suppression/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock suppression reinstated/i)).toBeTruthy());
+    expect(screen.getAllByText(/dddddddd-dddd-dddd-dddd-dddddddddddd/i).length).toBeGreaterThan(0);
+
+    const fetchMock = vi.mocked(fetch);
+    const reinstateCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/suppressions/dddddddd-dddd-dddd-dddd-dddddddddddd/reinstate") && init?.method === "POST");
+    expect(reinstateCall).toBeTruthy();
+    expect(new Headers(reinstateCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-suppressions-reinstate-/);
+  });
+
+  it("shows NETWORK_ERROR suppression create failure without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path.includes("/api/v1/suppressions") && init?.method === "POST") throw new Error("backend unavailable");
+        if (path.includes("/api/v1/suppressions")) return jsonResponse({ suppressions: [{ id: "dddddddd-dddd-dddd-dddd-dddddddddddd", channel: "email", reason: "manual backend mock block", source: "mock_api", never_contact: true, created_at: "2026-06-24T12:00:00Z", revoked_at: null, active: true, mock_only: true }], page: { next_cursor: null, limit: 25 }, mock_only: true });
+        if (path.includes("/auth/me")) return jsonResponse({ principal: { provider_user_id: "clerk_123", user_id: "11111111-1111-1111-1111-111111111111", email: "owner@example.com", tenant_id: "22222222-2222-2222-2222-222222222222", role: "tenant_owner", membership_version: 1, mfa_verified: true } });
+        if (path.includes("/api/v1/billing/access")) return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        if (path.includes("/api/v1/billing/subscription")) return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<SuppressionSettingsPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Create local\/mock suppression/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Create local\/mock suppression/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock suppression action failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/NETWORK_ERROR/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock suppression created/i)).toBeNull();
   });
 
   it("renders suppression fixture fallback when backend is unavailable", async () => {
