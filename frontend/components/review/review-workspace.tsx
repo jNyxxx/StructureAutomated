@@ -16,7 +16,7 @@ import { ReviewDecisionPanel } from "./review-decision-panel";
 import { SendReadinessPanel } from "./send-readiness-panel";
 import { reviewDtoToItem, type ReviewItem } from "./review-sample-data";
 
-export function ReviewWorkspace({ item }: { item: ReviewItem }) {
+export function ReviewWorkspace({ item, onListRefresh }: { item: ReviewItem; onListRefresh?: () => Promise<void> }) {
   const auth = useFrontendAuth();
   const { selectedTenantId } = useTenantContext();
   const [activeItem, setActiveItem] = useState<ReviewItem>(item);
@@ -51,6 +51,11 @@ export function ReviewWorkspace({ item }: { item: ReviewItem }) {
     }
   }, [auth, selectedTenantId, item]);
 
+  const refreshAfterAction = useCallback(async () => {
+    await loadReviewItem();
+    await onListRefresh?.();
+  }, [loadReviewItem, onListRefresh]);
+
   useEffect(() => {
     loadReviewItem();
   }, [loadReviewItem]);
@@ -59,23 +64,23 @@ export function ReviewWorkspace({ item }: { item: ReviewItem }) {
     <div className="space-y-4">
       <div className="rounded-medium border border-border bg-panel2 p-3 text-caption text-muted">
         {loading
-          ? "Loading read-only backend mock review item..."
+          ? "Loading backend mock review item..."
           : usingFallback
             ? "Backend unavailable or auth missing. Showing read-only local/mock review data fixture fallback."
-            : "Review item loaded from backend mock API. Approve, reject, regeneration, and send actions remain disabled."}
+            : "Review item loaded from backend mock API. Approve, reject, and request-regeneration are local/mock actions; send-gate and outbound sending remain disabled."}
       </div>
       <DraftPreview draft={activeItem.draft} />
       <div className="grid gap-4 xl:grid-cols-2">
         <BentoCard title="Evidence/source list" description="Read-only local/mock evidence for the selected review item. No provider, scraper, or embeddings write is called." badge="Evidence shell">
           <EvidenceList evidence={activeItem.draft.evidence} />
         </BentoCard>
-        <BentoCard title="Claim highlights" description="Unsupported claims block approval and require regeneration, but regeneration remains disabled in this slice." badge="Claims">
+        <BentoCard title="Claim highlights" description="Unsupported claims can request backend mock regeneration, but no live AI/provider generation is called in this slice." badge="Claims">
           <ClaimHighlighter claims={activeItem.draft.unsupportedClaims} />
         </BentoCard>
       </div>
       <GroundednessPanel draft={activeItem.draft} />
       <DraftGatePanel draft={activeItem.draft} />
-      <ReviewDecisionPanel item={activeItem} />
+      <ReviewDecisionPanel item={activeItem} onRefresh={refreshAfterAction} />
       <SendReadinessPanel item={activeItem} />
       <ReviewActivityTimeline item={activeItem} />
     </div>

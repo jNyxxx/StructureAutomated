@@ -98,19 +98,19 @@ export function ReviewQueueTable() {
       pageSize={6}
       filters={[
         { key: "runtime", label: "Runtime", value: loading ? "loading..." : usingFallback ? "fixture fallback" : "backend mock API" },
-        { key: "api", label: "API", value: "read-only" },
+        { key: "api", label: "API", value: "review mock actions" },
       ]}
       rowActions={[
         { label: "Open review workspace" },
-        { label: "Approve", pendingBackend: true, disabled: true },
-        { label: "Reject", pendingBackend: true, disabled: true },
-        { label: "Request regeneration", pendingBackend: true, disabled: true },
+        { label: "Approve in workspace" },
+        { label: "Reject in workspace" },
+        { label: "Request regeneration in workspace" },
         { label: "Mock send", pendingBackend: true, disabled: true },
         { label: "Export", pendingBackend: true, disabled: true },
       ]}
       getRowSearchText={(row) => `${row.prospectCompany} ${row.campaign} ${row.draftSubject} ${row.reviewStatus} ${row.assignedReviewer}`}
       getDrawerTitle={(row) => row.draftSubject}
-      renderDrawer={(row) => <ReviewWorkspace item={row} />}
+      renderDrawer={(row) => <ReviewWorkspace item={row} onListRefresh={loadReviewItems} />}
     />
   );
 }

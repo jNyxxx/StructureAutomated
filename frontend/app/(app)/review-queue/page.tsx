@@ -14,7 +14,7 @@ export default function ReviewQueuePage() {
       <PageHeader
         eyebrow="Human review gate"
         title="Review queue"
-        description="Read-only review workspace using backend mock API data with fixture fallback. Approve, reject, request-regeneration, send, follow-up, and export actions remain locked."
+        description="Review workspace using backend mock API data with fixture fallback. Approve, reject, and request-regeneration are local/mock actions; send, send-gate, follow-up, outbound dispatch, and export remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -35,15 +35,16 @@ export default function ReviewQueuePage() {
               <AlertTriangle className="size-5" />
             </div>
             <div>
-              <CardTitle>Pending backend API notice</CardTitle>
+              <CardTitle>Safe local/mock review actions only</CardTitle>
               <CardDescription>
-                Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates. This page only calls read-side backend mock review APIs and does not mutate backend data.
+                Human approval never bypasses safety, groundedness, suppression, billing, throttles, deliverability, or send gates. Approve, reject, and request-regeneration call backend mock APIs only; no live AI/provider/send action is enabled.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="passed" label="Review API read-only" />
+          <GateReasonBadge state="passed" label="Review mock actions" />
+          <GateReasonBadge state="passed" label="Review read refresh" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No provider calls" />
           <GateReasonBadge state="blocked" label="No live scraping" />
