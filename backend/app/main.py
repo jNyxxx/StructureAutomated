@@ -14,6 +14,7 @@ from datetime import timedelta
 
 from fastapi import FastAPI
 
+from app.auth.local_mock import build_local_mock_auth_service
 from app.config import get_settings
 from app.database import get_engine
 from app.middleware.error_handler import register_error_handlers
@@ -75,6 +76,9 @@ def create_app() -> FastAPI:
         enabled=settings.rate_limit_enabled,
     )
     app.add_middleware(RequestIdMiddleware)
+
+    if not settings.is_production and settings.mock_verifier:
+        app.state.auth_service = build_local_mock_auth_service()
 
     register_error_handlers(app)
     app.include_router(health.router)

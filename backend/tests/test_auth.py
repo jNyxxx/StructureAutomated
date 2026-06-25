@@ -206,6 +206,26 @@ def test_logout_all_revokes_user_sessions() -> None:
     assert sessions.revoked_all == [_USER]
 
 
+def test_live_local_app_wires_mock_auth_service_only_for_non_production() -> None:
+    app = create_app()
+    client = TestClient(app)
+
+    resp = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": "Bearer token-sentinel",
+            "X-Tenant-ID": "22222222-2222-2222-2222-222222222222",
+        },
+    )
+
+    assert resp.status_code == 200
+    principal = resp.json()["principal"]
+    assert principal["email"] == "owner@example.com"
+    assert principal["tenant_id"] == "22222222-2222-2222-2222-222222222222"
+    assert principal["role"] == "owner"
+    assert principal["mfa_verified"] is True
+
+
 def test_auth_session_migration_has_no_raw_token_storage_and_forced_rls() -> None:
     src = (
         Path(__file__).resolve().parents[1] / "migrations" / "versions" / "0007_auth_sessions.py"

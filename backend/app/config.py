@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 
     @property
     def is_db_configured(self) -> bool:
-        return self.database_url is not None
+        return bool(self.database_url)
 
     @property
     def is_known_env(self) -> bool:
