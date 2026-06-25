@@ -52,6 +52,64 @@ beforeEach(() => {
     vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input);
       if (path.includes("/ready")) return jsonResponse({ status: "ready" });
+      if (path.includes("/api/v1/tenants/current")) {
+        return jsonResponse({
+          tenant: {
+            id: "22222222-2222-2222-2222-222222222222",
+            name: "Automated Structure Test Tenant",
+            status: "active",
+            settings: {
+              timezone: "UTC",
+              locale: "en-US",
+            },
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
+            mock_only: true,
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/memberships")) {
+        return jsonResponse({
+          memberships: [
+            {
+              id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              user_id: "11111111-1111-1111-1111-111111111111",
+              role: "tenant_owner",
+              membership_version: 1,
+              created_at: "2026-06-24T12:00:00Z",
+              mock_only: true,
+            },
+          ],
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/audit-events")) {
+        return jsonResponse({
+          audit_events: [
+            {
+              id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+              event_type: "send_gate.blocked",
+              actor_user_id: "11111111-1111-1111-1111-111111111111",
+              object_type: "mock_send",
+              object_id: "22222222-2222-2222-2222-222222222222",
+              request_id: "req_test_audit_001",
+              job_id: null,
+              redacted_details: {
+                reason: "production_not_approved",
+                contact_hash: "hash_demo_only",
+                api_key: "[REDACTED]",
+              },
+              created_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: {
+            next_cursor: null,
+            limit: 25,
+          },
+          mock_only: true,
+        });
+      }
       if (path.includes("/auth/me")) {
         return jsonResponse({
           principal: {
@@ -157,9 +215,15 @@ describe("route shells render", () => {
   });
 
   it("renders the audit log DataTable demo safely", () => {
-    render(<AuditLogsPage />);
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <AuditLogsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
     expect(screen.getByRole("heading", { name: /audit logs/i })).toBeTruthy();
-    expect(screen.getByRole("table", { name: /audit log demo table/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /audit log table/i })).toBeTruthy();
     expect(screen.getByText(/send_gate.blocked/i)).toBeTruthy();
     expect(screen.getByText(/Redaction visible/i)).toBeTruthy();
   });
@@ -239,15 +303,27 @@ describe("route shells render", () => {
   });
 
   it("renders the settings hub shell", () => {
-    render(<SettingsPage />);
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <SettingsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
     expect(screen.getByRole("heading", { name: /^settings$/i })).toBeTruthy();
-    expect(screen.getByText(/Tenant profile shell/i)).toBeTruthy();
+    expect(screen.getAllByText(/Tenant profile settings/i).length).toBeGreaterThan(0);
   });
 
   it("renders team settings table shell", () => {
-    render(<TeamSettingsPage />);
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <TeamSettingsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
     expect(screen.getByRole("heading", { name: /team settings/i })).toBeTruthy();
-    expect(screen.getByRole("table", { name: /team members demo table/i })).toBeTruthy();
+    expect(screen.getByRole("table", { name: /team members table/i })).toBeTruthy();
   });
 
   it("renders integrations settings shell", () => {

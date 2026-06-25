@@ -64,15 +64,15 @@ export const billingGateStatusSchema = z.object({
 export type BillingGateStatus = z.infer<typeof billingGateStatusSchema>;
 
 export const auditEventSchema = z.object({
-  id: z.string(),
+  id: z.string().uuid(),
   event_type: z.string(),
-  tenant_id: z.string().uuid().nullable(),
-  actor_user_id: z.string().uuid().nullable(),
-  object_type: z.string().nullable(),
-  object_id: z.string().uuid().nullable(),
-  request_id: z.string().nullable(),
-  created_at: z.string(),
+  actor_user_id: z.string().uuid().nullable().optional(),
+  object_type: z.string().nullable().optional(),
+  object_id: z.string().uuid().nullable().optional(),
+  request_id: z.string().nullable().optional(),
+  job_id: z.string().uuid().nullable().optional(),
   redacted_details: z.record(z.string(), z.unknown()).default({}),
+  created_at: z.string(),
 });
 
 export const auditLogResponseSchema = z.object({
@@ -143,4 +143,55 @@ export type BillingAccessResponse = z.infer<typeof billingAccessResponseSchema>;
 export type UsageSnapshot = z.infer<typeof usageSnapshotSchema>;
 export type UsageResponse = z.infer<typeof usageResponseSchema>;
 
+// Settings & Current Tenant Settings
+export const tenantSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  status: z.string(),
+  settings: z.record(z.string(), z.unknown()),
+  created_at: z.string(),
+  updated_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const tenantResponseSchema = z.object({
+  tenant: tenantSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type Tenant = z.infer<typeof tenantSchema>;
+export type TenantResponse = z.infer<typeof tenantResponseSchema>;
+
+// Memberships (Team)
+export const membershipSchema = z.object({
+  id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  role: z.string(),
+  membership_version: z.number().int(),
+  created_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const membershipListResponseSchema = z.object({
+  memberships: z.array(membershipSchema),
+  mock_only: z.boolean().optional(),
+});
+
+export type Membership = z.infer<typeof membershipSchema>;
+export type MembershipListResponse = z.infer<typeof membershipListResponseSchema>;
+
+// Audit Logs (with Pagination)
+export const pageInfoSchema = z.object({
+  next_cursor: z.string().nullable().optional(),
+  limit: z.number().int(),
+});
+
+export const auditEventListResponseSchema = z.object({
+  audit_events: z.array(auditEventSchema),
+  page: pageInfoSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type PageInfo = z.infer<typeof pageInfoSchema>;
+export type AuditEventListResponse = z.infer<typeof auditEventListResponseSchema>;
 

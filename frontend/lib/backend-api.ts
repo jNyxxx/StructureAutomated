@@ -7,11 +7,17 @@ import {
   billingSubscriptionResponseSchema,
   billingAccessResponseSchema,
   usageResponseSchema,
+  tenantResponseSchema,
+  membershipListResponseSchema,
+  auditEventListResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
   type BillingAccessResponse,
   type UsageResponse,
+  type TenantResponse,
+  type MembershipListResponse,
+  type AuditEventListResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -136,6 +142,32 @@ export async function fetchBillingAccess(options: AuthenticatedApiClientOptions)
 export async function fetchUsage(options: AuthenticatedApiClientOptions): Promise<UsageResponse> {
   return usageResponseSchema.parse(
     await authenticatedApiRequest("/api/v1/usage", { method: "GET" }, options)
+  );
+}
+
+export async function fetchTenantSettings(options: AuthenticatedApiClientOptions): Promise<TenantResponse> {
+  return tenantResponseSchema.parse(
+    await authenticatedApiRequest("/api/v1/tenants/current", { method: "GET" }, options)
+  );
+}
+
+export async function fetchMemberships(options: AuthenticatedApiClientOptions): Promise<MembershipListResponse> {
+  return membershipListResponseSchema.parse(
+    await authenticatedApiRequest("/api/v1/memberships", { method: "GET" }, options)
+  );
+}
+
+export async function fetchAuditEvents(
+  options: AuthenticatedApiClientOptions,
+  params?: { cursor?: string | null; limit?: number }
+): Promise<AuditEventListResponse> {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  const queryString = query.toString();
+  const path = `/api/v1/audit-events${queryString ? `?${queryString}` : ""}`;
+  return auditEventListResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
   );
 }
 

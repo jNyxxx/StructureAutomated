@@ -5,6 +5,9 @@ import {
   fetchBillingAccess,
   fetchBillingSubscription,
   fetchUsage,
+  fetchTenantSettings,
+  fetchMemberships,
+  fetchAuditEvents,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -179,5 +182,99 @@ describe("billing/usage read fetchers (read-only)", () => {
     expect(err.code).toBe("NETWORK_ERROR");
     expect(err.status).toBe(0);
     expect(err.message).toBe("Request failed.");
+  });
+});
+
+describe("settings/team/audit read fetchers (Phase 2)", () => {
+  it("fetchTenantSettings parses current tenant settings and preserves mock_only", async () => {
+    const res = await fetchTenantSettings(
+      authOptions(
+        mockFetch(200, {
+          tenant: {
+            id: "22222222-2222-2222-2222-222222222222",
+            name: "Automated Structure",
+            status: "active",
+            settings: { timezone: "Asia/Manila", locale: "en-PH" },
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
+            mock_only: true,
+          },
+          mock_only: true,
+        }),
+      ),
+    );
+
+    expect(res.tenant.name).toBe("Automated Structure");
+    expect(res.tenant.settings.timezone).toBe("Asia/Manila");
+    expect(res.mock_only).toBe(true);
+  });
+
+  it("fetchMemberships parses current team memberships and preserves mock_only", async () => {
+    const res = await fetchMemberships(
+      authOptions(
+        mockFetch(200, {
+          memberships: [
+            {
+              id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              user_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              role: "owner",
+              membership_version: 3,
+              created_at: "2026-06-24T12:00:00Z",
+              mock_only: true,
+            },
+          ],
+          mock_only: true,
+        }),
+      ),
+    );
+
+    expect(res.memberships.length).toBe(1);
+    expect(res.memberships[0].role).toBe("owner");
+    expect(res.mock_only).toBe(true);
+  });
+
+  it("fetchAuditEvents parses audit events with pagination params and preserves mock_only", async () => {
+    let lastUrl: string | undefined;
+    const trackingFetch = async (input: RequestInfo | URL) => {
+      lastUrl = String(input);
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        text: async () =>
+          JSON.stringify({
+            audit_events: [
+              {
+                id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+                event_type: "tenant.settings_updated",
+                actor_user_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                object_type: "tenant",
+                object_id: "22222222-2222-2222-2222-222222222222",
+                request_id: "req_1",
+                job_id: null,
+                redacted_details: { changed_fields: ["name"], api_key: "[REDACTED]" },
+                created_at: "2026-06-24T12:00:00Z",
+              },
+            ],
+            page: {
+              next_cursor: "cursor-123",
+              limit: 25,
+            },
+            mock_only: true,
+          }),
+      } as Response;
+    };
+
+    const res = await fetchAuditEvents(
+      authOptions(trackingFetch as unknown as typeof fetch),
+      { cursor: "start", limit: 10 }
+    );
+
+    expect(lastUrl).toContain("cursor=start");
+    expect(lastUrl).toContain("limit=10");
+    expect(res.audit_events.length).toBe(1);
+    expect(res.audit_events[0].event_type).toBe("tenant.settings_updated");
+    expect(res.page.next_cursor).toBe("cursor-123");
+    expect(res.mock_only).toBe(true);
   });
 });
