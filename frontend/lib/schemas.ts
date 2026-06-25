@@ -379,3 +379,47 @@ export const reviewItemDetailResponseSchema = z.object({
 export type ReviewItemDto = z.infer<typeof reviewItemSchema>;
 export type ReviewItemListResponse = z.infer<typeof reviewItemListResponseSchema>;
 export type ReviewItemDetailResponse = z.infer<typeof reviewItemDetailResponseSchema>;
+
+// Deliverability
+export const deliverabilitySummarySchema = z.object({
+  campaign_id: z.string().uuid().nullable().optional(),
+  sent: z.number(),
+  blocked: z.number(),
+  duplicate_denied: z.number(),
+  suppressed: z.number(),
+  safety_denied: z.number(),
+  throttled: z.number(),
+  followup_sent: z.number(),
+  followup_skipped: z.number(),
+  mock_bounced: z.number(),
+  mock_complained: z.number(),
+  mock_opened: z.number(),
+  mock_replied: z.number(),
+  date_from: z.string().nullable().optional(),
+  date_to: z.string().nullable().optional(),
+  mock_only: z.boolean().optional(),
+});
+
+export const deliverabilityResponseSchema = z.object({
+  deliverability: deliverabilitySummarySchema,
+  mock_only: z.boolean().optional(),
+});
+
+export const mailboxHealthSchema = z.object({
+  mock_domain: z.string(),
+  dkim_valid: z.boolean(),
+  spf_valid: z.boolean(),
+  dmarc_valid: z.boolean(),
+  reputation_score: z.number(),
+  mock_only: z.boolean().optional(),
+});
+
+export const mailboxHealthResponseSchema = z.object({
+  mailbox_health: mailboxHealthSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type DeliverabilitySummary = z.infer<typeof deliverabilitySummarySchema>;
+export type DeliverabilityResponse = z.infer<typeof deliverabilityResponseSchema>;
+export type MailboxHealthDto = z.infer<typeof mailboxHealthSchema>;
+export type MailboxHealthResponse = z.infer<typeof mailboxHealthResponseSchema>;

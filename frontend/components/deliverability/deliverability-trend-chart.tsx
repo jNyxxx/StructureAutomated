@@ -3,14 +3,14 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { BentoCard } from "@/components/dashboard/bento-card";
-import { deliverabilityTrend } from "./deliverability-sample-data";
+import { deliverabilityTrend, type DeliverabilityTrendPoint } from "./deliverability-sample-data";
 
-export function DeliverabilityTrendChart() {
+export function DeliverabilityTrendChart({ trend = deliverabilityTrend }: { trend?: DeliverabilityTrendPoint[] }) {
   return (
     <BentoCard title="Deliverability trend preview" description="Local/demo chart only. No provider, DNS, or sending data source is connected." badge="Chart shell">
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={deliverabilityTrend} margin={{ left: 0, right: 12, top: 12, bottom: 0 }}>
+          <AreaChart data={trend} margin={{ left: 0, right: 12, top: 12, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.18)" />
             <XAxis dataKey="label" stroke="rgba(148, 163, 184, 0.8)" tickLine={false} axisLine={false} />
             <YAxis stroke="rgba(148, 163, 184, 0.8)" tickLine={false} axisLine={false} />

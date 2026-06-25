@@ -21,6 +21,8 @@ import {
   draftEvidenceListResponseSchema,
   reviewItemListResponseSchema,
   reviewItemDetailResponseSchema,
+  deliverabilityResponseSchema,
+  mailboxHealthResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
@@ -40,6 +42,8 @@ import {
   type DraftEvidenceListResponse,
   type ReviewItemListResponse,
   type ReviewItemDetailResponse,
+  type DeliverabilityResponse,
+  type MailboxHealthResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -319,6 +323,29 @@ export async function fetchReviewItem(
 ): Promise<ReviewItemDetailResponse> {
   return reviewItemDetailResponseSchema.parse(
     await authenticatedApiRequest(`/api/v1/review/items/${reviewId}`, { method: "GET" }, options)
+  );
+}
+
+export async function fetchDeliverability(
+  options: AuthenticatedApiClientOptions,
+  params?: { campaignId?: string | null; dateFrom?: string | null; dateTo?: string | null },
+): Promise<DeliverabilityResponse> {
+  const query = new URLSearchParams();
+  if (params?.campaignId) query.set("campaign_id", params.campaignId);
+  if (params?.dateFrom) query.set("date_from", params.dateFrom);
+  if (params?.dateTo) query.set("date_to", params.dateTo);
+  const queryString = query.toString();
+  const path = `/api/v1/deliverability${queryString ? `?${queryString}` : ""}`;
+  return deliverabilityResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchDeliverabilityMailboxes(
+  options: AuthenticatedApiClientOptions,
+): Promise<MailboxHealthResponse> {
+  return mailboxHealthResponseSchema.parse(
+    await authenticatedApiRequest("/api/v1/deliverability/mailboxes", { method: "GET" }, options)
   );
 }
 

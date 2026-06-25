@@ -19,6 +19,8 @@ import {
   fetchDraftEvidence,
   fetchReviewItems,
   fetchReviewItem,
+  fetchDeliverability,
+  fetchDeliverabilityMailboxes,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -704,6 +706,106 @@ describe("review queue read fetchers (Phase 2)", () => {
     let caught: unknown;
     try {
       await fetchReviewItem(authOptions(failing), "cccccccc-cccc-cccc-cccc-cccccccccccc");
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
+  });
+});
+
+describe("deliverability read fetchers (Phase 2)", () => {
+  it("fetchDeliverability parses dashboard responses", async () => {
+    const res = await fetchDeliverability(
+      authOptions(
+        mockFetch(200, {
+          deliverability: {
+            campaign_id: null,
+            sent: 18,
+            blocked: 11,
+            duplicate_denied: 4,
+            suppressed: 3,
+            safety_denied: 4,
+            throttled: 2,
+            followup_sent: 0,
+            followup_skipped: 5,
+            mock_bounced: 1,
+            mock_complained: 0,
+            mock_opened: 7,
+            mock_replied: 2,
+            date_from: null,
+            date_to: null,
+            mock_only: true,
+          },
+          mock_only: true,
+        }),
+      ),
+    );
+
+    expect(res.deliverability.sent).toBe(18);
+    expect(res.deliverability.suppressed).toBe(3);
+    expect(res.mock_only).toBe(true);
+  });
+
+  it("fetchDeliverabilityMailboxes parses mailbox/domain health responses", async () => {
+    const res = await fetchDeliverabilityMailboxes(
+      authOptions(
+        mockFetch(200, {
+          mailbox_health: {
+            mock_domain: "example.test",
+            dkim_valid: true,
+            spf_valid: true,
+            dmarc_valid: false,
+            reputation_score: 72,
+            mock_only: true,
+          },
+          mock_only: true,
+        }),
+      ),
+    );
+
+    expect(res.mailbox_health.mock_domain).toBe("example.test");
+    expect(res.mailbox_health.reputation_score).toBe(72);
+  });
+
+  it("maps a deliverability backend error envelope to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await fetchDeliverability(
+        authOptions(
+          mockFetch(403, {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Deliverability denied.",
+              details: { scope: "read:deliverability" },
+              request_id: "req_deliverability",
+              correlation_id: "corr_deliverability",
+            },
+          }),
+        ),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("PERMISSION_DENIED");
+    expect(err.status).toBe(403);
+    expect(err.requestId).toBe("req_deliverability");
+  });
+
+  it("maps a mailbox transport failure to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await fetchDeliverabilityMailboxes(authOptions(failing));
     } catch (error) {
       caught = error;
     }

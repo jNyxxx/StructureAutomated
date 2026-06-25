@@ -166,6 +166,42 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/deliverability/mailboxes")) {
+        return jsonResponse({
+          mailbox_health: {
+            mock_domain: "example.test",
+            dkim_valid: true,
+            spf_valid: true,
+            dmarc_valid: false,
+            reputation_score: 72,
+            mock_only: true,
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/deliverability")) {
+        return jsonResponse({
+          deliverability: {
+            campaign_id: null,
+            sent: 18,
+            blocked: 11,
+            duplicate_denied: 4,
+            suppressed: 3,
+            safety_denied: 4,
+            throttled: 2,
+            followup_sent: 0,
+            followup_skipped: 5,
+            mock_bounced: 1,
+            mock_complained: 0,
+            mock_opened: 7,
+            mock_replied: 2,
+            date_from: null,
+            date_to: null,
+            mock_only: true,
+          },
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/review/items/cccccccc-cccc-cccc-cccc-cccccccccccc")) {
         return jsonResponse({
           review_item: {
@@ -563,11 +599,29 @@ describe("route shells render", () => {
     expect(screen.getByText(/No real sending/i)).toBeTruthy();
   });
 
-  it("renders the deliverability dashboard shell", () => {
-    render(<DeliverabilityPage />);
+  it("renders the deliverability dashboard shell", async () => {
+    renderWithTenant(<DeliverabilityPage />);
     expect(screen.getByRole("heading", { name: /deliverability/i })).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(/backend mock API/i).length).toBeGreaterThan(0));
     expect(screen.getAllByText(/Mailbox health/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/example.test/i)).toBeTruthy();
+    expect(screen.getByText(/Deliverability API read-only/i)).toBeTruthy();
     expect(screen.getByText(/No real DNS checks/i)).toBeTruthy();
+    expect(screen.getByText(/No provider calls/i)).toBeTruthy();
+    expect(screen.getAllByText(/No real sending/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Update throttle/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Pause sending/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("renders deliverability fixture fallback when backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<DeliverabilityPage />);
+
+    await waitFor(() => expect(screen.getAllByText(/fixture fallback/i).length).toBeGreaterThan(0));
+    expect(screen.getByText(/owner-demo@example.com/i)).toBeTruthy();
+    expect(screen.getByText(/No real DNS checks/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Update throttle/i }).hasAttribute("disabled")).toBe(true);
   });
 
   it("renders the outcomes ROI dashboard shell", () => {
