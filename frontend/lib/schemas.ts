@@ -234,3 +234,51 @@ export const suppressionListResponseSchema = z.object({
 export type Suppression = z.infer<typeof suppressionSchema>;
 export type SuppressionListResponse = z.infer<typeof suppressionListResponseSchema>;
 
+// Contacts / Prospects
+export const contactSchema = z.object({
+  id: z.string().uuid(),
+  full_name: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  domain: z.string().nullable().optional(),
+  company_name: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const prospectSchema = z.object({
+  id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  full_name: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  domain: z.string().nullable().optional(),
+  company_name: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const contactListResponseSchema = z.object({
+  contacts: z.array(contactSchema),
+  page: pageInfoSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export const prospectListResponseSchema = z.object({
+  prospects: z.array(prospectSchema),
+  page: pageInfoSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export const contactDetailResponseSchema = z.object({
+  contact: contactSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type Contact = z.infer<typeof contactSchema>;
+export type Prospect = z.infer<typeof prospectSchema>;
+export type ContactListResponse = z.infer<typeof contactListResponseSchema>;
+export type ProspectListResponse = z.infer<typeof prospectListResponseSchema>;
+export type ContactDetailResponse = z.infer<typeof contactDetailResponseSchema>;
