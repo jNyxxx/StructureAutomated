@@ -134,8 +134,8 @@ export function ProspectsTable() {
       savedViews={views}
       pageSize={6}
       filters={[
-        { key: "runtime", label: "Runtime", value: "local/demo" },
-        { key: "api", label: "API", value: "pending backend" },
+        { key: "runtime", label: "Runtime", value: loading ? "loading..." : usingFallback ? "fixture fallback" : "backend mock API" },
+        { key: "api", label: "API", value: "read-only" },
       ]}
       rowActions={[
         { label: "Open details" },

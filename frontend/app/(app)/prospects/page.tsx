@@ -15,7 +15,7 @@ export default function ProspectsPage() {
       <PageHeader
         eyebrow="Prospect command center"
         title="Prospects"
-        description="Demo-safe prospect workspace using local rows only. Import, enrichment, campaign, export, and delete APIs are not mounted yet."
+        description="Read-only prospect workspace using backend mock API data with fixture fallback. Import, enrichment, campaign, export, and delete actions remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -40,13 +40,13 @@ export default function ProspectsPage() {
             <div>
               <CardTitle>Pending backend API notice</CardTitle>
               <CardDescription>
-                This page does not call unavailable prospect APIs. All table data is local/demo and all mutating actions stay locked.
+                This page only calls read-side backend mock APIs. Fixture fallback is local/mock, and all mutating actions stay locked.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Prospect API pending" />
+          <GateReasonBadge state="passed" label="Prospect API read-only" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No real enrichment" />
           <GateReasonBadge state="blocked" label="No real sending" />
@@ -56,8 +56,8 @@ export default function ProspectsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Local rows</CardTitle>
-            <CardDescription>Demo-only contacts, no real emails or provider data.</CardDescription>
+            <CardTitle>Read-only rows</CardTitle>
+            <CardDescription>Backend mock API or fixture fallback only; no real provider data.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 text-h2 text-text">
@@ -77,10 +77,10 @@ export default function ProspectsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Campaign readiness</CardTitle>
-            <CardDescription>Campaign APIs are still unavailable in this frontend slice.</CardDescription>
+            <CardDescription>Campaign assignment, send, export, and enrichment actions remain disabled.</CardDescription>
           </CardHeader>
           <CardContent>
-            <GateReasonBadge state="pending" label="Pending backend" />
+            <GateReasonBadge state="pending" label="Actions locked" />
           </CardContent>
         </Card>
       </div>

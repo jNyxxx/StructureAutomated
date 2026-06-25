@@ -10,6 +10,9 @@ import {
   fetchAuditEvents,
   fetchComplianceProfile,
   fetchSuppressions,
+  fetchContacts,
+  fetchProspects,
+  fetchContact,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -278,6 +281,131 @@ describe("settings/team/audit read fetchers (Phase 2)", () => {
     expect(res.audit_events[0].event_type).toBe("tenant.settings_updated");
     expect(res.page.next_cursor).toBe("cursor-123");
     expect(res.mock_only).toBe(true);
+  });
+});
+
+describe("contacts/prospects read fetchers (Phase 2)", () => {
+  it("fetchContacts parses contact list responses with pagination", async () => {
+    const res = await fetchContacts(
+      authOptions(
+        mockFetch(200, {
+          contacts: [
+            {
+              id: "11111111-1111-1111-1111-111111111111",
+              full_name: "Ava Santos",
+              title: "Acquisitions Lead",
+              email: "ava@example.com",
+              domain: "example.com",
+              company_name: "Northline Properties",
+              created_at: "2026-06-24T12:00:00Z",
+              updated_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: { next_cursor: null, limit: 25 },
+        }),
+      ),
+      { limit: 25 },
+    );
+
+    expect(res.contacts.length).toBe(1);
+    expect(res.contacts[0].company_name).toBe("Northline Properties");
+    expect(res.page.limit).toBe(25);
+  });
+
+  it("fetchProspects parses contact-backed prospect list responses", async () => {
+    const res = await fetchProspects(
+      authOptions(
+        mockFetch(200, {
+          prospects: [
+            {
+              id: "22222222-2222-2222-2222-222222222222",
+              contact_id: "22222222-2222-2222-2222-222222222222",
+              full_name: "Marco Reyes",
+              title: "Managing Partner",
+              email: "marco@example.com",
+              domain: "example.com",
+              company_name: "Harbor Asset Group",
+              created_at: "2026-06-24T12:00:00Z",
+              updated_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: { next_cursor: "next", limit: 25 },
+        }),
+      ),
+      { cursor: "start", limit: 25 },
+    );
+
+    expect(res.prospects.length).toBe(1);
+    expect(res.prospects[0].contact_id).toBe("22222222-2222-2222-2222-222222222222");
+    expect(res.page.next_cursor).toBe("next");
+  });
+
+  it("fetchContact parses contact detail responses", async () => {
+    const res = await fetchContact(
+      authOptions(
+        mockFetch(200, {
+          contact: {
+            id: "33333333-3333-3333-3333-333333333333",
+            full_name: "Nina Cruz",
+            title: "Portfolio Director",
+            email: "nina@example.com",
+            domain: "example.com",
+            company_name: "Civic Realty Partners",
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
+          },
+        }),
+      ),
+      "33333333-3333-3333-3333-333333333333",
+    );
+
+    expect(res.contact.full_name).toBe("Nina Cruz");
+    expect(res.contact.company_name).toBe("Civic Realty Partners");
+  });
+
+  it("maps a contacts backend error envelope to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await fetchContacts(
+        authOptions(
+          mockFetch(403, {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Contacts denied.",
+              details: { scope: "read:contacts" },
+              request_id: "req_contacts",
+              correlation_id: "corr_contacts",
+            },
+          }),
+        ),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("PERMISSION_DENIED");
+    expect(err.status).toBe(403);
+    expect(err.requestId).toBe("req_contacts");
+  });
+
+  it("maps a prospects transport failure to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await fetchProspects(authOptions(failing));
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
   });
 });
 

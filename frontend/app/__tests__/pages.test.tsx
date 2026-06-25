@@ -155,6 +155,29 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/prospects")) {
+        return jsonResponse({
+          prospects: [
+            {
+              id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+              contact_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+              full_name: "Ava Santos",
+              title: "Acquisitions Lead",
+              email: "ava@northline.com",
+              domain: "northline.com",
+              company_name: "Northline Properties",
+              created_at: "2026-06-24T12:00:00Z",
+              updated_at: "2026-06-24T12:00:00Z",
+              mock_only: true,
+            },
+          ],
+          page: {
+            next_cursor: null,
+            limit: 25,
+          },
+          mock_only: true,
+        });
+      }
       if (path.includes("/auth/me")) {
         return jsonResponse({
           principal: {
@@ -281,7 +304,7 @@ describe("route shells render", () => {
   });
 
   it("renders the prospects DataTable demo safely", () => {
-    render(<ProspectsPage />);
+    renderWithTenant(<ProspectsPage />);
     expect(screen.getByRole("heading", { name: /^prospects$/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /prospects demo table/i })).toBeTruthy();
     expect(screen.getByText(/Northline Properties/i)).toBeTruthy();
