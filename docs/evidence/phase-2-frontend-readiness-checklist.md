@@ -5,6 +5,13 @@
 **Runtime:** Local/mock only
 **Production status:** Not approved
 
+> **Update 2026-06-26 (P2-exit reconciliation):** The "read-only / mutations disabled"
+> statements below describe the Phase 2 state as of 2026-06-25. P2-exit subsequently added
+> **safe local/mock write wiring** (campaigns, drafts, review, send-gate dry-run, follow-ups,
+> suppressions, compliance, settings, CSV import) that calls real backend endpoints running
+> real gates with mocked providers. Real providers, production, live sending, and Stripe
+> remain deferred. Current source of truth: `phase-2-exit-completion.md`.
+
 ## Read-only wiring checklist
 
 | Area | Status | Evidence |
@@ -54,7 +61,7 @@
 - Local/mock only.
 - Backend mock APIs only for read surfaces.
 - Backend remains source of truth for gates.
-- Write/mutation actions remain disabled/deferred.
+- Write/mutation actions are wired as safe local/mock only (P2-exit); real providers/production/live sending remain deferred.
 - Real providers are deferred.
 - Production is not approved.
 - Live DB smoke remains deferred unless separately authorized and available.

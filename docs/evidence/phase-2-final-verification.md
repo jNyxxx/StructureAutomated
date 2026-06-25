@@ -5,11 +5,18 @@
 **Runtime:** Local/mock only
 **Production status:** Not approved
 
+> **Update 2026-06-26 (P2-exit reconciliation):** The "read-only / mutations disabled"
+> statements below describe the Phase 2 state as of 2026-06-25. P2-exit subsequently added
+> **safe local/mock write wiring** (campaigns, drafts, review, send-gate dry-run, follow-ups,
+> suppressions, compliance, settings, CSV import) that calls real backend endpoints running
+> real gates with mocked providers. Real providers, production, live sending, and Stripe
+> remain deferred. Current source of truth: `phase-2-exit-completion.md`.
+
 ## Final verdict
 
 Phase 2 is complete for the approved local/mock scope.
 
-Backend Phase 2 API routes are present and tested. Frontend Phase 2 read-only wiring covers the approved product surfaces and keeps write/mutation/provider actions disabled. The system remains a local/mock MVP and is not production-approved.
+Backend Phase 2 API routes are present and tested. Frontend Phase 2 wiring began read-only; P2-exit later added safe local/mock write wiring (see the reconciliation note above), while provider/production/live-sending actions remain deferred. The system remains a local/mock MVP and is not production-approved.
 
 ## What Phase 2 now covers
 
@@ -57,9 +64,9 @@ Backend Phase 2 API routes are present and tested. Frontend Phase 2 read-only wi
 ## Confirmed local/mock boundaries
 
 - Phase 2 remains local/mock only.
-- Frontend is wired to backend mock APIs only for read-only product surfaces.
+- Frontend is wired to backend mock APIs for read surfaces and safe local/mock write actions (P2-exit).
 - Backend remains the source of truth for gates and access decisions.
-- Mutation/write actions remain disabled or deferred.
+- Mutation/write actions are wired as safe local/mock only (P2-exit); real providers/production/live sending remain deferred.
 - Production is not approved.
 - Live DB smoke remains deferred because it was not explicitly available/performed in this verification pass.
 - Real providers are deferred.
