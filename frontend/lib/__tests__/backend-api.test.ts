@@ -8,6 +8,8 @@ import {
   fetchTenantSettings,
   fetchMemberships,
   fetchAuditEvents,
+  fetchComplianceProfile,
+  fetchSuppressions,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -276,5 +278,116 @@ describe("settings/team/audit read fetchers (Phase 2)", () => {
     expect(res.audit_events[0].event_type).toBe("tenant.settings_updated");
     expect(res.page.next_cursor).toBe("cursor-123");
     expect(res.mock_only).toBe(true);
+  });
+});
+
+describe("compliance/suppressions read fetchers (Phase 2)", () => {
+  it("fetchComplianceProfile parses the backend mock compliance profile", async () => {
+    const res = await fetchComplianceProfile(
+      authOptions(
+        mockFetch(200, {
+          compliance_profile: {
+            jurisdiction: "US",
+            sending_review_required: true,
+            live_sending_allowed: false,
+            sms_allowed: false,
+            mock_only: true,
+          },
+          mock_only: true,
+        }),
+      ),
+    );
+
+    expect(res.compliance_profile.jurisdiction).toBe("US");
+    expect(res.compliance_profile.sending_review_required).toBe(true);
+    expect(res.mock_only).toBe(true);
+  });
+
+  it("fetchSuppressions parses suppressions with pagination params and preserves mock_only", async () => {
+    let lastUrl: string | undefined;
+    const trackingFetch = async (input: RequestInfo | URL) => {
+      lastUrl = String(input);
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        text: async () =>
+          JSON.stringify({
+            suppressions: [
+              {
+                id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+                channel: "email",
+                reason: "manual block",
+                source: "mock",
+                never_contact: true,
+                created_at: "2026-06-24T12:00:00Z",
+                revoked_at: null,
+                active: true,
+                mock_only: true,
+              },
+            ],
+            page: {
+              next_cursor: null,
+              limit: 25,
+            },
+            mock_only: true,
+          }),
+      } as Response;
+    };
+
+    const res = await fetchSuppressions(
+      authOptions(trackingFetch as unknown as typeof fetch),
+      { limit: 25 },
+    );
+
+    expect(lastUrl).toContain("limit=25");
+    expect(res.suppressions.length).toBe(1);
+    expect(res.suppressions[0].active).toBe(true);
+    expect(res.mock_only).toBe(true);
+  });
+
+  it("maps a compliance backend error envelope to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await fetchComplianceProfile(
+        authOptions(
+          mockFetch(403, {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Compliance profile denied.",
+              details: { scope: "read:compliance" },
+              request_id: "req_compliance",
+              correlation_id: "corr_compliance",
+            },
+          }),
+        ),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("PERMISSION_DENIED");
+    expect(err.status).toBe(403);
+    expect(err.requestId).toBe("req_compliance");
+  });
+
+  it("maps a suppressions transport failure to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await fetchSuppressions(authOptions(failing));
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
   });
 });

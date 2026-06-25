@@ -195,3 +195,42 @@ export const auditEventListResponseSchema = z.object({
 export type PageInfo = z.infer<typeof pageInfoSchema>;
 export type AuditEventListResponse = z.infer<typeof auditEventListResponseSchema>;
 
+// Compliance Profile
+export const complianceProfileSchema = z.object({
+  jurisdiction: z.string(),
+  sending_review_required: z.boolean(),
+  live_sending_allowed: z.boolean(),
+  sms_allowed: z.boolean(),
+  mock_only: z.boolean().optional(),
+});
+
+export const complianceProfileResponseSchema = z.object({
+  compliance_profile: complianceProfileSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type ComplianceProfile = z.infer<typeof complianceProfileSchema>;
+export type ComplianceProfileResponse = z.infer<typeof complianceProfileResponseSchema>;
+
+// Suppressions
+export const suppressionSchema = z.object({
+  id: z.string().uuid(),
+  channel: z.string(),
+  reason: z.string(),
+  source: z.string(),
+  never_contact: z.boolean(),
+  created_at: z.string(),
+  revoked_at: z.string().nullable().optional(),
+  active: z.boolean(),
+  mock_only: z.boolean().optional(),
+});
+
+export const suppressionListResponseSchema = z.object({
+  suppressions: z.array(suppressionSchema),
+  page: pageInfoSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type Suppression = z.infer<typeof suppressionSchema>;
+export type SuppressionListResponse = z.infer<typeof suppressionListResponseSchema>;
+

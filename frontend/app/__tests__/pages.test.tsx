@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,6 +45,16 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: new Headers({ "x-request-id": "req_test" }),
     text: async () => JSON.stringify(body),
   } as Response;
+}
+
+function renderWithTenant(node: ReactNode) {
+  return render(
+    <ClerkFrontendProvider value={signedInAuth}>
+      <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+        {node}
+      </TenantProvider>
+    </ClerkFrontendProvider>,
+  );
 }
 
 beforeEach(() => {
@@ -101,6 +112,40 @@ beforeEach(() => {
                 api_key: "[REDACTED]",
               },
               created_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: {
+            next_cursor: null,
+            limit: 25,
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/compliance/profile")) {
+        return jsonResponse({
+          compliance_profile: {
+            jurisdiction: "US",
+            sending_review_required: true,
+            live_sending_allowed: false,
+            sms_allowed: false,
+            mock_only: true,
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/suppressions")) {
+        return jsonResponse({
+          suppressions: [
+            {
+              id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+              channel: "email",
+              reason: "manual backend mock block",
+              source: "mock_api",
+              never_contact: true,
+              created_at: "2026-06-24T12:00:00Z",
+              revoked_at: null,
+              active: true,
+              mock_only: true,
             },
           ],
           page: {
@@ -339,15 +384,77 @@ describe("route shells render", () => {
   });
 
   it("renders compliance settings shell", () => {
-    render(<ComplianceSettingsPage />);
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <ComplianceSettingsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
     expect(screen.getByRole("heading", { name: /compliance settings/i })).toBeTruthy();
-    expect(screen.getByText(/US-first compliance baseline/i)).toBeTruthy();
+    expect(screen.getByText(/US-first baseline/i)).toBeTruthy();
+  });
+
+  it("loads compliance settings from the backend mock API while actions stay locked", async () => {
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <ComplianceSettingsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/Compliance profile loaded from backend mock API/i)).toBeTruthy());
+    expect(screen.getByText(/Compliance API read-only/i)).toBeTruthy();
+    expect(screen.getByText(/No real sending/i)).toBeTruthy();
+  });
+
+  it("renders compliance fixture fallback when backend auth is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <ComplianceSettingsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/fixture fallback/i)).toBeTruthy());
+    expect(screen.getByText(/Backend unavailable or auth missing/i)).toBeTruthy();
   });
 
   it("renders suppression settings table shell", () => {
-    render(<SuppressionSettingsPage />);
+    renderWithTenant(<SuppressionSettingsPage />);
     expect(screen.getByRole("heading", { name: /suppression settings/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /suppression demo table/i })).toBeTruthy();
+  });
+
+  it("loads suppressions from the backend mock API while actions stay locked", async () => {
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <SuppressionSettingsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/manual backend mock block/i)).toBeTruthy());
+    expect(screen.getByText(/Suppression API read-only/i)).toBeTruthy();
+    expect(screen.getByText(/Add suppression locked/i)).toBeTruthy();
+  });
+
+  it("renders suppression fixture fallback when backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    render(
+      <ClerkFrontendProvider value={signedInAuth}>
+        <TenantProvider initialTenantId="22222222-2222-2222-2222-222222222222">
+          <SuppressionSettingsPage />
+        </TenantProvider>
+      </ClerkFrontendProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/fixture fallback/i)).toBeTruthy());
+    expect(screen.getByText(/suppressed-demo@example.com/i)).toBeTruthy();
   });
 });
 
