@@ -6,7 +6,7 @@ import type { DraftRow } from "./draft-sample-data";
 
 export function DraftPreview({ draft }: { draft: DraftRow }) {
   return (
-    <BentoCard title="Draft preview" description="Read-only local/demo draft. This content cannot be approved or sent from this UI." badge="Preview">
+    <BentoCard title="Draft preview" description="Read-only local/mock draft data. This content cannot be generated, approved, or sent from this UI." badge="Preview">
       <div className="space-y-4">
         <div className="rounded-medium border border-border bg-panel2 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

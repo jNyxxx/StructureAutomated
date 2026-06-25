@@ -15,6 +15,8 @@ import {
   fetchContact,
   fetchCampaigns,
   fetchCampaign,
+  fetchDraft,
+  fetchDraftEvidence,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -497,6 +499,106 @@ describe("campaigns read fetchers (Phase 2)", () => {
     let caught: unknown;
     try {
       await fetchCampaign(authOptions(failing), "55555555-5555-5555-5555-555555555555");
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
+  });
+});
+
+describe("draft detail/evidence read fetchers (Phase 2)", () => {
+  it("fetchDraft parses draft detail responses", async () => {
+    const res = await fetchDraft(
+      authOptions(
+        mockFetch(200, {
+          draft: {
+            id: "66666666-6666-6666-6666-666666666666",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            contact_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            status: "pending_review",
+            subject: "Demo: reduce vacancy risk with grounded outreach",
+            body: "Read-only backend mock draft body.",
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
+          },
+          mock_only: true,
+        }),
+      ),
+      "66666666-6666-6666-6666-666666666666",
+    );
+
+    expect(res.draft.subject).toContain("grounded outreach");
+    expect(res.draft.status).toBe("pending_review");
+    expect(res.mock_only).toBe(true);
+  });
+
+  it("fetchDraftEvidence parses evidence list responses with pagination", async () => {
+    const res = await fetchDraftEvidence(
+      authOptions(
+        mockFetch(200, {
+          evidence: [
+            {
+              id: "77777777-7777-7777-7777-777777777777",
+              draft_id: "66666666-6666-6666-6666-666666666666",
+              source_type: "knowledge_chunk",
+              source_id: "88888888-8888-8888-8888-888888888888",
+              content_snippet: "Approved backend mock evidence only.",
+              created_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: { next_cursor: null, limit: 25 },
+          mock_only: true,
+        }),
+      ),
+      "66666666-6666-6666-6666-666666666666",
+      { limit: 25 },
+    );
+
+    expect(res.evidence.length).toBe(1);
+    expect(res.evidence[0].content_snippet).toContain("backend mock evidence");
+    expect(res.page.limit).toBe(25);
+  });
+
+  it("maps a draft backend error envelope to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await fetchDraft(
+        authOptions(
+          mockFetch(403, {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Draft denied.",
+              details: { scope: "read:drafts" },
+              request_id: "req_draft",
+              correlation_id: "corr_draft",
+            },
+          }),
+        ),
+        "66666666-6666-6666-6666-666666666666",
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("PERMISSION_DENIED");
+    expect(err.status).toBe(403);
+    expect(err.requestId).toBe("req_draft");
+  });
+
+  it("maps a draft evidence transport failure to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await fetchDraftEvidence(authOptions(failing), "66666666-6666-6666-6666-666666666666");
     } catch (error) {
       caught = error;
     }

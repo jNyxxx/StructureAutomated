@@ -25,7 +25,7 @@ export default function CampaignDraftsPage({ params }: { params: { id: string } 
       <PageHeader
         eyebrow="Campaign drafts"
         title={`${campaign.name} drafts`}
-        description="Campaign-scoped draft and Research/RAG shell. No backend draft, research, approval, or send APIs are called."
+        description="Campaign-scoped draft shell with read-only backend mock draft detail/evidence loading in the preview drawer. Generate, review, research, and send actions remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -50,13 +50,13 @@ export default function CampaignDraftsPage({ params }: { params: { id: string } 
             <div>
               <CardTitle>Campaign draft actions are locked</CardTitle>
               <CardDescription>
-                Generate, regenerate, approve, send, export, scrape, enrich, and embedding-provider actions remain disabled until backend routes exist.
+                Generate, regenerate, approve, send, export, scrape, enrich, and embedding-provider actions remain disabled. Only safe draft detail/evidence reads are wired.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Draft API pending" />
+          <GateReasonBadge state="passed" label="Draft detail/evidence read-only" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No provider calls" />
           <GateReasonBadge state="blocked" label="No live scraping" />

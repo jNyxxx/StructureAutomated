@@ -1,3 +1,5 @@
+import type { Draft, DraftEvidence } from "@/lib/schemas";
+
 export type GateState = "passed" | "warning" | "missing" | "failed" | "blocked" | "pending";
 export type DraftStatus = "draft_generated" | "needs_regeneration" | "blocked" | "archived" | "pending_review";
 
@@ -37,7 +39,7 @@ export interface DraftRow {
 
 export const draftRows: DraftRow[] = [
   {
-    id: "draft_demo_001",
+    id: "66666666-6666-6666-6666-666666666666",
     subject: "Demo: reduce vacancy risk with grounded outreach",
     prospectCompany: "Northline Properties",
     campaign: "CRE Multifamily Owner Outreach",
@@ -54,14 +56,14 @@ export const draftRows: DraftRow[] = [
     unsupportedClaims: [],
     evidence: [
       {
-        id: "ev_001",
+        id: "77777777-7777-7777-7777-777777777777",
         title: "Approved CRE portfolio signal",
         source: "local knowledge chunk",
         trust: "passed",
         excerpt: "Local/demo evidence card. No live scraping or provider enrichment was used.",
       },
       {
-        id: "ev_002",
+        id: "88888888-8888-8888-8888-888888888888",
         title: "Tenant-retention playbook",
         source: "local RAG sample",
         trust: "passed",
@@ -70,7 +72,7 @@ export const draftRows: DraftRow[] = [
     ],
   },
   {
-    id: "draft_demo_002",
+    id: "99999999-9999-9999-9999-999999999999",
     subject: "Demo: industrial owner re-engagement angle",
     prospectCompany: "Harbor Asset Group",
     campaign: "Industrial Investor Re-Engagement",
@@ -94,7 +96,7 @@ export const draftRows: DraftRow[] = [
     ],
     evidence: [
       {
-        id: "ev_003",
+        id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         title: "Industrial market note",
         source: "local sample chunk",
         trust: "warning",
@@ -103,7 +105,7 @@ export const draftRows: DraftRow[] = [
     ],
   },
   {
-    id: "draft_demo_003",
+    id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
     subject: "Demo: blocked suppressed-contact draft",
     prospectCompany: "Civic Realty Partners",
     campaign: "Retail Portfolio Suppression Check",
@@ -131,6 +133,51 @@ export const draftRows: DraftRow[] = [
 
 export function getDraftsByCampaignId(campaignId: string): DraftRow[] {
   return draftRows.filter((draft) => draft.campaignId === campaignId);
+}
+
+export function getDraftById(id: string): DraftRow | undefined {
+  return draftRows.find((draft) => draft.id === id);
+}
+
+function mapDraftStatus(status: string): DraftStatus {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("block")) return "blocked";
+  if (normalized.includes("regen")) return "needs_regeneration";
+  if (normalized.includes("archive")) return "archived";
+  if (normalized.includes("review")) return "pending_review";
+  return "draft_generated";
+}
+
+export function evidenceToItem(evidence: DraftEvidence): EvidenceItem {
+  return {
+    id: evidence.id,
+    title: `${evidence.source_type} evidence`,
+    source: `backend mock API source ${evidence.source_id}`,
+    trust: "passed",
+    excerpt: evidence.content_snippet,
+  };
+}
+
+export function draftToRow(draft: Draft, existing?: DraftRow, evidence: EvidenceItem[] = existing?.evidence ?? []): DraftRow {
+  const status = mapDraftStatus(draft.status);
+  return {
+    id: draft.id,
+    subject: draft.subject,
+    prospectCompany: existing?.prospectCompany ?? "Backend mock contact",
+    campaign: existing?.campaign ?? "Backend mock campaign",
+    campaignId: draft.campaign_id,
+    status,
+    promptInjectionGate: existing?.promptInjectionGate ?? "passed",
+    sourceTrustGate: evidence.length > 0 ? "passed" : "pending",
+    groundednessGate: evidence.length > 0 ? "passed" : "pending",
+    reviewStatus: status === "blocked" ? "blocked" : status === "needs_regeneration" ? "needs_regeneration" : "pending_review",
+    sendGateReadiness: "blocked",
+    updatedAt: new Date(draft.updated_at).toLocaleDateString(),
+    suppressedContact: existing?.suppressedContact ?? false,
+    body: draft.body,
+    unsupportedClaims: existing?.unsupportedClaims ?? [],
+    evidence,
+  };
 }
 
 export function canApproveDraft(draft: DraftRow): boolean {

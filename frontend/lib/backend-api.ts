@@ -17,6 +17,8 @@ import {
   contactDetailResponseSchema,
   campaignListResponseSchema,
   campaignDetailResponseSchema,
+  draftDetailResponseSchema,
+  draftEvidenceListResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
@@ -32,6 +34,8 @@ import {
   type ContactDetailResponse,
   type CampaignListResponse,
   type CampaignDetailResponse,
+  type DraftDetailResponse,
+  type DraftEvidenceListResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -262,6 +266,30 @@ export async function fetchCampaign(
 ): Promise<CampaignDetailResponse> {
   return campaignDetailResponseSchema.parse(
     await authenticatedApiRequest(`/api/v1/campaigns/${campaignId}`, { method: "GET" }, options)
+  );
+}
+
+export async function fetchDraft(
+  options: AuthenticatedApiClientOptions,
+  draftId: string,
+): Promise<DraftDetailResponse> {
+  return draftDetailResponseSchema.parse(
+    await authenticatedApiRequest(`/api/v1/drafts/${draftId}`, { method: "GET" }, options)
+  );
+}
+
+export async function fetchDraftEvidence(
+  options: AuthenticatedApiClientOptions,
+  draftId: string,
+  params?: { cursor?: string | null; limit?: number },
+): Promise<DraftEvidenceListResponse> {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  const queryString = query.toString();
+  const path = `/api/v1/drafts/${draftId}/evidence${queryString ? `?${queryString}` : ""}`;
+  return draftEvidenceListResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
   );
 }
 

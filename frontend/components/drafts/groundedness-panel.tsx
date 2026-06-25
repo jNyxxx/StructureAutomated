@@ -8,7 +8,7 @@ import type { DraftRow } from "./draft-sample-data";
 
 export function GroundednessPanel({ draft }: { draft: DraftRow }) {
   return (
-    <BentoCard title="Groundedness and citations" description="Local/demo validation panel. No embeddings provider or live scraper is called." badge="Grounding shell">
+    <BentoCard title="Groundedness and citations" description="Read-only local/mock evidence panel. No embeddings provider or live scraper is called." badge="Grounding shell">
       <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-medium border border-border bg-panel2 p-3">

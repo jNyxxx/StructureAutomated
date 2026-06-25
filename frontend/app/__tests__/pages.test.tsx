@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuditLogTable, formatSafeDetails } from "@/components/audit-log-table";
@@ -162,6 +162,37 @@ beforeEach(() => {
           page: {
             next_cursor: null,
             limit: 25,
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/drafts/66666666-6666-6666-6666-666666666666/evidence")) {
+        return jsonResponse({
+          evidence: [
+            {
+              id: "77777777-7777-7777-7777-777777777777",
+              draft_id: "66666666-6666-6666-6666-666666666666",
+              source_type: "knowledge_chunk",
+              source_id: "88888888-8888-8888-8888-888888888888",
+              content_snippet: "Approved backend mock evidence only.",
+              created_at: "2026-06-24T12:00:00Z",
+            },
+          ],
+          page: { next_cursor: null, limit: 25 },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/drafts/66666666-6666-6666-6666-666666666666")) {
+        return jsonResponse({
+          draft: {
+            id: "66666666-6666-6666-6666-666666666666",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            contact_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            status: "pending_review",
+            subject: "Demo: backend mock grounded outreach",
+            body: "Read-only backend mock draft body. This cannot be generated, approved, or sent.",
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
           },
           mock_only: true,
         });
@@ -430,13 +461,39 @@ describe("route shells render", () => {
     render(<AiDraftsPage />);
     expect(screen.getByRole("heading", { name: /ai drafts/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /ai drafts demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    expect(screen.getByText(/Draft detail\/evidence read-only/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Generate locked/i }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByText(/Research\/RAG workbench/i)).toBeTruthy();
+  });
+
+  it("loads draft detail and evidence from backend mock API while actions stay locked", async () => {
+    renderWithTenant(<AiDraftsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /View details for row 66666666-6666-6666-6666-666666666666/i }));
+
+    await waitFor(() => expect(screen.getByText(/Draft detail and evidence loaded from backend mock API/i)).toBeTruthy());
+    expect(screen.getByText(/Read-only backend mock draft body/i)).toBeTruthy();
+    expect(screen.getByText(/Approved backend mock evidence only/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Approve draft/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Regenerate/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Send locked/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("renders draft fixture fallback when backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<AiDraftsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /View details for row 66666666-6666-6666-6666-666666666666/i }));
+
+    await waitFor(() => expect(screen.getByText(/fixture fallback/i)).toBeTruthy());
+    expect(screen.getByText(/Hi team — based on public portfolio signals/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Approve draft/i }).hasAttribute("disabled")).toBe(true);
   });
 
   it("renders campaign-scoped draft shell", () => {
     render(<CampaignDraftsPage params={{ id: "cre-multifamily-demo" }} />);
     expect(screen.getByRole("heading", { name: /CRE Multifamily Owner Outreach drafts/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /ai drafts demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Draft detail\/evidence read-only/i)).toBeTruthy();
   });
 
   it("renders the review queue demo safely", () => {

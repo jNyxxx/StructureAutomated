@@ -40,15 +40,15 @@ export function DraftsTable({ rows = draftRows }: { rows?: DraftRow[] }) {
       savedViews={views}
       pageSize={6}
       filters={[
-        { key: "runtime", label: "Runtime", value: "local/demo" },
-        { key: "api", label: "API", value: "pending backend" },
+        { key: "runtime", label: "Runtime", value: "read-only local/mock data" },
+        { key: "api", label: "API", value: "detail/evidence read-only" },
       ]}
       rowActions={[
         { label: "Open preview" },
-        { label: "Generate draft", pendingBackend: true },
-        { label: "Regenerate", pendingBackend: true },
-        { label: "Approve", pendingBackend: true },
-        { label: "Send", pendingBackend: true },
+        { label: "Generate draft", pendingBackend: true, disabled: true },
+        { label: "Regenerate", pendingBackend: true, disabled: true },
+        { label: "Approve", pendingBackend: true, disabled: true },
+        { label: "Send", pendingBackend: true, disabled: true },
       ]}
       getRowSearchText={(row) => `${row.subject} ${row.prospectCompany} ${row.campaign} ${row.status} ${row.reviewStatus} ${row.body}`}
       getDrawerTitle={(row) => row.subject}

@@ -15,7 +15,7 @@ export default function AiDraftsPage() {
       <PageHeader
         eyebrow="Research/RAG and draft review"
         title="AI drafts"
-        description="Demo-safe AI draft workspace using local rows only. Draft generation, regeneration, approval, send, scraping, enrichment, and embeddings APIs are not mounted yet."
+        description="Read-only AI draft workspace using local/mock draft rows with backend mock API detail/evidence loading in the preview drawer. Generate, regenerate, approve, send, scraping, enrichment, and provider actions remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -38,13 +38,13 @@ export default function AiDraftsPage() {
             <div>
               <CardTitle>Pending backend API notice</CardTitle>
               <CardDescription>
-                This page does not call draft, research, RAG, scraping, enrichment, embeddings, review, or send APIs. All mutations stay locked.
+                This page only uses read-side draft detail/evidence backend mock APIs when a safe draft preview is opened. Generation, review, scraping, enrichment, provider, and send mutations stay locked.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Draft API pending" />
+          <GateReasonBadge state="passed" label="Draft detail/evidence read-only" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No provider enrichment" />
           <GateReasonBadge state="blocked" label="No embeddings provider" />

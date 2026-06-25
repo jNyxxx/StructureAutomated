@@ -310,3 +310,42 @@ export const campaignDetailResponseSchema = z.object({
 export type Campaign = z.infer<typeof campaignSchema>;
 export type CampaignListResponse = z.infer<typeof campaignListResponseSchema>;
 export type CampaignDetailResponse = z.infer<typeof campaignDetailResponseSchema>;
+
+// Drafts
+export const draftSchema = z.object({
+  id: z.string().uuid(),
+  campaign_id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  status: z.string(),
+  subject: z.string(),
+  body: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const draftDetailResponseSchema = z.object({
+  draft: draftSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export const draftEvidenceSchema = z.object({
+  id: z.string().uuid(),
+  draft_id: z.string().uuid(),
+  source_type: z.string(),
+  source_id: z.string().uuid(),
+  content_snippet: z.string(),
+  created_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const draftEvidenceListResponseSchema = z.object({
+  evidence: z.array(draftEvidenceSchema),
+  page: pageInfoSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type Draft = z.infer<typeof draftSchema>;
+export type DraftDetailResponse = z.infer<typeof draftDetailResponseSchema>;
+export type DraftEvidence = z.infer<typeof draftEvidenceSchema>;
+export type DraftEvidenceListResponse = z.infer<typeof draftEvidenceListResponseSchema>;

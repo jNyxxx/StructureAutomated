@@ -13,11 +13,11 @@ export function DraftGatePanel({ draft }: { draft: DraftRow }) {
     { label: "Groundedness", state: draft.groundednessGate },
     { label: "Unsupported claims", state: draft.unsupportedClaims.length === 0 ? "passed" : "blocked" },
     { label: "Suppression", state: draft.suppressedContact ? "blocked" : "passed" },
-    { label: "Backend API", state: "blocked" },
+    { label: "Write actions", state: "blocked" },
   ] as const;
 
   return (
-    <BentoCard title="Draft review gates" description="Approve and send remain disabled until every backend gate and API exists." badge="Approval locked">
+    <BentoCard title="Draft review gates" description="Generate, review, and send actions remain disabled in this read-only frontend slice." badge="Approval locked">
       <div className="space-y-3">
         {reasons.map((reason) => (
           <div key={reason.label} className="flex items-center justify-between gap-3 rounded-medium border border-border bg-panel2 p-3">
