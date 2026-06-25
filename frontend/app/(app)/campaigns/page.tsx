@@ -15,7 +15,7 @@ export default function CampaignsPage() {
       <PageHeader
         eyebrow="Campaign command center"
         title="Campaigns"
-        description="Read-only campaign workspace using backend mock API data with fixture fallback. Create, update, contact selection, research, drafts, sends, follow-up, and export actions remain locked."
+        description="Campaign workspace using backend mock API data with fixture fallback. Create, update, and contact selection are local/mock only; research, drafts, sends, follow-up, export, scraping, and providers remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -40,13 +40,13 @@ export default function CampaignsPage() {
             <div>
               <CardTitle>Pending backend API notice</CardTitle>
               <CardDescription>
-                This page only calls read-side backend mock APIs. Fixture fallback is local/mock, and every mutating action stays locked.
+                Campaign create, update, and contact selection are safe local/mock actions. Fixture fallback remains available, and research/draft/send/provider actions stay locked.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="passed" label="Campaign API read-only" />
+          <GateReasonBadge state="passed" label="Campaign mock actions" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No provider calls" />

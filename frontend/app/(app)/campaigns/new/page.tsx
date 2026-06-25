@@ -15,11 +15,11 @@ export default function NewCampaignPage() {
       <PageHeader
         eyebrow="Campaign builder"
         title="New campaign"
-        description="Visual-only builder shell. Creation and all mutation actions remain pending backend API."
+        description="Local/mock campaign builder using the backend mock API. Research, enrichment, scraping, drafts, sends, follow-ups, providers, and production remain disabled."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
-            <Badge variant="locked">Create API pending</Badge>
+            <Badge variant="default">Backend mock create</Badge>
             <Button asChild variant="secondary">
               <Link href="/campaigns">
                 <ArrowLeft className="size-4" /> Back to campaigns
@@ -38,15 +38,15 @@ export default function NewCampaignPage() {
               <AlertTriangle className="size-5" />
             </div>
             <div>
-              <CardTitle>Builder is locked</CardTitle>
+              <CardTitle>Safe local/mock campaign create only</CardTitle>
               <CardDescription>
-                No campaign is persisted. Research, RAG, draft generation, review, mock send, follow-up, and export remain unavailable until backend routes exist.
+                Campaign create can call the backend mock API. Research, RAG, draft generation, review, mock send, follow-up, export, enrichment, scraping, and provider actions remain disabled.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="blocked" label="No backend create" />
+          <GateReasonBadge state="passed" label="Backend mock create" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No provider calls" />

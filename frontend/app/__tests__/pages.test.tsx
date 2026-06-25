@@ -71,7 +71,7 @@ function renderWithTenant(node: ReactNode) {
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       if (path.includes("/ready")) return jsonResponse({ status: "ready" });
       if (path.includes("/api/v1/tenants/current")) {
@@ -309,7 +309,35 @@ beforeEach(() => {
           mock_only: true,
         });
       }
-      if (path.includes("/api/v1/campaigns/")) {
+      if (path.includes("/api/v1/campaigns/") && path.includes("/contacts")) {
+        return jsonResponse({
+          campaign_contact: {
+            id: "abababab-abab-abab-abab-abababababab",
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            contact_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            status: "selected",
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/campaigns/") && init?.method === "PATCH") {
+        return jsonResponse({
+          campaign: {
+            id: "44444444-4444-4444-4444-444444444444",
+            created_by_user_id: "11111111-1111-1111-1111-111111111111",
+            name: "CRE Multifamily Owner Outreach",
+            description: "Backend mock campaign detail.",
+            goal: "Book qualified owner calls.",
+            target_segment: "CRE / Multifamily",
+            notes: "Updated by backend mock API.",
+            status: "review",
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/campaigns/") && init?.method !== "POST") {
         return jsonResponse({
           campaign: {
             id: "44444444-4444-4444-4444-444444444444",
@@ -321,6 +349,22 @@ beforeEach(() => {
             notes: "Read-only local/mock campaign detail.",
             status: "review",
           },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/campaigns") && init?.method === "POST") {
+        return jsonResponse({
+          campaign: {
+            id: "99999999-9999-9999-9999-999999999999",
+            created_by_user_id: "11111111-1111-1111-1111-111111111111",
+            name: "CRE Local Mock Campaign",
+            description: "Created by backend mock API.",
+            goal: "Book qualified owner conversations.",
+            target_segment: "CRE / Local Mock",
+            notes: "Safe mock create.",
+            status: "draft",
+          },
+          idempotency_replay: false,
           mock_only: true,
         });
       }
@@ -666,7 +710,7 @@ describe("route shells render", () => {
     expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
     await waitFor(() => expect(screen.getAllByText(/backend mock API/i).length).toBeGreaterThan(0));
     expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
-    expect(screen.getByText(/Campaign API read-only/i)).toBeTruthy();
+    expect(screen.getByText(/Campaign mock actions/i)).toBeTruthy();
   });
 
   it("renders campaigns fixture fallback when the backend is unavailable", async () => {
@@ -675,23 +719,150 @@ describe("route shells render", () => {
 
     await waitFor(() => expect(screen.getAllByText(/fixture fallback/i).length).toBeGreaterThan(0));
     expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
-    expect(screen.getByText(/Create, update, contact selection, research, drafts, sends, follow-up, and export actions remain locked/i)).toBeTruthy();
+    expect(screen.getByText(/research, drafts, sends, follow-up, export, scraping, and providers remain locked/i)).toBeTruthy();
     expect(screen.getByText(/No real sending/i)).toBeTruthy();
   });
 
-  it("renders a campaign detail shell", async () => {
+  it("renders a campaign detail shell with LocalMockNotice and GateReasonBadge", async () => {
     renderWithTenant(<CampaignDetailPage params={{ id: "44444444-4444-4444-4444-444444444444" }} />);
     await waitFor(() => expect(screen.getByRole("heading", { name: /CRE Multifamily Owner Outreach/i })).toBeTruthy());
-    expect(screen.getByText(/Campaign API read-only/i)).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    expect(screen.getByText(/Campaign update mock/i)).toBeTruthy();
+    expect(screen.getByText(/Contact selection mock/i)).toBeTruthy();
     expect(screen.getByText(/Pipeline stage progress/i)).toBeTruthy();
   });
 
-  it("renders the locked campaign builder shell", () => {
-    render(<NewCampaignPage />);
+  it("renders the local/mock campaign builder shell", () => {
+    renderWithTenant(<NewCampaignPage />);
     expect(screen.getByRole("heading", { name: /new campaign/i })).toBeTruthy();
     expect(screen.getByText(/Campaign builder shell/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Create campaign/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /^Create campaign$/i }).hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("button", { name: /Save draft/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Start research locked/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Generate drafts locked/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("creates a campaign through the backend mock API with idempotency", async () => {
+    renderWithTenant(<NewCampaignPage />);
+    fireEvent.click(screen.getByRole("button", { name: /^Create campaign$/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock campaign created/i)).toBeTruthy());
+    expect(screen.getByText(/CRE Local Mock Campaign/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Open created campaign detail/i })).toBeTruthy();
+
+    const fetchMock = vi.mocked(fetch);
+    const createCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/campaigns") && init?.method === "POST" && !String(input).includes("/contacts"));
+    expect(createCall).toBeTruthy();
+    expect(new Headers(createCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-campaigns-create-/);
+  });
+
+  it("updates a campaign through the backend mock API with idempotency", async () => {
+    renderWithTenant(<CampaignDetailPage params={{ id: "44444444-4444-4444-4444-444444444444" }} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Update campaign$/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /^Update campaign$/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock campaign update succeeded/i)).toBeTruthy());
+    const fetchMock = vi.mocked(fetch);
+    const updateCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/campaigns/44444444-4444-4444-4444-444444444444") && init?.method === "PATCH");
+    expect(updateCall).toBeTruthy();
+    expect(new Headers(updateCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-campaigns-update-/);
+  });
+
+  it("selects a campaign contact through the backend mock API with idempotency", async () => {
+    renderWithTenant(<CampaignDetailPage params={{ id: "44444444-4444-4444-4444-444444444444" }} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Select contact: Ava Santos/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Select contact: Ava Santos/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock contact selection succeeded/i)).toBeTruthy());
+    const fetchMock = vi.mocked(fetch);
+    const selectCall = fetchMock.mock.calls.find(([input, init]) => String(input).includes("/api/v1/campaigns/44444444-4444-4444-4444-444444444444/contacts") && init?.method === "POST");
+    expect(selectCall).toBeTruthy();
+    expect(new Headers(selectCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-campaigns-contacts-/);
+  });
+
+  it("shows typed backend campaign create errors without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path.includes("/api/v1/campaigns") && init?.method === "POST") {
+          return jsonResponse(
+            {
+              error: {
+                code: "CAMPAIGN_CREATE_DENIED",
+                message: "Campaign create denied.",
+                details: { gate: "can_create_campaign" },
+                request_id: "req_campaign_create",
+                correlation_id: "corr_campaign_create",
+              },
+            },
+            403,
+          );
+        }
+        if (path.includes("/auth/me")) {
+          return jsonResponse({
+            principal: {
+              provider_user_id: "clerk_123",
+              user_id: "11111111-1111-1111-1111-111111111111",
+              email: "owner@example.com",
+              tenant_id: "22222222-2222-2222-2222-222222222222",
+              role: "tenant_owner",
+              membership_version: 1,
+              mfa_verified: true,
+            },
+          });
+        }
+        if (path.includes("/api/v1/billing/access")) {
+          return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        }
+        if (path.includes("/api/v1/billing/subscription")) {
+          return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        }
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<NewCampaignPage />);
+    fireEvent.click(screen.getByRole("button", { name: /^Create campaign$/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock campaign create failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/Campaign create denied/i)).toBeTruthy();
+    expect(screen.getByText(/CAMPAIGN_CREATE_DENIED/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock campaign created/i)).toBeNull();
+  });
+
+  it("shows NETWORK_ERROR campaign update failure without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path.includes("/api/v1/campaigns/44444444-4444-4444-4444-444444444444") && init?.method === "PATCH") throw new Error("backend unavailable");
+        if (path.includes("/api/v1/prospects")) {
+          return jsonResponse({ prospects: [{ id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", contact_id: "cccccccc-cccc-cccc-cccc-cccccccccccc", full_name: "Ava Santos", title: "Acquisitions Lead", email: "ava@northline.com", domain: "northline.com", company_name: "Northline Properties", created_at: "2026-06-24T12:00:00Z", updated_at: "2026-06-24T12:00:00Z", mock_only: true }], page: { next_cursor: null, limit: 25 }, mock_only: true });
+        }
+        if (path.includes("/api/v1/campaigns/")) {
+          return jsonResponse({ campaign: { id: "44444444-4444-4444-4444-444444444444", created_by_user_id: "11111111-1111-1111-1111-111111111111", name: "CRE Multifamily Owner Outreach", description: "Backend mock campaign detail.", goal: "Book qualified owner calls.", target_segment: "CRE / Multifamily", notes: "Read-only local/mock campaign detail.", status: "review" }, mock_only: true });
+        }
+        if (path.includes("/auth/me")) {
+          return jsonResponse({ principal: { provider_user_id: "clerk_123", user_id: "11111111-1111-1111-1111-111111111111", email: "owner@example.com", tenant_id: "22222222-2222-2222-2222-222222222222", role: "tenant_owner", membership_version: 1, mfa_verified: true } });
+        }
+        if (path.includes("/api/v1/billing/access")) {
+          return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        }
+        if (path.includes("/api/v1/billing/subscription")) {
+          return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        }
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<CampaignDetailPage params={{ id: "44444444-4444-4444-4444-444444444444" }} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Update campaign$/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /^Update campaign$/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock campaign action failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/NETWORK_ERROR/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock campaign update succeeded/i)).toBeNull();
   });
 
   it("renders the AI drafts workbench shell", () => {

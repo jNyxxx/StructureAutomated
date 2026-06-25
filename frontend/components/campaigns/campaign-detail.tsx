@@ -20,7 +20,7 @@ export function CampaignDetail({ campaign }: { campaign: CampaignRow }) {
         <MetricCard title="Send gate" value="No-send" description="No real sending in this MVP UI." icon={MailCheck} status="Blocked" tone="locked" />
       </div>
 
-      <BentoCard title="Campaign overview" description={campaign.safeSummary} badge="Read-only local/mock">
+      <BentoCard title="Campaign overview" description={campaign.safeSummary} badge="Backend mock/local">
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-medium border border-border bg-panel2 p-3">
             <p className="text-caption text-subtle">Segment</p>
@@ -67,13 +67,13 @@ export function CampaignDetail({ campaign }: { campaign: CampaignRow }) {
       <div className="rounded-xl border border-yellow/30 bg-warnbg p-4 text-small text-muted shadow-panel">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="font-semibold text-text">All campaign mutations are locked</p>
+            <p className="font-semibold text-text">Unsafe campaign actions are locked</p>
             <p className="mt-1">
-              Create campaign, update campaign, contact selection, start research, generate drafts, approve drafts, mock send, schedule follow-up, and export remain disabled in this read-only frontend slice.
+              Create, update, and contact selection are safe backend mock actions in this slice. Start research, generate drafts, approve drafts, mock send, schedule follow-up, enrichment, scraping, provider calls, and export remain disabled.
             </p>
           </div>
           <Button disabled>
-            <Lock className="size-4" /> Actions locked
+            <Lock className="size-4" /> Unsafe actions locked
           </Button>
         </div>
       </div>
