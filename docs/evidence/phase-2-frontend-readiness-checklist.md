@@ -1,8 +1,8 @@
 # Phase 2 Frontend Readiness Checklist
 
-**Date:** 2026-06-25  
-**Scope:** Phase 2 frontend read-only wiring  
-**Runtime:** Local/mock only  
+**Date:** 2026-06-25
+**Scope:** Phase 2 frontend read-only wiring
+**Runtime:** Local/mock only
 **Production status:** Not approved
 
 ## Read-only wiring checklist
