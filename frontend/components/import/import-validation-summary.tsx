@@ -14,9 +14,9 @@ export function ImportValidationSummary() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-h3 text-text">Validation summary</h2>
-          <p className="mt-1 text-small text-muted">Local validation preview only. Backend import validation route is not mounted.</p>
+          <p className="mt-1 text-small text-muted">Local/mock validation preview. Final confirmation uses the backend mock import API only.</p>
         </div>
-        <GateReasonBadge state="blocked" label="Import disabled" />
+        <GateReasonBadge state="passed" label="Mock import available" />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         {items.map((item) => {

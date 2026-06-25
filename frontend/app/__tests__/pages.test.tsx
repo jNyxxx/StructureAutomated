@@ -342,6 +342,20 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/imports/contacts")) {
+        return jsonResponse({
+          import: {
+            id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            status: "completed",
+            total_rows: 3,
+            valid_rows: 2,
+            invalid_rows: 1,
+            duplicate_rows: 0,
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/prospects")) {
         return jsonResponse({
           prospects: [
@@ -524,14 +538,125 @@ describe("route shells render", () => {
     expect(screen.getByText(/No real sending/i)).toBeTruthy();
   });
 
-  it("renders the CSV import wizard shell", () => {
-    render(<ProspectImportPage />);
+  it("renders the CSV import wizard with LocalMockNotice and locked unsafe actions", () => {
+    renderWithTenant(<ProspectImportPage />);
     expect(screen.getByRole("heading", { name: /import prospects/i })).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
     expect(screen.getAllByText(/Upload CSV/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("table", { name: /csv import preview rows/i })).toBeTruthy();
-    expect(screen.getByText(/No backend upload/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Import prospects/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getAllByText(/Backend mock import/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /^Import prospects$/i }).hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("button", { name: /Save mapping/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getAllByText(/No live scraping/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/No real enrichment/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/No real sending/i).length).toBeGreaterThan(0);
+  });
+
+  it("submits CSV import through the backend mock API wrapper with idempotency", async () => {
+    renderWithTenant(<ProspectImportPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Import prospects$/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock import succeeded/i)).toBeTruthy());
+    expect(screen.getByText(/Total rows:/)).toBeTruthy();
+    expect(screen.getByText(/Valid rows:/)).toBeTruthy();
+    expect(screen.getByText(/Invalid rows:/)).toBeTruthy();
+    expect(screen.getByText(/Duplicates:/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /View prospects from backend mock API/i })).toBeTruthy();
+
+    const fetchMock = vi.mocked(fetch);
+    const importCall = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/v1/imports/contacts"));
+    expect(importCall).toBeTruthy();
+    expect(importCall?.[1]?.method).toBe("POST");
+    expect(new Headers(importCall?.[1]?.headers).get("Idempotency-Key")).toMatch(/^as-imports-contacts-/);
+  });
+
+  it("shows typed backend import errors without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path.includes("/api/v1/imports/contacts")) {
+          return jsonResponse(
+            {
+              error: {
+                code: "CSV_VALIDATION_FAILED",
+                message: "Import failed validation.",
+                details: { row_count: 3 },
+                request_id: "req_import_failed",
+                correlation_id: "corr_import_failed",
+              },
+            },
+            400,
+          );
+        }
+        if (path.includes("/auth/me")) {
+          return jsonResponse({
+            principal: {
+              provider_user_id: "clerk_123",
+              user_id: "11111111-1111-1111-1111-111111111111",
+              email: "owner@example.com",
+              tenant_id: "22222222-2222-2222-2222-222222222222",
+              role: "tenant_owner",
+              membership_version: 1,
+              mfa_verified: true,
+            },
+          });
+        }
+        if (path.includes("/api/v1/billing/access")) {
+          return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        }
+        if (path.includes("/api/v1/billing/subscription")) {
+          return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        }
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<ProspectImportPage />);
+    fireEvent.click(screen.getByRole("button", { name: /^Import prospects$/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock import failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/Import failed validation/i)).toBeTruthy();
+    expect(screen.getByText(/CSV_VALIDATION_FAILED/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock import succeeded/i)).toBeNull();
+  });
+
+  it("shows NETWORK_ERROR import failure without claiming success", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path.includes("/api/v1/imports/contacts")) throw new Error("backend unavailable");
+        if (path.includes("/auth/me")) {
+          return jsonResponse({
+            principal: {
+              provider_user_id: "clerk_123",
+              user_id: "11111111-1111-1111-1111-111111111111",
+              email: "owner@example.com",
+              tenant_id: "22222222-2222-2222-2222-222222222222",
+              role: "tenant_owner",
+              membership_version: 1,
+              mfa_verified: true,
+            },
+          });
+        }
+        if (path.includes("/api/v1/billing/access")) {
+          return jsonResponse({ access: { is_active: true, can_send: true, can_run_agents: true, can_create_campaign: true, can_export: true, mock_only: true } });
+        }
+        if (path.includes("/api/v1/billing/subscription")) {
+          return jsonResponse({ subscription: { plan: null, tenant_status: "active", grace_until: null, mock_only: true } });
+        }
+        return jsonResponse({ status: "ok" });
+      }),
+    );
+
+    renderWithTenant(<ProspectImportPage />);
+    fireEvent.click(screen.getByRole("button", { name: /^Import prospects$/i }));
+
+    await waitFor(() => expect(screen.getByText(/Backend mock import failed safely/i)).toBeTruthy());
+    expect(screen.getByText(/NETWORK_ERROR/i)).toBeTruthy();
+    expect(screen.queryByText(/Backend mock import succeeded/i)).toBeNull();
   });
 
   it("renders the campaigns DataTable demo safely", async () => {

@@ -26,7 +26,7 @@ const columns: DataTableColumn<ImportPreviewRow>[] = [
 const views: SavedViewTab[] = [
   { id: "all", label: "Preview rows", count: importPreviewRows.length },
   { id: "blocked", label: "Blocked", count: 1 },
-  { id: "import", label: "Import API", locked: true },
+  { id: "import", label: "Backend mock import", count: importPreviewRows.length },
 ];
 
 export function ImportRowsTable() {
@@ -47,7 +47,7 @@ export function ImportRowsTable() {
       getDrawerTitle={(row) => row.fullName}
       renderDrawer={(row) => (
         <div className="space-y-3 text-small text-muted">
-          <p>Read-only sample CSV preview. No backend import or persistence occurs.</p>
+          <p>Read-only sample CSV preview. Final confirmation can submit these rows to the backend mock import API only.</p>
           <div className="rounded-medium border border-border bg-panel2 p-3">
             <p className="font-semibold text-text">Validation note</p>
             <p>{row.note}</p>
