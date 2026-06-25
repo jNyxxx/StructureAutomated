@@ -67,6 +67,7 @@ Produced by Phase 2 backend API completion (P2-1 through P2-8). Not counted amon
 | `docs/evidence/phase-2-frontend-final-verification.md` | Frontend Phase 2 read-only final verification covering FE-P2-1 through FE-P2-7b, quality gates, safety audit, local/mock limits, and deferred blockers |
 | `docs/evidence/phase-2-frontend-readiness-checklist.md` | Frontend Phase 2 readiness checklist covering read-only surfaces, fallback behavior, locked actions, test results, and Phase 3 approval requirement |
 | `docs/evidence/phase-2-final-verification.md` | Combined Phase 2 backend + frontend final verification summary and final local/mock verdict |
+| `docs/evidence/phase-2-exit-completion.md` | Phase 2 exit ("P2-exit") close-out: localhost e2e enablement layer (mock auth, strict backend mode, mock-write wiring), re-run gates (515 backend / 122 frontend), live boot smoke (8/8), honest live-DB/browser-e2e limitations, deferred Phase 3 items |
 
 ---
 
