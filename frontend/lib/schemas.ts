@@ -423,3 +423,50 @@ export type DeliverabilitySummary = z.infer<typeof deliverabilitySummarySchema>;
 export type DeliverabilityResponse = z.infer<typeof deliverabilityResponseSchema>;
 export type MailboxHealthDto = z.infer<typeof mailboxHealthSchema>;
 export type MailboxHealthResponse = z.infer<typeof mailboxHealthResponseSchema>;
+
+// Outcomes / ROI
+export const outcomesSummarySchema = z.object({
+  campaign_id: z.string().uuid().nullable().optional(),
+  reply_count: z.number(),
+  positive_reply_count: z.number(),
+  meeting_booked_count: z.number(),
+  opportunity_count: z.number(),
+  deal_won_count: z.number(),
+  deal_lost_count: z.number(),
+  unsubscribe_count: z.number(),
+  bounce_count: z.number(),
+  complaint_count: z.number(),
+  reply_rate: z.number(),
+  positive_reply_rate: z.number(),
+  meeting_rate: z.number(),
+  opportunity_rate: z.number(),
+  win_rate: z.number(),
+  date_from: z.string().nullable().optional(),
+  date_to: z.string().nullable().optional(),
+  mock_only: z.boolean().optional(),
+});
+
+export const outcomesResponseSchema = z.object({
+  outcomes: outcomesSummarySchema,
+  mock_only: z.boolean().optional(),
+});
+
+export const roiSummarySchema = z.object({
+  campaign_id: z.string().uuid(),
+  sent_count: z.number(),
+  estimated_cost_cents: z.number(),
+  estimated_pipeline_value_cents: z.number(),
+  estimated_won_value_cents: z.number(),
+  estimated_roi_percent: z.number().nullable().optional(),
+  mock_only: z.boolean().optional(),
+});
+
+export const roiResponseSchema = z.object({
+  roi: roiSummarySchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type OutcomesSummary = z.infer<typeof outcomesSummarySchema>;
+export type OutcomesResponse = z.infer<typeof outcomesResponseSchema>;
+export type RoiSummary = z.infer<typeof roiSummarySchema>;
+export type RoiResponse = z.infer<typeof roiResponseSchema>;

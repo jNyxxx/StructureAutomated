@@ -23,6 +23,8 @@ import {
   reviewItemDetailResponseSchema,
   deliverabilityResponseSchema,
   mailboxHealthResponseSchema,
+  outcomesResponseSchema,
+  roiResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
@@ -44,6 +46,8 @@ import {
   type ReviewItemDetailResponse,
   type DeliverabilityResponse,
   type MailboxHealthResponse,
+  type OutcomesResponse,
+  type RoiResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -346,6 +350,31 @@ export async function fetchDeliverabilityMailboxes(
 ): Promise<MailboxHealthResponse> {
   return mailboxHealthResponseSchema.parse(
     await authenticatedApiRequest("/api/v1/deliverability/mailboxes", { method: "GET" }, options)
+  );
+}
+
+export async function fetchOutcomes(
+  options: AuthenticatedApiClientOptions,
+  params?: { campaignId?: string | null; dateFrom?: string | null; dateTo?: string | null },
+): Promise<OutcomesResponse> {
+  const query = new URLSearchParams();
+  if (params?.campaignId) query.set("campaign_id", params.campaignId);
+  if (params?.dateFrom) query.set("date_from", params.dateFrom);
+  if (params?.dateTo) query.set("date_to", params.dateTo);
+  const queryString = query.toString();
+  const path = `/api/v1/outcomes${queryString ? `?${queryString}` : ""}`;
+  return outcomesResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchOutcomesRoi(
+  options: AuthenticatedApiClientOptions,
+  campaignId: string,
+): Promise<RoiResponse> {
+  const query = new URLSearchParams({ campaign_id: campaignId });
+  return roiResponseSchema.parse(
+    await authenticatedApiRequest(`/api/v1/outcomes/roi?${query.toString()}`, { method: "GET" }, options)
   );
 }
 

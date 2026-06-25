@@ -21,6 +21,8 @@ import {
   fetchReviewItem,
   fetchDeliverability,
   fetchDeliverabilityMailboxes,
+  fetchOutcomes,
+  fetchOutcomesRoi,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -806,6 +808,110 @@ describe("deliverability read fetchers (Phase 2)", () => {
     let caught: unknown;
     try {
       await fetchDeliverabilityMailboxes(authOptions(failing));
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
+  });
+});
+
+describe("outcomes/ROI read fetchers (Phase 2)", () => {
+  it("fetchOutcomes parses outcomes dashboard responses", async () => {
+    const res = await fetchOutcomes(
+      authOptions(
+        mockFetch(200, {
+          outcomes: {
+            campaign_id: null,
+            reply_count: 5,
+            positive_reply_count: 3,
+            meeting_booked_count: 2,
+            opportunity_count: 1,
+            deal_won_count: 0,
+            deal_lost_count: 0,
+            unsubscribe_count: 1,
+            bounce_count: 1,
+            complaint_count: 0,
+            reply_rate: 0.27,
+            positive_reply_rate: 0.16,
+            meeting_rate: 0.11,
+            opportunity_rate: 0.05,
+            win_rate: 0,
+            date_from: null,
+            date_to: null,
+            mock_only: true,
+          },
+          mock_only: true,
+        }),
+      ),
+    );
+
+    expect(res.outcomes.reply_count).toBe(5);
+    expect(res.outcomes.opportunity_count).toBe(1);
+    expect(res.mock_only).toBe(true);
+  });
+
+  it("fetchOutcomesRoi parses ROI responses", async () => {
+    const res = await fetchOutcomesRoi(
+      authOptions(
+        mockFetch(200, {
+          roi: {
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            sent_count: 18,
+            estimated_cost_cents: 48000,
+            estimated_pipeline_value_cents: 4200000,
+            estimated_won_value_cents: 0,
+            estimated_roi_percent: 8650,
+            mock_only: true,
+          },
+          mock_only: true,
+        }),
+      ),
+      "44444444-4444-4444-4444-444444444444",
+    );
+
+    expect(res.roi.sent_count).toBe(18);
+    expect(res.roi.estimated_pipeline_value_cents).toBe(4200000);
+  });
+
+  it("maps an outcomes backend error envelope to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await fetchOutcomes(
+        authOptions(
+          mockFetch(403, {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Outcomes denied.",
+              details: { scope: "read:outcomes" },
+              request_id: "req_outcomes",
+              correlation_id: "corr_outcomes",
+            },
+          }),
+        ),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("PERMISSION_DENIED");
+    expect(err.status).toBe(403);
+    expect(err.requestId).toBe("req_outcomes");
+  });
+
+  it("maps an ROI transport failure to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await fetchOutcomesRoi(authOptions(failing), "44444444-4444-4444-4444-444444444444");
     } catch (error) {
       caught = error;
     }

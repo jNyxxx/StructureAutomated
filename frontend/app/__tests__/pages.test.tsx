@@ -166,6 +166,45 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/outcomes/roi")) {
+        return jsonResponse({
+          roi: {
+            campaign_id: "44444444-4444-4444-4444-444444444444",
+            sent_count: 18,
+            estimated_cost_cents: 48000,
+            estimated_pipeline_value_cents: 4200000,
+            estimated_won_value_cents: 0,
+            estimated_roi_percent: 8650,
+            mock_only: true,
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/outcomes")) {
+        return jsonResponse({
+          outcomes: {
+            campaign_id: null,
+            reply_count: 5,
+            positive_reply_count: 3,
+            meeting_booked_count: 2,
+            opportunity_count: 1,
+            deal_won_count: 0,
+            deal_lost_count: 0,
+            unsubscribe_count: 1,
+            bounce_count: 1,
+            complaint_count: 0,
+            reply_rate: 0.27,
+            positive_reply_rate: 0.16,
+            meeting_rate: 0.11,
+            opportunity_rate: 0.05,
+            win_rate: 0,
+            date_from: null,
+            date_to: null,
+            mock_only: true,
+          },
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/deliverability/mailboxes")) {
         return jsonResponse({
           mailbox_health: {
@@ -624,11 +663,29 @@ describe("route shells render", () => {
     expect(screen.getByRole("button", { name: /Update throttle/i }).hasAttribute("disabled")).toBe(true);
   });
 
-  it("renders the outcomes ROI dashboard shell", () => {
-    render(<OutcomesPage />);
+  it("renders the outcomes ROI dashboard shell", async () => {
+    renderWithTenant(<OutcomesPage />);
     expect(screen.getByRole("heading", { name: /outcomes and ROI/i })).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(/backend mock API/i).length).toBeGreaterThan(0));
     expect(screen.getByRole("table", { name: /campaign outcomes demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Outcomes API read-only/i)).toBeTruthy();
     expect(screen.getByText(/No real Stripe\/payment data/i)).toBeTruthy();
+    expect(screen.getByText(/No CRM sync/i)).toBeTruthy();
+    expect(screen.getByText(/No live attribution/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Export outcomes/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Sync CRM/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getAllByRole("button", { name: /Recalculate/i }).every((button) => button.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("renders outcomes fixture fallback when backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<OutcomesPage />);
+
+    await waitFor(() => expect(screen.getAllByText(/fixture fallback/i).length).toBeGreaterThan(0));
+    expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
+    expect(screen.getByText(/No real Stripe\/payment data/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Export outcomes/i }).hasAttribute("disabled")).toBe(true);
   });
 
   it("renders the settings hub shell", () => {

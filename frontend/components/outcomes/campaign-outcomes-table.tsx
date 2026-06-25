@@ -22,36 +22,36 @@ const columns: DataTableColumn<CampaignOutcomeRow>[] = [
   { id: "updatedAt", header: "Updated", accessor: "updatedAt", sortable: true },
 ];
 
-const views: SavedViewTab[] = [
-  { id: "all", label: "All outcomes", count: campaignOutcomeRows.length },
-  { id: "preview", label: "Preview ROI", count: 1 },
-  { id: "blocked", label: "Blocked", count: 1 },
-  { id: "crm", label: "CRM sync", count: 0, locked: true },
-];
+export function CampaignOutcomesTable({ rows = campaignOutcomeRows, runtime = "read-only local/mock data" }: { rows?: CampaignOutcomeRow[]; runtime?: string }) {
+  const views: SavedViewTab[] = [
+    { id: "all", label: "All outcomes", count: rows.length },
+    { id: "preview", label: "Preview ROI", count: rows.filter((row) => row.roiStatus === "preview").length },
+    { id: "blocked", label: "Blocked", count: rows.filter((row) => row.roiStatus === "blocked").length },
+    { id: "crm", label: "CRM sync", count: 0, locked: true },
+  ];
 
-export function CampaignOutcomesTable() {
   return (
     <DataTable
       label="Campaign outcomes demo table"
-      data={campaignOutcomeRows}
+      data={rows}
       columns={columns}
       savedViews={views}
       pageSize={6}
       filters={[
-        { key: "runtime", label: "Runtime", value: "local/demo" },
-        { key: "api", label: "API", value: "pending backend" },
+        { key: "runtime", label: "Runtime", value: runtime },
+        { key: "api", label: "API", value: "read-only" },
       ]}
       rowActions={[
         { label: "Open outcome details" },
-        { label: "Export outcomes", pendingBackend: true },
-        { label: "Sync CRM", pendingBackend: true },
-        { label: "Recalculate ROI", pendingBackend: true },
+        { label: "Export outcomes", pendingBackend: true, disabled: true },
+        { label: "Sync CRM", pendingBackend: true, disabled: true },
+        { label: "Recalculate ROI", pendingBackend: true, disabled: true },
       ]}
       getRowSearchText={(row) => `${row.campaign} ${row.segment} ${row.pipelineValue} ${row.roiStatus}`}
       getDrawerTitle={(row) => row.campaign}
       renderDrawer={(row) => (
         <div className="space-y-3 text-small text-muted">
-          <p>Read-only local/demo outcome row. No CRM, payment, revenue, or attribution API is wired.</p>
+          <p>Read-only local/mock outcome row. No CRM, ads, Stripe, payment, revenue, attribution, provider, export, sync, or recalculation API is wired.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-medium border border-border bg-panel2 p-3">
               <p className="font-semibold text-text">Pipeline assumption</p>
