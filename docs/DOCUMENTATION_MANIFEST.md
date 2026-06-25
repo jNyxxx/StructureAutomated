@@ -71,6 +71,16 @@ Produced by Phase 2 backend API completion (P2-1 through P2-8). Not counted amon
 
 ---
 
+## Phase 3 planning (not counted among the 20 docs)
+
+The Phase 3 analog of doc #14 (`PHASE_0_1_IMPLEMENTATION_PLAN.md`). Planning artifact added after owner approval to enter Phase 3; the locked 20-doc set is unchanged.
+
+| File | Purpose |
+|------|---------|
+| `docs/PHASE_3_IMPLEMENTATION_PLAN.md` | Phase 3 scope lock + slice plan (P3-0…P3-7) with class, acceptance criteria, stop gates, required owner decisions, deferred list, and non-weakening invariants. Owner approval recorded in `LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md` §2. |
+
+---
+
 ## Supplementary process notes (not counted among the 20 docs)
 
 | File | Purpose |

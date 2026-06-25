@@ -23,6 +23,7 @@ Implementation-ready for **Phase 0 + Phase 1**, **not** production launch approv
 | First real client sending | Manual human approval for every AI-generated cold-email draft | [ADR_COMPLIANCE_JURISDICTION](ADRs/ADR_COMPLIANCE_JURISDICTION.md) |
 | Contact/research deletion | Soft-delete first, hard-delete after 30 days, retain minimum hashed suppression data | [PRIVACY_AND_RETENTION](PRIVACY_AND_RETENTION.md) |
 | Observability MVP | In-product observability + LangSmith faithfulness logging; Slack/internal alerts post-demo | [OPERATIONS_RUNBOOK](OPERATIONS_RUNBOOK.md) |
+| Phase 3 entry (planning) | Owner approved entering Phase 3 (Production-Readiness & Real-Provider Enablement program); scope locked to P3-0…P3-7. No real sending / Stripe / SMS / provider integration / live-scraping / production-deploy work without explicit per-slice owner approval recorded here. | [PHASE_3_IMPLEMENTATION_PLAN](PHASE_3_IMPLEMENTATION_PLAN.md) (owner approval 2026-06-26) |
 
 ## 3. Must COMPLETE before external users
 
