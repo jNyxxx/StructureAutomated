@@ -1,4 +1,4 @@
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import { GateReasonBadge } from "@/components/badges";
 import { DraftsTable } from "@/components/drafts/drafts-table";
@@ -15,13 +15,13 @@ export default function AiDraftsPage() {
       <PageHeader
         eyebrow="Research/RAG and draft review"
         title="AI drafts"
-        description="Read-only AI draft workspace using local/mock draft rows with backend mock API detail/evidence loading in the preview drawer. Generate, regenerate, approve, send, scraping, enrichment, and provider actions remain locked."
+        description="Local/mock AI draft workspace using backend mock draft generation plus detail/evidence loading. Regenerate, review approval, send, scraping, enrichment, and provider actions remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
             <Badge variant="locked">Production not approved</Badge>
             <Button disabled>
-              <Sparkles className="size-4" /> Generate locked
+              Review/send locked
             </Button>
           </>
         }
@@ -36,15 +36,16 @@ export default function AiDraftsPage() {
               <AlertTriangle className="size-5" />
             </div>
             <div>
-              <CardTitle>Pending backend API notice</CardTitle>
+              <CardTitle>Safe local/mock draft generation only</CardTitle>
               <CardDescription>
-                This page only uses read-side draft detail/evidence backend mock APIs when a safe draft preview is opened. Generation, review, scraping, enrichment, provider, and send mutations stay locked.
+                Draft generation can call the backend mock API. Regeneration, review, scraping, enrichment, provider, and send mutations stay locked.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="passed" label="Draft detail/evidence read-only" />
+          <GateReasonBadge state="passed" label="Draft generation mock" />
+          <GateReasonBadge state="passed" label="Draft detail/evidence reload" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No provider enrichment" />
           <GateReasonBadge state="blocked" label="No embeddings provider" />
