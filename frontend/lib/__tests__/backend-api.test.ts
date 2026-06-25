@@ -23,6 +23,24 @@ import {
   fetchDeliverabilityMailboxes,
   fetchOutcomes,
   fetchOutcomesRoi,
+  importContacts,
+  createCampaign,
+  updateCampaign,
+  selectCampaignContact,
+  generateDraft,
+  approveReviewItem,
+  rejectReviewItem,
+  requestReviewRegeneration,
+  runSendGateDryRun,
+  createSendIntent,
+  createFollowUpRule,
+  createFollowUpSchedule,
+  mockRunFollowUpSchedule,
+  createSuppression,
+  reinstateSuppression,
+  updateTenantSettings,
+  updateComplianceProfile,
+  createMockOutcomeEvent,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -1023,6 +1041,364 @@ describe("compliance/suppressions read fetchers (Phase 2)", () => {
     let caught: unknown;
     try {
       await fetchSuppressions(authOptions(failing));
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
+  });
+});
+
+const ids = {
+  tenant: "22222222-2222-2222-2222-222222222222",
+  user: "11111111-1111-1111-1111-111111111111",
+  campaign: "44444444-4444-4444-4444-444444444444",
+  contact: "22222222-2222-2222-2222-222222222222",
+  draft: "66666666-6666-6666-6666-666666666666",
+  review: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+  outbound: "99999999-9999-9999-9999-999999999999",
+  followupRule: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  followupSchedule: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  suppression: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+};
+
+function trackingFetch(
+  status: number,
+  body: unknown,
+  onRequest?: (input: RequestInfo | URL, init?: RequestInit) => void,
+): typeof fetch {
+  const fake = {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers(),
+    text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
+  };
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    onRequest?.(input, init);
+    return fake as unknown as Response;
+  }) as unknown as typeof fetch;
+}
+
+describe("safe local/mock action wrappers (P2-Exit-2a)", () => {
+  it("parses success responses for all new safe local/mock wrappers", async () => {
+    const importRes = await importContacts(
+      authOptions(
+        mockFetch(200, {
+          import: {
+            id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            status: "completed",
+            total_rows: 3,
+            valid_rows: 2,
+            invalid_rows: 1,
+            duplicate_rows: 0,
+          },
+          idempotency_replay: false,
+        }),
+      ),
+      { csv_text: "full_name,email\nAva Santos,ava@example.com", source_filename: "contacts.csv" },
+    );
+    expect(importRes.import?.valid_rows).toBe(2);
+
+    const campaignBody = {
+      campaign: {
+        id: ids.campaign,
+        created_by_user_id: ids.user,
+        name: "CRE Owners",
+        description: "Local mock campaign",
+        goal: "Book calls",
+        target_segment: "CRE",
+        notes: "Safe mock only",
+        status: "draft",
+      },
+      idempotency_replay: false,
+      mock_only: true,
+    };
+    expect((await createCampaign(authOptions(mockFetch(200, campaignBody)), { name: "CRE Owners" })).campaign?.id).toBe(ids.campaign);
+    expect((await updateCampaign(authOptions(mockFetch(200, campaignBody)), ids.campaign, { status: "review" })).campaign?.status).toBe("draft");
+
+    const selection = await selectCampaignContact(
+      authOptions(
+        mockFetch(200, {
+          campaign_contact: {
+            id: "12121212-1212-1212-1212-121212121212",
+            campaign_id: ids.campaign,
+            contact_id: ids.contact,
+            status: "selected",
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        }),
+      ),
+      ids.campaign,
+      { contact_id: ids.contact },
+    );
+    expect(selection.campaign_contact?.status).toBe("selected");
+
+    const draftBody = {
+      draft: {
+        id: ids.draft,
+        campaign_id: ids.campaign,
+        contact_id: ids.contact,
+        status: "pending_review",
+        subject: "Mock grounded outreach",
+        body: "Safe local mock draft.",
+        created_at: "2026-06-24T12:00:00Z",
+        updated_at: "2026-06-24T12:00:00Z",
+      },
+      idempotency_replay: false,
+      mock_only: true,
+    };
+    expect((await generateDraft(authOptions(mockFetch(200, draftBody)), { campaign_id: ids.campaign, contact_id: ids.contact })).draft?.id).toBe(ids.draft);
+
+    const reviewBody = {
+      review_item: {
+        id: ids.review,
+        draft_id: ids.draft,
+        campaign_id: ids.campaign,
+        contact_id: ids.contact,
+        status: "approved",
+        reviewer_user_id: ids.user,
+        action_reason: "Safe mock approval.",
+        reviewed_at: "2026-06-24T12:00:00Z",
+        created_at: "2026-06-24T12:00:00Z",
+        updated_at: "2026-06-24T12:00:00Z",
+      },
+      idempotency_replay: false,
+      mock_only: true,
+    };
+    expect((await approveReviewItem(authOptions(mockFetch(200, reviewBody)), ids.review, { reason: "ok" })).review_item?.status).toBe("approved");
+    expect((await rejectReviewItem(authOptions(mockFetch(200, reviewBody)), ids.review, { reason: "no" })).review_item?.id).toBe(ids.review);
+    expect((await requestReviewRegeneration(authOptions(mockFetch(200, reviewBody)), ids.review, { reason: "revise" })).review_item?.id).toBe(ids.review);
+
+    const gate = await runSendGateDryRun(
+      authOptions(
+        mockFetch(200, {
+          send_gate_result: {
+            id: "13131313-1313-1313-1313-131313131313",
+            draft_id: ids.draft,
+            status: "allowed",
+            deny_reason_code: null,
+            created_at: "2026-06-24T12:00:00Z",
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        }),
+      ),
+      { draft_id: ids.draft },
+    );
+    expect(gate.send_gate_result?.status).toBe("allowed");
+
+    const sendIntent = await createSendIntent(
+      authOptions(
+        mockFetch(200, {
+          result: {
+            outbound_message_id: ids.outbound,
+            status: "mock_sent",
+            sent_at: "2026-06-24T12:00:00Z",
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        }),
+      ),
+      { draft_id: ids.draft },
+    );
+    expect(sendIntent.result?.outbound_message_id).toBe(ids.outbound);
+
+    const rule = await createFollowUpRule(
+      authOptions(
+        mockFetch(200, {
+          followup_rule: {
+            id: ids.followupRule,
+            campaign_id: ids.campaign,
+            delay_seconds: 86400,
+            created_at: "2026-06-24T12:00:00Z",
+            updated_at: "2026-06-24T12:00:00Z",
+          },
+          idempotency_replay: false,
+          mock_only: true,
+        }),
+      ),
+      { campaign_id: ids.campaign, delay_seconds: 86400 },
+    );
+    expect(rule.followup_rule?.delay_seconds).toBe(86400);
+
+    const scheduleBody = {
+      followup_schedule: {
+        id: ids.followupSchedule,
+        campaign_id: ids.campaign,
+        contact_id: ids.contact,
+        original_outbound_message_id: ids.outbound,
+        original_draft_id: ids.draft,
+        followup_rule_id: ids.followupRule,
+        status: "scheduled",
+        run_after: "2026-06-25T12:00:00Z",
+        created_at: "2026-06-24T12:00:00Z",
+        updated_at: "2026-06-24T12:00:00Z",
+      },
+      idempotency_replay: false,
+      mock_only: true,
+    };
+    expect((await createFollowUpSchedule(authOptions(mockFetch(200, scheduleBody)), { original_outbound_message_id: ids.outbound })).followup_schedule?.id).toBe(ids.followupSchedule);
+    expect((await mockRunFollowUpSchedule(authOptions(mockFetch(200, scheduleBody)), ids.followupSchedule)).followup_schedule?.status).toBe("scheduled");
+
+    const suppressionBody = {
+      suppression: {
+        id: ids.suppression,
+        channel: "email",
+        reason: "manual block",
+        source: "manual",
+        never_contact: true,
+        created_at: "2026-06-24T12:00:00Z",
+        revoked_at: null,
+        active: true,
+      },
+      idempotency_replay: false,
+      mock_only: true,
+    };
+    expect((await createSuppression(authOptions(mockFetch(200, suppressionBody)), { contact_identifier: "blocked@example.com", reason: "manual block" })).suppression.id).toBe(ids.suppression);
+    expect((await reinstateSuppression(authOptions(mockFetch(200, suppressionBody)), ids.suppression)).suppression.active).toBe(true);
+
+    const tenantBody = {
+      tenant: {
+        id: ids.tenant,
+        name: "Automated Structure Updated",
+        status: "active",
+        settings: { timezone: "Asia/Manila" },
+        created_at: "2026-06-24T12:00:00Z",
+        updated_at: "2026-06-24T12:00:00Z",
+      },
+      idempotency_replay: false,
+      mock_only: true,
+    };
+    expect((await updateTenantSettings(authOptions(mockFetch(200, tenantBody)), { name: "Automated Structure Updated" })).tenant.name).toContain("Updated");
+
+    const complianceBody = {
+      compliance_profile: {
+        jurisdiction: "US",
+        sending_review_required: true,
+        live_sending_allowed: false,
+        sms_allowed: false,
+      },
+      idempotency_replay: false,
+      mock_only: true,
+    };
+    expect((await updateComplianceProfile(authOptions(mockFetch(200, complianceBody)), { jurisdiction: "US" })).compliance_profile.live_sending_allowed).toBe(false);
+
+    const outcome = await createMockOutcomeEvent(
+      authOptions(
+        mockFetch(200, {
+          outcome_event: {
+            id: "14141414-1414-1414-1414-141414141414",
+            campaign_id: ids.campaign,
+            contact_id: ids.contact,
+            outbound_message_id: ids.outbound,
+            event_type: "reply_positive",
+            note: "Safe mock event.",
+            occurred_at: "2026-06-24T12:00:00Z",
+            created_at: "2026-06-24T12:00:00Z",
+          },
+          mock_only: true,
+        }),
+      ),
+      { campaign_id: ids.campaign, contact_id: ids.contact, outbound_message_id: ids.outbound, event_type: "reply_positive" },
+    );
+    expect(outcome.outcome_event.event_type).toBe("reply_positive");
+  });
+
+  it("sends generated Idempotency-Key headers on unsafe writes", async () => {
+    const seen = new Map<string, string | null>();
+    const fetchImpl = trackingFetch(
+      200,
+      {
+        campaign: {
+          id: ids.campaign,
+          created_by_user_id: ids.user,
+          name: "CRE Owners",
+          description: null,
+          goal: null,
+          target_segment: null,
+          notes: null,
+          status: "draft",
+        },
+        idempotency_replay: false,
+      },
+      (input, init) => {
+        seen.set(String(input), new Headers(init?.headers).get("Idempotency-Key"));
+      },
+    );
+
+    await createCampaign(authOptions(fetchImpl), { name: "CRE Owners" });
+
+    const key = [...seen.values()][0];
+    expect(key).toMatch(/^as-campaigns-create-/);
+  });
+
+  it("respects caller-provided Idempotency-Key", async () => {
+    let header: string | null = null;
+    const fetchImpl = trackingFetch(
+      200,
+      {
+        campaign: {
+          id: ids.campaign,
+          created_by_user_id: ids.user,
+          name: "CRE Owners",
+          description: null,
+          goal: null,
+          target_segment: null,
+          notes: null,
+          status: "draft",
+        },
+        idempotency_replay: true,
+      },
+      (_input, init) => {
+        header = new Headers(init?.headers).get("Idempotency-Key");
+      },
+    );
+
+    await createCampaign({ ...authOptions(fetchImpl), idempotencyKey: "caller-key-123" }, { name: "CRE Owners" });
+
+    expect(header).toBe("caller-key-123");
+  });
+
+  it("maps backend error envelopes from unsafe writes to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await createCampaign(
+        authOptions(
+          mockFetch(409, {
+            error: {
+              code: "IDEMPOTENCY_CONFLICT",
+              message: "Idempotency-Key was reused with a different request.",
+              details: { route: "campaigns" },
+              request_id: "req_write",
+              correlation_id: "corr_write",
+            },
+          }),
+        ),
+        { name: "CRE Owners" },
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("IDEMPOTENCY_CONFLICT");
+    expect(err.status).toBe(409);
+    expect(err.requestId).toBe("req_write");
+  });
+
+  it("maps transport failures from unsafe writes to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await runSendGateDryRun(authOptions(failing), { draft_id: ids.draft });
     } catch (error) {
       caught = error;
     }

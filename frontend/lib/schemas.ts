@@ -470,3 +470,170 @@ export type OutcomesSummary = z.infer<typeof outcomesSummarySchema>;
 export type OutcomesResponse = z.infer<typeof outcomesResponseSchema>;
 export type RoiSummary = z.infer<typeof roiSummarySchema>;
 export type RoiResponse = z.infer<typeof roiResponseSchema>;
+
+// Safe local/mock action responses (P2-Exit-2a)
+export const contactImportSummarySchema = z.object({
+  id: z.string().uuid(),
+  status: z.string(),
+  total_rows: z.number().int(),
+  valid_rows: z.number().int(),
+  invalid_rows: z.number().int(),
+  duplicate_rows: z.number().int(),
+});
+
+export const contactImportResponseSchema = z.object({
+  import: contactImportSummarySchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const campaignActionResponseSchema = z.object({
+  campaign: campaignSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const campaignContactSchema = z.object({
+  id: z.string().uuid(),
+  campaign_id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  status: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const campaignContactSelectionResponseSchema = z.object({
+  campaign_contact: campaignContactSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const draftGenerateResponseSchema = z.object({
+  draft: draftSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const reviewActionResponseSchema = z.object({
+  review_item: reviewItemSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const sendGateResultSchema = z.object({
+  id: z.string().uuid(),
+  draft_id: z.string().uuid(),
+  status: z.string(),
+  deny_reason_code: z.string().nullable().optional(),
+  created_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const sendGateDryRunResponseSchema = z.object({
+  send_gate_result: sendGateResultSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const mockSendResultSchema = z.object({
+  outbound_message_id: z.string().uuid(),
+  status: z.string(),
+  sent_at: z.string().nullable().optional(),
+  mock_only: z.boolean().optional(),
+});
+
+export const sendIntentResponseSchema = z.object({
+  result: mockSendResultSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const followUpRuleSchema = z.object({
+  id: z.string().uuid(),
+  campaign_id: z.string().uuid(),
+  delay_seconds: z.number().int(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const followUpRuleActionResponseSchema = z.object({
+  followup_rule: followUpRuleSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const followUpScheduleSchema = z.object({
+  id: z.string().uuid(),
+  campaign_id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  original_outbound_message_id: z.string().uuid(),
+  original_draft_id: z.string().uuid(),
+  followup_rule_id: z.string().uuid(),
+  status: z.string(),
+  run_after: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const followUpScheduleActionResponseSchema = z.object({
+  followup_schedule: followUpScheduleSchema.nullable().optional(),
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const suppressionActionResponseSchema = z.object({
+  suppression: suppressionSchema,
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const tenantUpdateResponseSchema = z.object({
+  tenant: tenantSchema,
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const complianceProfileActionResponseSchema = z.object({
+  compliance_profile: complianceProfileSchema,
+  idempotency_replay: z.boolean().default(false),
+  mock_only: z.boolean().optional(),
+});
+
+export const mockOutcomeEventSchema = z.object({
+  id: z.string().uuid(),
+  campaign_id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  outbound_message_id: z.string().uuid().nullable().optional(),
+  event_type: z.string(),
+  note: z.string().nullable().optional(),
+  occurred_at: z.string(),
+  created_at: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const mockOutcomeEventResponseSchema = z.object({
+  outcome_event: mockOutcomeEventSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type ContactImportSummary = z.infer<typeof contactImportSummarySchema>;
+export type ContactImportResponse = z.infer<typeof contactImportResponseSchema>;
+export type CampaignActionResponse = z.infer<typeof campaignActionResponseSchema>;
+export type CampaignContact = z.infer<typeof campaignContactSchema>;
+export type CampaignContactSelectionResponse = z.infer<typeof campaignContactSelectionResponseSchema>;
+export type DraftGenerateResponse = z.infer<typeof draftGenerateResponseSchema>;
+export type ReviewActionResponse = z.infer<typeof reviewActionResponseSchema>;
+export type SendGateResult = z.infer<typeof sendGateResultSchema>;
+export type SendGateDryRunResponse = z.infer<typeof sendGateDryRunResponseSchema>;
+export type MockSendResult = z.infer<typeof mockSendResultSchema>;
+export type SendIntentResponse = z.infer<typeof sendIntentResponseSchema>;
+export type FollowUpRule = z.infer<typeof followUpRuleSchema>;
+export type FollowUpRuleActionResponse = z.infer<typeof followUpRuleActionResponseSchema>;
+export type FollowUpSchedule = z.infer<typeof followUpScheduleSchema>;
+export type FollowUpScheduleActionResponse = z.infer<typeof followUpScheduleActionResponseSchema>;
+export type SuppressionActionResponse = z.infer<typeof suppressionActionResponseSchema>;
+export type TenantUpdateResponse = z.infer<typeof tenantUpdateResponseSchema>;
+export type ComplianceProfileActionResponse = z.infer<typeof complianceProfileActionResponseSchema>;
+export type MockOutcomeEvent = z.infer<typeof mockOutcomeEventSchema>;
+export type MockOutcomeEventResponse = z.infer<typeof mockOutcomeEventResponseSchema>;

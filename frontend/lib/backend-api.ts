@@ -25,6 +25,19 @@ import {
   mailboxHealthResponseSchema,
   outcomesResponseSchema,
   roiResponseSchema,
+  contactImportResponseSchema,
+  campaignActionResponseSchema,
+  campaignContactSelectionResponseSchema,
+  draftGenerateResponseSchema,
+  reviewActionResponseSchema,
+  sendGateDryRunResponseSchema,
+  sendIntentResponseSchema,
+  followUpRuleActionResponseSchema,
+  followUpScheduleActionResponseSchema,
+  suppressionActionResponseSchema,
+  tenantUpdateResponseSchema,
+  complianceProfileActionResponseSchema,
+  mockOutcomeEventResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
@@ -48,6 +61,19 @@ import {
   type MailboxHealthResponse,
   type OutcomesResponse,
   type RoiResponse,
+  type ContactImportResponse,
+  type CampaignActionResponse,
+  type CampaignContactSelectionResponse,
+  type DraftGenerateResponse,
+  type ReviewActionResponse,
+  type SendGateDryRunResponse,
+  type SendIntentResponse,
+  type FollowUpRuleActionResponse,
+  type FollowUpScheduleActionResponse,
+  type SuppressionActionResponse,
+  type TenantUpdateResponse,
+  type ComplianceProfileActionResponse,
+  type MockOutcomeEventResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -155,6 +181,119 @@ export function isAuthMeResponse(body: unknown): body is AuthMeResponse {
 
 export function parseHealthResponse(body: unknown): HealthResponse {
   return healthResponseSchema.parse(body);
+}
+
+export interface IdempotentApiClientOptions extends AuthenticatedApiClientOptions {
+  idempotencyKey?: string;
+}
+
+export interface ContactImportRequest {
+  csv_text: string;
+  source_filename?: string | null;
+}
+
+export interface CampaignCreateRequest {
+  name: string;
+  description?: string | null;
+  goal?: string | null;
+  target_segment?: string | null;
+  notes?: string | null;
+}
+
+export interface CampaignUpdateRequest {
+  name?: string | null;
+  description?: string | null;
+  goal?: string | null;
+  target_segment?: string | null;
+  notes?: string | null;
+  status?: string | null;
+}
+
+export interface CampaignContactSelectRequest {
+  contact_id: string;
+  status?: string;
+}
+
+export interface DraftGenerateRequest {
+  campaign_id: string;
+  contact_id: string;
+}
+
+export interface ReviewActionRequest {
+  reason?: string | null;
+}
+
+export interface SendGateDryRunRequest {
+  draft_id: string;
+}
+
+export interface SendIntentRequest {
+  draft_id: string;
+}
+
+export interface FollowUpRuleCreateRequest {
+  campaign_id: string;
+  delay_seconds: number;
+}
+
+export interface FollowUpScheduleCreateRequest {
+  original_outbound_message_id: string;
+}
+
+export interface SuppressionCreateRequest {
+  channel?: string;
+  contact_identifier: string;
+  reason: string;
+  source?: string;
+  never_contact?: boolean;
+}
+
+export interface TenantUpdateRequest {
+  name?: string | null;
+  settings?: Record<string, unknown> | null;
+}
+
+export interface ComplianceProfileUpdateRequest {
+  jurisdiction?: string;
+  sending_review_required?: boolean;
+  live_sending_allowed?: boolean;
+  sms_allowed?: boolean;
+}
+
+export interface MockOutcomeEventRequest {
+  campaign_id: string;
+  contact_id: string;
+  event_type: string;
+  outbound_message_id?: string | null;
+  note?: string | null;
+  occurred_at?: string | null;
+}
+
+function createIdempotencyKey(operation: string): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  return `as-${operation}-${random}`;
+}
+
+function idempotencyHeaders(operation: string, key?: string): HeadersInit {
+  return { "Idempotency-Key": key ?? createIdempotencyKey(operation) };
+}
+
+async function authenticatedIdempotentRequest<T>(
+  path: string,
+  method: "POST" | "PATCH" | "PUT",
+  body: unknown,
+  options: IdempotentApiClientOptions,
+  operation: string,
+): Promise<T> {
+  return authenticatedApiRequest(
+    path,
+    {
+      method,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: idempotencyHeaders(operation, options.idempotencyKey),
+    },
+    options,
+  );
 }
 
 export async function fetchBillingSubscription(options: AuthenticatedApiClientOptions): Promise<BillingSubscriptionResponse> {
@@ -375,6 +514,191 @@ export async function fetchOutcomesRoi(
   const query = new URLSearchParams({ campaign_id: campaignId });
   return roiResponseSchema.parse(
     await authenticatedApiRequest(`/api/v1/outcomes/roi?${query.toString()}`, { method: "GET" }, options)
+  );
+}
+
+export async function importContacts(
+  options: IdempotentApiClientOptions,
+  body: ContactImportRequest,
+): Promise<ContactImportResponse> {
+  return contactImportResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/imports/contacts", "POST", body, options, "imports-contacts")
+  );
+}
+
+export async function createCampaign(
+  options: IdempotentApiClientOptions,
+  body: CampaignCreateRequest,
+): Promise<CampaignActionResponse> {
+  return campaignActionResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/campaigns", "POST", body, options, "campaigns-create")
+  );
+}
+
+export async function updateCampaign(
+  options: IdempotentApiClientOptions,
+  campaignId: string,
+  body: CampaignUpdateRequest,
+): Promise<CampaignActionResponse> {
+  return campaignActionResponseSchema.parse(
+    await authenticatedIdempotentRequest(`/api/v1/campaigns/${campaignId}`, "PATCH", body, options, "campaigns-update")
+  );
+}
+
+export async function selectCampaignContact(
+  options: IdempotentApiClientOptions,
+  campaignId: string,
+  body: CampaignContactSelectRequest,
+): Promise<CampaignContactSelectionResponse> {
+  return campaignContactSelectionResponseSchema.parse(
+    await authenticatedIdempotentRequest(`/api/v1/campaigns/${campaignId}/contacts`, "POST", body, options, "campaigns-contacts")
+  );
+}
+
+export async function generateDraft(
+  options: IdempotentApiClientOptions,
+  body: DraftGenerateRequest,
+): Promise<DraftGenerateResponse> {
+  return draftGenerateResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/drafts/generate", "POST", body, options, "drafts-generate")
+  );
+}
+
+export async function approveReviewItem(
+  options: IdempotentApiClientOptions,
+  reviewId: string,
+  body: ReviewActionRequest = {},
+): Promise<ReviewActionResponse> {
+  return reviewActionResponseSchema.parse(
+    await authenticatedIdempotentRequest(`/api/v1/review/items/${reviewId}/approve`, "POST", body, options, "review-approve")
+  );
+}
+
+export async function rejectReviewItem(
+  options: IdempotentApiClientOptions,
+  reviewId: string,
+  body: ReviewActionRequest = {},
+): Promise<ReviewActionResponse> {
+  return reviewActionResponseSchema.parse(
+    await authenticatedIdempotentRequest(`/api/v1/review/items/${reviewId}/reject`, "POST", body, options, "review-reject")
+  );
+}
+
+export async function requestReviewRegeneration(
+  options: IdempotentApiClientOptions,
+  reviewId: string,
+  body: ReviewActionRequest = {},
+): Promise<ReviewActionResponse> {
+  return reviewActionResponseSchema.parse(
+    await authenticatedIdempotentRequest(
+      `/api/v1/review/items/${reviewId}/request-regeneration`,
+      "POST",
+      body,
+      options,
+      "review-request-regeneration",
+    )
+  );
+}
+
+export async function runSendGateDryRun(
+  options: IdempotentApiClientOptions,
+  body: SendGateDryRunRequest,
+): Promise<SendGateDryRunResponse> {
+  return sendGateDryRunResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/send-gate/dry-run", "POST", body, options, "send-gate-dry-run")
+  );
+}
+
+export async function createSendIntent(
+  options: IdempotentApiClientOptions,
+  body: SendIntentRequest,
+): Promise<SendIntentResponse> {
+  return sendIntentResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/send-intents", "POST", body, options, "send-intents")
+  );
+}
+
+export async function createFollowUpRule(
+  options: IdempotentApiClientOptions,
+  body: FollowUpRuleCreateRequest,
+): Promise<FollowUpRuleActionResponse> {
+  return followUpRuleActionResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/followups/rules", "POST", body, options, "followups-rules")
+  );
+}
+
+export async function createFollowUpSchedule(
+  options: IdempotentApiClientOptions,
+  body: FollowUpScheduleCreateRequest,
+): Promise<FollowUpScheduleActionResponse> {
+  return followUpScheduleActionResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/followups/schedules", "POST", body, options, "followups-schedules")
+  );
+}
+
+export async function mockRunFollowUpSchedule(
+  options: IdempotentApiClientOptions,
+  scheduleId: string,
+): Promise<FollowUpScheduleActionResponse> {
+  return followUpScheduleActionResponseSchema.parse(
+    await authenticatedIdempotentRequest(
+      `/api/v1/followups/schedules/${scheduleId}/mock-run`,
+      "POST",
+      undefined,
+      options,
+      "followups-schedules-mock-run",
+    )
+  );
+}
+
+export async function createSuppression(
+  options: IdempotentApiClientOptions,
+  body: SuppressionCreateRequest,
+): Promise<SuppressionActionResponse> {
+  return suppressionActionResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/suppressions", "POST", body, options, "suppressions-create")
+  );
+}
+
+export async function reinstateSuppression(
+  options: IdempotentApiClientOptions,
+  suppressionId: string,
+): Promise<SuppressionActionResponse> {
+  return suppressionActionResponseSchema.parse(
+    await authenticatedIdempotentRequest(
+      `/api/v1/suppressions/${suppressionId}/reinstate`,
+      "POST",
+      undefined,
+      options,
+      "suppressions-reinstate",
+    )
+  );
+}
+
+export async function updateTenantSettings(
+  options: IdempotentApiClientOptions,
+  body: TenantUpdateRequest,
+): Promise<TenantUpdateResponse> {
+  return tenantUpdateResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/tenants/current", "PATCH", body, options, "tenants-current-update")
+  );
+}
+
+export async function updateComplianceProfile(
+  options: IdempotentApiClientOptions,
+  body: ComplianceProfileUpdateRequest,
+): Promise<ComplianceProfileActionResponse> {
+  return complianceProfileActionResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/compliance/profile", "PUT", body, options, "compliance-profile-update")
+  );
+}
+
+export async function createMockOutcomeEvent(
+  options: IdempotentApiClientOptions,
+  body: MockOutcomeEventRequest,
+): Promise<MockOutcomeEventResponse> {
+  return mockOutcomeEventResponseSchema.parse(
+    await authenticatedIdempotentRequest("/api/v1/outcomes/mock-events", "POST", body, options, "outcomes-mock-events")
   );
 }
 
