@@ -363,6 +363,31 @@ async def test_service_locked_states_block_costly_access(state: str) -> None:
 
 
 @pytest.mark.asyncio
+async def test_service_access_returns_active_local_mvp_mock_features() -> None:
+    record = TenantSubscriptionRecord(
+        tenant_id=_TENANT,
+        tenant_status="active",
+        grace_until=None,
+        plan=BillingPlan(
+            id=_PLAN_ID,
+            key="mvp_mock",
+            name="MVP Mock Plan",
+            features=dict(_FEATURES),
+        ),
+    )
+    service, _, _, _ = await _service(record=record)
+
+    access = await service.get_access(_principal(), now=_NOW)
+
+    assert access.is_active is True
+    assert access.can_send is True
+    assert access.can_run_agents is True
+    assert access.can_create_campaign is True
+    assert access.can_export is True
+    assert access.mock_only is True
+
+
+@pytest.mark.asyncio
 async def test_service_state_transition_requires_billing_permission() -> None:
     service, _, _, _ = await _service()
     with pytest.raises(AppError) as exc:

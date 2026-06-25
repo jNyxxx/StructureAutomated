@@ -24,15 +24,32 @@ def _record(row: TenantSubscription, plan: Plan) -> TenantSubscriptionRecord:
 class BillingRepository(BaseRepository):
     async def get_subscription(self, tenant_id: uuid.UUID) -> TenantSubscriptionRecord | None:
         stmt = (
-            select(TenantSubscription, Plan)
+            select(
+                TenantSubscription.tenant_id.label("tenant_id"),
+                TenantSubscription.tenant_status.label("tenant_status"),
+                TenantSubscription.grace_until.label("grace_until"),
+                Plan.id.label("plan_id"),
+                Plan.key.label("plan_key"),
+                Plan.name.label("plan_name"),
+                Plan.features.label("plan_features"),
+            )
             .join(Plan, TenantSubscription.plan_id == Plan.id)
             .where(TenantSubscription.tenant_id == tenant_id)
         )
-        row = (await self.conn.execute(stmt)).first()
+        row = (await self.conn.execute(stmt)).mappings().first()
         if row is None:
             return None
-        subscription, plan = row
-        return _record(subscription, plan)
+        return TenantSubscriptionRecord(
+            tenant_id=row["tenant_id"],
+            tenant_status=row["tenant_status"],
+            grace_until=row["grace_until"],
+            plan=BillingPlan(
+                id=row["plan_id"],
+                key=row["plan_key"],
+                name=row["plan_name"],
+                features=row["plan_features"],
+            ),
+        )
 
     async def set_status(
         self,

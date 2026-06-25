@@ -4,10 +4,12 @@ import uuid
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from app.middleware.error_handler import AppError
+from app.repositories.billing_repo import BillingRepository
 from app.services.billing import (
     BILLING_STATES,
     CAN_CREATE_CAMPAIGN,
@@ -184,6 +186,54 @@ async def test_invalid_mock_state_rejected() -> None:
         await service.transition_mock_state(tenant_id=_TENANT, tenant_status="paid", now=_NOW)
     assert exc.value.status_code == 400
     assert exc.value.code == "INVALID_BILLING_STATE"
+
+
+class _MappingResult:
+    def __init__(self, row: dict[str, Any] | None) -> None:
+        self.row = row
+
+    def mappings(self) -> "_MappingResult":
+        return self
+
+    def first(self) -> dict[str, Any] | None:
+        return self.row
+
+
+class _RepoConn:
+    def __init__(self, row: dict[str, Any] | None) -> None:
+        self.row = row
+        self.statements: list[Any] = []
+
+    async def execute(self, stmt: Any) -> _MappingResult:
+        self.statements.append(stmt)
+        return _MappingResult(self.row)
+
+
+async def test_billing_repository_get_subscription_maps_joined_plan_row() -> None:
+    row = {
+        "tenant_id": _TENANT,
+        "tenant_status": "active",
+        "grace_until": None,
+        "plan_id": _PLAN.id,
+        "plan_key": _PLAN.key,
+        "plan_name": _PLAN.name,
+        "plan_features": dict(_PLAN.features),
+    }
+    repo = BillingRepository(_RepoConn(row))  # type: ignore[arg-type]
+
+    record = await repo.get_subscription(_TENANT)
+
+    assert record is not None
+    assert record.tenant_id == _TENANT
+    assert record.tenant_status == "active"
+    assert record.plan.key == "mvp_mock"
+    assert record.plan.features == _PLAN.features
+
+
+async def test_billing_repository_get_subscription_missing_row_returns_none() -> None:
+    repo = BillingRepository(_RepoConn(None))  # type: ignore[arg-type]
+
+    assert await repo.get_subscription(_TENANT) is None
 
 
 def test_billing_migration_schema_rls_and_no_stripe() -> None:
