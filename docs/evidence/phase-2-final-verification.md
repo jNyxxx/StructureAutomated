@@ -40,7 +40,7 @@ Backend Phase 2 API routes are present and tested. Frontend Phase 2 read-only wi
 | Black check | Passed — 190 files unchanged. |
 | mypy | Passed — no issues in 144 source files. |
 | pytest | Passed — 511 tests, 1 warning. |
-| OpenAPI | 44 paths exposed. |
+| OpenAPI | 44 paths / 51 operations (endpoints) exposed. |
 | Provider/production audit | No real provider, Stripe, SMS, real sending, live scraping, production enablement code added by this final evidence pass. |
 
 ### Frontend

@@ -52,9 +52,10 @@ No centralized aggregator (`api/v1/router.py`) — `main.py` is the sole mount p
 
 ---
 
-## 3. OpenAPI Endpoint Count
+## 3. OpenAPI Path & Operation Count
 
-**44 endpoints** verified via `/openapi.json` smoke pass.
+**44 OpenAPI paths / 51 operations (endpoints)** verified via live `/openapi.json` (OpenAPI 3.1.0).
+Counting method: unique keys under `paths` = 44; HTTP-method operations summed across those paths = 51 (29 GET, 19 POST, 2 PATCH, 1 PUT). "Endpoints" = operations.
 
 ---
 
@@ -66,7 +67,7 @@ No centralized aggregator (`api/v1/router.py`) — `main.py` is the sole mount p
 | `black --check` | PASS |
 | `mypy` | PASS |
 | Full safe backend pytest suite | PASS |
-| OpenAPI smoke (`/openapi.json` reachable, 44 ops) | PASS |
+| OpenAPI smoke (`/openapi.json` reachable, 44 paths / 51 operations) | PASS |
 | Health/auth smoke (`/health`, `/live`, `/ready`) | PASS |
 
 ---
@@ -121,7 +122,7 @@ The following are **not present** in Phase 2 backend. All remain deferred or out
 
 **Backend Phase 2 API complete — local/mock only.**
 
-All 12 feature route groups plus infrastructure (auth, health) are implemented, mounted, and passing quality gates. OpenAPI reports 44 endpoints. Security controls, tenant isolation, and mock-mode discipline are preserved.
+All 12 feature route groups plus infrastructure (auth, health) are implemented, mounted, and passing quality gates. OpenAPI reports 44 paths / 51 operations (endpoints). Security controls, tenant isolation, and mock-mode discipline are preserved.
 
 **Warnings (deferred scope, not blockers for backend local/mock API completion):**
 - Frontend remains unwired

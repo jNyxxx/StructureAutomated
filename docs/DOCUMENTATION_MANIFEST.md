@@ -62,7 +62,7 @@ Produced by Phase 2 backend API completion (P2-1 through P2-8). Not counted amon
 
 | File | Purpose |
 |------|---------|
-| `docs/evidence/phase-2-backend-api-final-verification.md` | Route group table, mounted routers list, OpenAPI count (44), quality gate results, security/gating summary, mock/local-only summary, deferred blockers, verdict |
+| `docs/evidence/phase-2-backend-api-final-verification.md` | Route group table, mounted routers list, OpenAPI count (44 paths / 51 operations), quality gate results, security/gating summary, mock/local-only summary, deferred blockers, verdict |
 | `docs/evidence/phase-2-backend-readiness-checklist.md` | Structured checklist covering CLAUDE.md rules, quality gates, route coverage, multi-tenancy/RLS, mock-mode discipline, and deferred items |
 | `docs/evidence/phase-2-frontend-final-verification.md` | Frontend Phase 2 read-only final verification covering FE-P2-1 through FE-P2-7b, quality gates, safety audit, local/mock limits, and deferred blockers |
 | `docs/evidence/phase-2-frontend-readiness-checklist.md` | Frontend Phase 2 readiness checklist covering read-only surfaces, fallback behavior, locked actions, test results, and Phase 3 approval requirement |
