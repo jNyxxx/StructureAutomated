@@ -1,10 +1,15 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, CopyX, ShieldAlert } from "lucide-react";
 
 import { GateReasonBadge, StatusBadge } from "@/components/badges";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
+import { fetchProspects } from "@/lib/backend-api";
+import { useFrontendAuth } from "@/lib/clerk";
+import { useTenantContext } from "@/lib/tenant-context";
+import type { Prospect } from "@/lib/schemas";
 import { ProspectDetailDrawer } from "./prospect-detail-drawer";
 import { prospectRows, type ProspectRow } from "./prospect-sample-data";
 
@@ -55,18 +60,76 @@ const columns: DataTableColumn<ProspectRow>[] = [
   { id: "updatedAt", header: "Updated", accessor: "updatedAt", sortable: true },
 ];
 
-const views: SavedViewTab[] = [
-  { id: "all", label: "All prospects", count: prospectRows.length },
-  { id: "ready", label: "Ready for review", count: 1 },
-  { id: "blocked", label: "Suppressed/blocked", count: 1 },
-  { id: "campaign", label: "Campaign API", count: 0, locked: true },
-];
+function mapProspect(prospect: Prospect): ProspectRow {
+  const domain = prospect.domain ?? prospect.email?.split("@")[1] ?? "domain unavailable";
+  return {
+    id: prospect.id,
+    contactId: prospect.contact_id,
+    name: prospect.full_name ?? "Unnamed prospect",
+    company: prospect.company_name ?? "Company unavailable",
+    title: prospect.title ?? "Role unavailable",
+    emailDomain: domain,
+    marketSegment: "Backend mock API / CRE",
+    source: "backend mock API",
+    suppressionStatus: "needs_review",
+    researchStatus: "not_started",
+    campaignStatus: "not_assigned",
+    updatedAt: new Date(prospect.updated_at).toLocaleDateString(),
+    safeNotes: "Read-only local/mock data from contact-backed prospect API. No live enrichment or provider data.",
+  };
+}
 
 export function ProspectsTable() {
+  const auth = useFrontendAuth();
+  const { selectedTenantId } = useTenantContext();
+  const [rows, setRows] = useState<ProspectRow[]>(prospectRows);
+  const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const loadProspects = useCallback(async () => {
+    if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      setRows(prospectRows);
+      setUsingFallback(true);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetchProspects(
+        {
+          getToken: auth.getToken,
+          getTenantId: () => selectedTenantId,
+        },
+        { limit: 25 },
+      );
+      const mapped = res.prospects.map(mapProspect);
+      setRows(mapped.length > 0 ? mapped : prospectRows);
+      setUsingFallback(mapped.length === 0);
+    } catch (err) {
+      console.error("Failed to load prospects, falling back to read-only local/mock data:", err);
+      setRows(prospectRows);
+      setUsingFallback(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, selectedTenantId]);
+
+  useEffect(() => {
+    loadProspects();
+  }, [loadProspects]);
+
+  const views: SavedViewTab[] = [
+    { id: "all", label: "All prospects", count: rows.length },
+    { id: "ready", label: "Ready for review", count: rows.filter((row) => row.campaignStatus === "draft_ready" || row.campaignStatus === "pending_review").length },
+    { id: "blocked", label: "Suppressed/blocked", count: rows.filter((row) => row.suppressionStatus === "suppressed" || row.campaignStatus === "blocked").length },
+    { id: "campaign", label: "Campaign API", count: 0, locked: true },
+  ];
+
   return (
     <DataTable
       label="Prospects demo table"
-      data={prospectRows}
+      data={rows}
       columns={columns}
       savedViews={views}
       pageSize={6}

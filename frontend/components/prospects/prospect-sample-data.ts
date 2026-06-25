@@ -4,6 +4,7 @@ export type CampaignStatus = "not_assigned" | "draft_ready" | "pending_review" |
 
 export interface ProspectRow {
   id: string;
+  contactId: string;
   name: string;
   company: string;
   title: string;
@@ -20,6 +21,7 @@ export interface ProspectRow {
 export const prospectRows: ProspectRow[] = [
   {
     id: "prospect_demo_001",
+    contactId: "contact_demo_001",
     name: "Ava Santos",
     company: "Northline Properties",
     title: "Acquisitions Lead",
@@ -34,6 +36,7 @@ export const prospectRows: ProspectRow[] = [
   },
   {
     id: "prospect_demo_002",
+    contactId: "contact_demo_002",
     name: "Marco Reyes",
     company: "Harbor Asset Group",
     title: "Managing Partner",
@@ -48,6 +51,7 @@ export const prospectRows: ProspectRow[] = [
   },
   {
     id: "prospect_demo_003",
+    contactId: "contact_demo_003",
     name: "Nina Cruz",
     company: "Civic Realty Partners",
     title: "Portfolio Director",
@@ -62,6 +66,7 @@ export const prospectRows: ProspectRow[] = [
   },
   {
     id: "prospect_demo_004",
+    contactId: "contact_demo_004",
     name: "Leo Tan",
     company: "Summit Office Holdings",
     title: "Leasing Director",

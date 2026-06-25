@@ -12,6 +12,9 @@ import {
   auditEventListResponseSchema,
   complianceProfileResponseSchema,
   suppressionListResponseSchema,
+  contactListResponseSchema,
+  prospectListResponseSchema,
+  contactDetailResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
@@ -22,6 +25,9 @@ import {
   type AuditEventListResponse,
   type ComplianceProfileResponse,
   type SuppressionListResponse,
+  type ContactListResponse,
+  type ProspectListResponse,
+  type ContactDetailResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -192,6 +198,43 @@ export async function fetchSuppressions(
   const path = `/api/v1/suppressions${queryString ? `?${queryString}` : ""}`;
   return suppressionListResponseSchema.parse(
     await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchContacts(
+  options: AuthenticatedApiClientOptions,
+  params?: { cursor?: string | null; limit?: number }
+): Promise<ContactListResponse> {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  const queryString = query.toString();
+  const path = `/api/v1/contacts${queryString ? `?${queryString}` : ""}`;
+  return contactListResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchProspects(
+  options: AuthenticatedApiClientOptions,
+  params?: { cursor?: string | null; limit?: number }
+): Promise<ProspectListResponse> {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  const queryString = query.toString();
+  const path = `/api/v1/prospects${queryString ? `?${queryString}` : ""}`;
+  return prospectListResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchContact(
+  options: AuthenticatedApiClientOptions,
+  contactId: string,
+): Promise<ContactDetailResponse> {
+  return contactDetailResponseSchema.parse(
+    await authenticatedApiRequest(`/api/v1/contacts/${contactId}`, { method: "GET" }, options)
   );
 }
 

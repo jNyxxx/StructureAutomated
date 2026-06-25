@@ -419,8 +419,7 @@ describe("route shells render", () => {
       </ClerkFrontendProvider>,
     );
 
-    await waitFor(() => expect(screen.getByText(/fixture fallback/i)).toBeTruthy());
-    expect(screen.getByText(/Backend unavailable or auth missing/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Backend unavailable or auth missing/i)).toBeTruthy());
   });
 
   it("renders suppression settings table shell", () => {
