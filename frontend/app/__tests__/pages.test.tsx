@@ -47,6 +47,17 @@ function jsonResponse(body: unknown, status = 200): Response {
   } as Response;
 }
 
+const contactFixture = {
+  id: "22222222-2222-2222-2222-222222222222",
+  full_name: "Ava Santos",
+  title: "Acquisitions Lead",
+  email: null,
+  domain: "northline.example",
+  company_name: "Northline Properties",
+  created_at: "2026-06-24T12:00:00Z",
+  updated_at: "2026-06-24T12:00:00Z",
+};
+
 function renderWithTenant(node: ReactNode) {
   return render(
     <ClerkFrontendProvider value={signedInAuth}>
@@ -178,6 +189,21 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/prospects")) {
+        return jsonResponse({
+          prospects: [{ ...contactFixture, contact_id: contactFixture.id }],
+          page: { next_cursor: null, limit: 25 },
+        });
+      }
+      if (path.includes("/api/v1/contacts/")) {
+        return jsonResponse({ contact: contactFixture });
+      }
+      if (path.includes("/api/v1/contacts")) {
+        return jsonResponse({
+          contacts: [contactFixture],
+          page: { next_cursor: null, limit: 25 },
+        });
+      }
       if (path.includes("/auth/me")) {
         return jsonResponse({
           principal: {
@@ -303,11 +329,23 @@ describe("route shells render", () => {
     expect(screen.getAllByText(/Vector purge/i).length).toBeGreaterThan(0);
   });
 
-  it("renders the prospects DataTable demo safely", () => {
+  it("renders the prospects DataTable demo safely", async () => {
     renderWithTenant(<ProspectsPage />);
     expect(screen.getByRole("heading", { name: /^prospects$/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /prospects demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(/backend mock API/i).length).toBeGreaterThan(0));
     expect(screen.getByText(/Northline Properties/i)).toBeTruthy();
+  });
+
+  it("renders prospects fixture fallback when the backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<ProspectsPage />);
+
+    await waitFor(() => expect(screen.getAllByText(/fixture fallback/i).length).toBeGreaterThan(0));
+    expect(screen.getByText(/Northline Properties/i)).toBeTruthy();
+    expect(screen.getByText(/enrichment, campaign, export, and delete actions remain locked/i)).toBeTruthy();
+    expect(screen.getByText(/No real sending/i)).toBeTruthy();
   });
 
   it("renders the CSV import wizard shell", () => {
@@ -315,6 +353,9 @@ describe("route shells render", () => {
     expect(screen.getByRole("heading", { name: /import prospects/i })).toBeTruthy();
     expect(screen.getAllByText(/Upload CSV/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("table", { name: /csv import preview rows/i })).toBeTruthy();
+    expect(screen.getByText(/No backend upload/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Import prospects/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Save mapping/i }).hasAttribute("disabled")).toBe(true);
   });
 
   it("renders the campaigns DataTable demo safely", () => {

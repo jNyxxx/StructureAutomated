@@ -139,8 +139,10 @@ export function ProspectsTable() {
       ]}
       rowActions={[
         { label: "Open details" },
-        { label: "Enrich prospect", pendingBackend: true },
-        { label: "Add to campaign", pendingBackend: true },
+        { label: "Enrich prospect", pendingBackend: true, disabled: true },
+        { label: "Add to campaign", pendingBackend: true, disabled: true },
+        { label: "Export contact", pendingBackend: true, disabled: true },
+        { label: "Send action", pendingBackend: true, disabled: true },
         { label: "Delete prospect", pendingBackend: true, disabled: true },
       ]}
       getRowSearchText={(row) => `${row.name} ${row.company} ${row.title} ${row.emailDomain} ${row.marketSegment} ${row.source} ${row.safeNotes}`}
