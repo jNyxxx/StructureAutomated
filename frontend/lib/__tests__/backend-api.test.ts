@@ -13,6 +13,8 @@ import {
   fetchContacts,
   fetchProspects,
   fetchContact,
+  fetchCampaigns,
+  fetchCampaign,
   mapBackendErrorToStatus,
   mapHealthResponseToStatus,
   parseAuthMeResponse,
@@ -398,6 +400,103 @@ describe("contacts/prospects read fetchers (Phase 2)", () => {
     let caught: unknown;
     try {
       await fetchProspects(authOptions(failing));
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("NETWORK_ERROR");
+    expect(err.status).toBe(0);
+  });
+});
+
+describe("campaigns read fetchers (Phase 2)", () => {
+  it("fetchCampaigns parses campaign list responses with pagination", async () => {
+    const res = await fetchCampaigns(
+      authOptions(
+        mockFetch(200, {
+          campaigns: [
+            {
+              id: "44444444-4444-4444-4444-444444444444",
+              created_by_user_id: "11111111-1111-1111-1111-111111111111",
+              name: "CRE Multifamily Owner Outreach",
+              description: "Backend mock campaign.",
+              goal: "Book qualified owner calls.",
+              target_segment: "CRE / Multifamily",
+              notes: "Read-only mock data.",
+              status: "review",
+            },
+          ],
+          page: { next_cursor: null, limit: 25 },
+        }),
+      ),
+      { limit: 25 },
+    );
+
+    expect(res.campaigns.length).toBe(1);
+    expect(res.campaigns[0].name).toBe("CRE Multifamily Owner Outreach");
+    expect(res.page.limit).toBe(25);
+  });
+
+  it("fetchCampaign parses campaign detail responses", async () => {
+    const res = await fetchCampaign(
+      authOptions(
+        mockFetch(200, {
+          campaign: {
+            id: "55555555-5555-5555-5555-555555555555",
+            created_by_user_id: null,
+            name: "Industrial Investor Re-Engagement",
+            description: null,
+            goal: "Re-engage dormant investor prospects.",
+            target_segment: "CRE / Industrial",
+            notes: null,
+            status: "draft",
+          },
+        }),
+      ),
+      "55555555-5555-5555-5555-555555555555",
+    );
+
+    expect(res.campaign.name).toBe("Industrial Investor Re-Engagement");
+    expect(res.campaign.target_segment).toBe("CRE / Industrial");
+  });
+
+  it("maps a campaigns backend error envelope to ApiError", async () => {
+    let caught: unknown;
+    try {
+      await fetchCampaigns(
+        authOptions(
+          mockFetch(403, {
+            error: {
+              code: "PERMISSION_DENIED",
+              message: "Campaigns denied.",
+              details: { scope: "read:campaigns" },
+              request_id: "req_campaigns",
+              correlation_id: "corr_campaigns",
+            },
+          }),
+        ),
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    const err = caught as ApiError;
+    expect(err.code).toBe("PERMISSION_DENIED");
+    expect(err.status).toBe(403);
+    expect(err.requestId).toBe("req_campaigns");
+  });
+
+  it("maps a campaign detail transport failure to NETWORK_ERROR", async () => {
+    const failing = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await fetchCampaign(authOptions(failing), "55555555-5555-5555-5555-555555555555");
     } catch (error) {
       caught = error;
     }

@@ -1,3 +1,5 @@
+import type { Campaign } from "@/lib/schemas";
+
 export type CampaignStatus = "draft" | "researching" | "review" | "blocked" | "mock_ready";
 export type GateState = "passed" | "pending" | "blocked" | "warning";
 
@@ -63,4 +65,31 @@ export const campaignRows: CampaignRow[] = [
 
 export function getCampaignById(id: string): CampaignRow | undefined {
   return campaignRows.find((campaign) => campaign.id === id);
+}
+
+function mapCampaignStatus(status: string): CampaignStatus {
+  const normalized = status.toLowerCase();
+  if (normalized.includes("block") || normalized.includes("cancel")) return "blocked";
+  if (normalized.includes("review")) return "review";
+  if (normalized.includes("research")) return "researching";
+  if (normalized.includes("ready") || normalized.includes("mock")) return "mock_ready";
+  return "draft";
+}
+
+export function campaignToRow(campaign: Campaign): CampaignRow {
+  const status = mapCampaignStatus(campaign.status);
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    segment: campaign.target_segment ?? "Backend mock API / segment unset",
+    status,
+    selectedProspects: 0,
+    researchProgress: "Research actions locked",
+    draftProgress: "Draft generation locked",
+    reviewStatus: status === "review" ? "Pending human review" : "Read-only local/mock status",
+    sendGateStatus: status === "blocked" ? "blocked" : "pending",
+    followUpStatus: "Follow-up actions locked",
+    updatedAt: "backend mock API",
+    safeSummary: campaign.description ?? campaign.goal ?? campaign.notes ?? "Read-only campaign from backend mock API. No run, research, draft, send, or provider action is enabled.",
+  };
 }

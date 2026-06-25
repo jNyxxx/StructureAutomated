@@ -14,13 +14,13 @@ export function CampaignDetail({ campaign }: { campaign: CampaignRow }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Selected prospects" value={String(campaign.selectedProspects)} description="Local/demo count only." icon={Users} status="Demo data" />
+        <MetricCard title="Selected prospects" value={String(campaign.selectedProspects)} description="Read-only local/mock count only." icon={Users} status="Read-only" />
         <MetricCard title="Research/RAG" value="Preview" description={campaign.researchProgress} icon={Search} status="Pending API" tone="warning" />
         <MetricCard title="Draft/review" value="Locked" description={campaign.reviewStatus} icon={FileText} status="Pending API" tone="locked" />
         <MetricCard title="Send gate" value="No-send" description="No real sending in this MVP UI." icon={MailCheck} status="Blocked" tone="locked" />
       </div>
 
-      <BentoCard title="Campaign overview" description={campaign.safeSummary} badge="Local/demo">
+      <BentoCard title="Campaign overview" description={campaign.safeSummary} badge="Read-only local/mock">
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-medium border border-border bg-panel2 p-3">
             <p className="text-caption text-subtle">Segment</p>
@@ -69,7 +69,7 @@ export function CampaignDetail({ campaign }: { campaign: CampaignRow }) {
           <div>
             <p className="font-semibold text-text">All campaign mutations are locked</p>
             <p className="mt-1">
-              Create campaign, add/remove contacts, start research, generate drafts, approve drafts, mock send, schedule follow-up, and export remain disabled until backend APIs exist.
+              Create campaign, update campaign, contact selection, start research, generate drafts, approve drafts, mock send, schedule follow-up, and export remain disabled in this read-only frontend slice.
             </p>
           </div>
           <Button disabled>

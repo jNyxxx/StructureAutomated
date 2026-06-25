@@ -166,6 +166,39 @@ beforeEach(() => {
           mock_only: true,
         });
       }
+      if (path.includes("/api/v1/campaigns/")) {
+        return jsonResponse({
+          campaign: {
+            id: "44444444-4444-4444-4444-444444444444",
+            created_by_user_id: "11111111-1111-1111-1111-111111111111",
+            name: "CRE Multifamily Owner Outreach",
+            description: "Backend mock campaign detail.",
+            goal: "Book qualified owner calls.",
+            target_segment: "CRE / Multifamily",
+            notes: "Read-only local/mock campaign detail.",
+            status: "review",
+          },
+          mock_only: true,
+        });
+      }
+      if (path.includes("/api/v1/campaigns")) {
+        return jsonResponse({
+          campaigns: [
+            {
+              id: "44444444-4444-4444-4444-444444444444",
+              created_by_user_id: "11111111-1111-1111-1111-111111111111",
+              name: "CRE Multifamily Owner Outreach",
+              description: "Backend mock campaign row.",
+              goal: "Book qualified owner calls.",
+              target_segment: "CRE / Multifamily",
+              notes: "Read-only local/mock campaign list.",
+              status: "review",
+            },
+          ],
+          page: { next_cursor: null, limit: 25 },
+          mock_only: true,
+        });
+      }
       if (path.includes("/api/v1/prospects")) {
         return jsonResponse({
           prospects: [
@@ -358,16 +391,30 @@ describe("route shells render", () => {
     expect(screen.getByRole("button", { name: /Save mapping/i }).hasAttribute("disabled")).toBe(true);
   });
 
-  it("renders the campaigns DataTable demo safely", () => {
-    render(<CampaignsPage />);
+  it("renders the campaigns DataTable demo safely", async () => {
+    renderWithTenant(<CampaignsPage />);
     expect(screen.getByRole("heading", { name: /^campaigns$/i })).toBeTruthy();
     expect(screen.getByRole("table", { name: /campaigns demo table/i })).toBeTruthy();
+    expect(screen.getByText(/Local\/mock MVP only/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(/backend mock API/i).length).toBeGreaterThan(0));
     expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
+    expect(screen.getByText(/Campaign API read-only/i)).toBeTruthy();
   });
 
-  it("renders a campaign detail shell", () => {
-    render(<CampaignDetailPage params={{ id: "cre-multifamily-demo" }} />);
-    expect(screen.getByRole("heading", { name: /CRE Multifamily Owner Outreach/i })).toBeTruthy();
+  it("renders campaigns fixture fallback when the backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("backend unavailable"); }));
+    renderWithTenant(<CampaignsPage />);
+
+    await waitFor(() => expect(screen.getAllByText(/fixture fallback/i).length).toBeGreaterThan(0));
+    expect(screen.getByText(/CRE Multifamily Owner Outreach/i)).toBeTruthy();
+    expect(screen.getByText(/Create, update, contact selection, research, drafts, sends, follow-up, and export actions remain locked/i)).toBeTruthy();
+    expect(screen.getByText(/No real sending/i)).toBeTruthy();
+  });
+
+  it("renders a campaign detail shell", async () => {
+    renderWithTenant(<CampaignDetailPage params={{ id: "44444444-4444-4444-4444-444444444444" }} />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: /CRE Multifamily Owner Outreach/i })).toBeTruthy());
+    expect(screen.getByText(/Campaign API read-only/i)).toBeTruthy();
     expect(screen.getByText(/Pipeline stage progress/i)).toBeTruthy();
   });
 
@@ -375,6 +422,8 @@ describe("route shells render", () => {
     render(<NewCampaignPage />);
     expect(screen.getByRole("heading", { name: /new campaign/i })).toBeTruthy();
     expect(screen.getByText(/Campaign builder shell/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Create campaign/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Save draft/i }).hasAttribute("disabled")).toBe(true);
   });
 
   it("renders the AI drafts workbench shell", () => {

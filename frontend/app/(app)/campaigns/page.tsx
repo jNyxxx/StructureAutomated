@@ -15,7 +15,7 @@ export default function CampaignsPage() {
       <PageHeader
         eyebrow="Campaign command center"
         title="Campaigns"
-        description="Demo-safe campaign workspace using local rows only. Campaign creation, research, drafts, review, send, follow-up, and export APIs are not mounted yet."
+        description="Read-only campaign workspace using backend mock API data with fixture fallback. Create, update, contact selection, research, drafts, sends, follow-up, and export actions remain locked."
         actions={
           <>
             <Badge variant="default">Local/mock MVP</Badge>
@@ -40,13 +40,13 @@ export default function CampaignsPage() {
             <div>
               <CardTitle>Pending backend API notice</CardTitle>
               <CardDescription>
-                This page does not call unavailable campaign APIs. All rows are local/demo and every mutating action stays locked.
+                This page only calls read-side backend mock APIs. Fixture fallback is local/mock, and every mutating action stays locked.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <GateReasonBadge state="pending" label="Campaign API pending" />
+          <GateReasonBadge state="passed" label="Campaign API read-only" />
           <GateReasonBadge state="blocked" label="No real sending" />
           <GateReasonBadge state="blocked" label="No live scraping" />
           <GateReasonBadge state="blocked" label="No provider calls" />

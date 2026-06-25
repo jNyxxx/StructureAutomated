@@ -282,3 +282,31 @@ export type Prospect = z.infer<typeof prospectSchema>;
 export type ContactListResponse = z.infer<typeof contactListResponseSchema>;
 export type ProspectListResponse = z.infer<typeof prospectListResponseSchema>;
 export type ContactDetailResponse = z.infer<typeof contactDetailResponseSchema>;
+
+// Campaigns
+export const campaignSchema = z.object({
+  id: z.string().uuid(),
+  created_by_user_id: z.string().uuid().nullable().optional(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  goal: z.string().nullable().optional(),
+  target_segment: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  status: z.string(),
+  mock_only: z.boolean().optional(),
+});
+
+export const campaignListResponseSchema = z.object({
+  campaigns: z.array(campaignSchema),
+  page: pageInfoSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export const campaignDetailResponseSchema = z.object({
+  campaign: campaignSchema,
+  mock_only: z.boolean().optional(),
+});
+
+export type Campaign = z.infer<typeof campaignSchema>;
+export type CampaignListResponse = z.infer<typeof campaignListResponseSchema>;
+export type CampaignDetailResponse = z.infer<typeof campaignDetailResponseSchema>;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Clock3, Lock, ShieldAlert } from "lucide-react";
 
@@ -7,7 +8,10 @@ import { GateReasonBadge, StatusBadge } from "@/components/badges";
 import { DataTable, type DataTableColumn, type SavedViewTab } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { campaignRows, type CampaignRow } from "./campaign-sample-data";
+import { fetchCampaigns } from "@/lib/backend-api";
+import { useFrontendAuth } from "@/lib/clerk";
+import { useTenantContext } from "@/lib/tenant-context";
+import { campaignRows, campaignToRow, type CampaignRow } from "./campaign-sample-data";
 
 function CampaignStatusBadge({ status }: { status: CampaignRow["status"] }) {
   const config = {
@@ -56,31 +60,70 @@ const columns: DataTableColumn<CampaignRow>[] = [
   { id: "updatedAt", header: "Updated", accessor: "updatedAt", sortable: true },
 ];
 
-const views: SavedViewTab[] = [
-  { id: "all", label: "All campaigns", count: campaignRows.length },
-  { id: "review", label: "Needs review", count: 1 },
-  { id: "blocked", label: "Blocked", count: 1 },
-  { id: "live", label: "Live send", count: 0, locked: true },
-];
-
 export function CampaignsTable() {
+  const auth = useFrontendAuth();
+  const { selectedTenantId } = useTenantContext();
+  const [rows, setRows] = useState<CampaignRow[]>(campaignRows);
+  const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const loadCampaigns = useCallback(async () => {
+    if (!auth.isLoaded || !auth.isSignedIn || !selectedTenantId) {
+      setRows(campaignRows);
+      setUsingFallback(true);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetchCampaigns(
+        {
+          getToken: auth.getToken,
+          getTenantId: () => selectedTenantId,
+        },
+        { limit: 25 },
+      );
+      const mapped = res.campaigns.map(campaignToRow);
+      setRows(mapped.length > 0 ? mapped : campaignRows);
+      setUsingFallback(mapped.length === 0);
+    } catch (err) {
+      console.error("Failed to load campaigns, falling back to read-only local/mock data:", err);
+      setRows(campaignRows);
+      setUsingFallback(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, selectedTenantId]);
+
+  useEffect(() => {
+    loadCampaigns();
+  }, [loadCampaigns]);
+
+  const views: SavedViewTab[] = [
+    { id: "all", label: "All campaigns", count: rows.length },
+    { id: "review", label: "Needs review", count: rows.filter((row) => row.status === "review").length },
+    { id: "blocked", label: "Blocked", count: rows.filter((row) => row.status === "blocked").length },
+    { id: "live", label: "Live send", count: 0, locked: true },
+  ];
+
   return (
     <DataTable
       label="Campaigns demo table"
-      data={campaignRows}
+      data={rows}
       columns={columns}
       savedViews={views}
       pageSize={6}
       filters={[
-        { key: "runtime", label: "Runtime", value: "local/demo" },
-        { key: "api", label: "API", value: "pending backend" },
+        { key: "runtime", label: "Runtime", value: loading ? "loading..." : usingFallback ? "fixture fallback" : "backend mock API" },
+        { key: "api", label: "API", value: "read-only" },
       ]}
       rowActions={[
         { label: "Open details" },
-        { label: "Start research", pendingBackend: true },
-        { label: "Generate drafts", pendingBackend: true },
-        { label: "Mock send", pendingBackend: true },
-        { label: "Export", pendingBackend: true },
+        { label: "Start research", pendingBackend: true, disabled: true },
+        { label: "Generate drafts", pendingBackend: true, disabled: true },
+        { label: "Mock send", pendingBackend: true, disabled: true },
+        { label: "Export", pendingBackend: true, disabled: true },
       ]}
       getRowSearchText={(row) => `${row.name} ${row.segment} ${row.status} ${row.researchProgress} ${row.draftProgress} ${row.reviewStatus} ${row.safeSummary}`}
       getDrawerTitle={(row) => row.name}

@@ -15,6 +15,8 @@ import {
   contactListResponseSchema,
   prospectListResponseSchema,
   contactDetailResponseSchema,
+  campaignListResponseSchema,
+  campaignDetailResponseSchema,
   type AuthMeResponse,
   type HealthResponse,
   type BillingSubscriptionResponse,
@@ -28,6 +30,8 @@ import {
   type ContactListResponse,
   type ProspectListResponse,
   type ContactDetailResponse,
+  type CampaignListResponse,
+  type CampaignDetailResponse,
 } from "./schemas";
 
 export type BackendAvailability = "healthy" | "degraded" | "unavailable" | "unknown";
@@ -235,6 +239,29 @@ export async function fetchContact(
 ): Promise<ContactDetailResponse> {
   return contactDetailResponseSchema.parse(
     await authenticatedApiRequest(`/api/v1/contacts/${contactId}`, { method: "GET" }, options)
+  );
+}
+
+export async function fetchCampaigns(
+  options: AuthenticatedApiClientOptions,
+  params?: { cursor?: string | null; limit?: number }
+): Promise<CampaignListResponse> {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  const queryString = query.toString();
+  const path = `/api/v1/campaigns${queryString ? `?${queryString}` : ""}`;
+  return campaignListResponseSchema.parse(
+    await authenticatedApiRequest(path, { method: "GET" }, options)
+  );
+}
+
+export async function fetchCampaign(
+  options: AuthenticatedApiClientOptions,
+  campaignId: string,
+): Promise<CampaignDetailResponse> {
+  return campaignDetailResponseSchema.parse(
+    await authenticatedApiRequest(`/api/v1/campaigns/${campaignId}`, { method: "GET" }, options)
   );
 }
 
