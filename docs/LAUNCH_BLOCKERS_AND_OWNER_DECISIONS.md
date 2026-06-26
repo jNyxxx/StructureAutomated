@@ -19,6 +19,8 @@ P3-3b Clerk JWKS verifier (2026-06-26): backend production Clerk JWT verifier im
 
 P3-2 live DB smoke (2026-06-26): local compose seeded-demo path verified repeatable — alembic at head, 29/29 boot-guard tables RLS-forced, tenant isolation proven under an ephemeral least-privilege role (A=1/B=0), mock tenant billing gates active, protected API smoke (44 paths/51 ops) all 200; see [evidence/phase-3-2-live-db-smoke.md](evidence/phase-3-2-live-db-smoke.md). Local-dev note: `app_user` is superuser/bypassrls (Postgres image default) so DB-RLS is bypassed for the app's own local connection — already blocked in production by the boot guard's role-safety check; isolation also enforced by repo `tenant_id` predicates. No new blocker (covered by existing "App-side tenant authorization" / "RLS/object-auth tests" rows). No production / providers / sending enabled.
 
+P3-3b+P3-3c backend Clerk auth (2026-06-26): `ClerkJwksVerifier` (RS256/JWKS, fail-closed), `auth_service` generator dep, `ClerkJwksVerifier` singleton + per-request DB-backed repos via `auth_context_session()`, `enforce_mfa()` wired (no-op; `platform_admin` role not yet in RBAC), local/mock isolated, boot-guard managed-auth checks, 570 backend / 122 frontend gates pass; see [evidence/phase-3-3c-managed-auth-wiring.md](evidence/phase-3-3c-managed-auth-wiring.md). No production / real secrets / frontend Clerk widget / providers / sending enabled.
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -51,7 +53,7 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Blocker | Area | Required fix |
 |---|---|---|
 | Legal review for live cold outreach/privacy claims | Compliance | Counsel-approved policies + UI copy before live sending |
-| Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production. P3-3a readiness plan complete; **P3-3b backend verifier implemented** (`ClerkJwksVerifier`, boot-guard managed-auth checks, MFA primitive) and 6 owner decisions answered — see [evidence/phase-3-3b-clerk-verifier-implementation.md](evidence/phase-3-3b-clerk-verifier-implementation.md). **Still blocked on cutover:** real Clerk Production values (Secrets Manager), managed `AuthService` store wiring, `platform_admin` role in RBAC + `enforce_mfa()` wiring, frontend `@clerk/nextjs`, and real-JWT smoke (P3-3c→P3-3e). |
+| Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production. P3-3a readiness plan complete; **P3-3b** `ClerkJwksVerifier` + boot-guard checks + MFA primitive done; **P3-3c** managed `AuthService` wiring done (`ClerkJwksVerifier` singleton + per-request DB repos, `enforce_mfa()` wired, local/mock isolated) — see [evidence/phase-3-3c-managed-auth-wiring.md](evidence/phase-3-3c-managed-auth-wiring.md). **Still blocked on cutover:** real Clerk Production values from AWS Secrets Manager, `platform_admin` role added to RBAC + DB schema (§7), frontend `@clerk/nextjs` wired, and real-JWT smoke test. |
 | App-side tenant authorization | Auth/RBAC | Tenant membership, RBAC, object auth, support access, audit, tenant context, and RLS tests |
 | Centralized billing gates | Billing | `is_active(tenant)` + `has_feature(tenant, key)` with route/worker tests |
 | Rate limits + abuse protection | Security | App/WAF/Redis/provider limits |
@@ -74,6 +76,7 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Production mock-provider exception | No exception by default | Before any prod demo on mock providers |
 | First-paying-client production billing | Stripe products/prices, plan entitlements, webhook/dunning rollout | First paying client |
 | ~~6 Clerk readiness decisions (project/env, domains, bootstrap, platform-admin MFA, onboarding, dashboard ownership)~~ **ANSWERED (P3-3b 2026-06-26)** | Recorded in §2 "Clerk readiness" row; implemented per [evidence/phase-3-3b-clerk-verifier-implementation.md](evidence/phase-3-3b-clerk-verifier-implementation.md) | Resolved |
+| `platform_admin` role in RBAC + DB schema | `enforce_mfa()` wired in `current_principal`; currently no-op because `platform_admin` is not in the RBAC matrix (`services/authz.py`). Role must be added to: RBAC permissions map, DB `user_memberships.role` check constraint, and a migration. Owner decision on role model needed. | Before external users |
 | SMS legal wording | Counsel-approved only | Phase 3 |
 
 ## 8. Required >=8/10 categories (external production)

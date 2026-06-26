@@ -8,7 +8,9 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.auth.verifier import LocalMockClerkVerifier, VerifiedClerkClaims
@@ -236,8 +238,93 @@ def test_production_app_does_not_attach_mock_verifier(monkeypatch) -> None:  # t
         app = create_app()
         # Production must NOT wire the LocalMockClerkVerifier-backed service.
         assert getattr(app.state, "auth_service", None) is None
+        # Issuer is unset/None by default → managed verifier also not wired.
+        assert getattr(app.state, "clerk_verifier", None) is None
     finally:
         get_settings.cache_clear()
+
+
+def test_production_wires_clerk_verifier_not_mock(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Managed-auth branch sets clerk_verifier singleton; never sets mock auth_service."""
+    from app.auth.clerk_jwks import ClerkJwksVerifier
+    from app.config import get_settings
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("MOCK_VERIFIER", "false")
+    monkeypatch.setenv("AUTH_PROVIDER_ISSUER", "https://clerk.example.com")
+    get_settings.cache_clear()
+    try:
+        app = create_app()
+        assert getattr(app.state, "auth_service", None) is None
+        assert isinstance(getattr(app.state, "clerk_verifier", None), ClerkJwksVerifier)
+    finally:
+        get_settings.cache_clear()
+
+
+def test_managed_auth_service_uses_correct_store_types() -> None:
+    """make_managed_auth_service wires verifier singleton and DB-backed repo instances."""
+    from app.auth.clerk_jwks import ClerkJwksVerifier, StaticJwksSource
+    from app.auth.managed import make_managed_auth_service
+    from app.repositories.auth_session_repo import AuthSessionRepository
+    from app.repositories.membership_repo import MembershipRepository
+    from app.repositories.user_repo import UserRepository
+
+    verifier = ClerkJwksVerifier(jwks=StaticJwksSource([]), issuer="https://clerk.example.com")
+    service = make_managed_auth_service(verifier, MagicMock())
+    assert isinstance(service, AuthService)
+    assert service._verifier is verifier
+    assert isinstance(service._users, UserRepository)
+    assert isinstance(service._memberships, MembershipRepository)
+    assert isinstance(service._sessions, AuthSessionRepository)
+
+
+def test_current_principal_enforces_mfa_for_platform_admin_role() -> None:
+    """enforce_mfa raises MFA_REQUIRED for platform_admin role.
+
+    Currently a no-op in live code because platform_admin is not in the RBAC matrix.
+    Wiring is in place; enforcement activates when the role is added.
+    """
+    from app.auth.mfa import enforce_mfa, mfa_required_roles
+    from app.auth.principal import CurrentPrincipal
+    from app.config import Settings
+    from app.middleware.error_handler import AppError
+
+    principal = CurrentPrincipal(
+        provider_user_id="u1",
+        provider_session_ref="s1",
+        user_id=_USER,
+        email="admin@example.com",
+        tenant_id=_TENANT,
+        role="platform_admin",
+        membership_version=1,
+        mfa_verified=False,
+    )
+    settings = Settings(auth_mfa_required_roles="platform_admin")
+    with pytest.raises(AppError) as exc_info:
+        enforce_mfa(principal, required_roles=mfa_required_roles(settings))
+    assert exc_info.value.code == "MFA_REQUIRED"
+    assert exc_info.value.status_code == 403
+
+
+def test_current_principal_mfa_noop_for_existing_roles() -> None:
+    """enforce_mfa is a no-op for all 7 current RBAC roles (none match platform_admin)."""
+    from app.auth.mfa import enforce_mfa, mfa_required_roles
+    from app.auth.principal import CurrentPrincipal
+    from app.config import get_settings
+
+    required = mfa_required_roles(get_settings())
+    for role in ("owner", "admin", "marketer", "reviewer", "viewer", "billing_admin", "support"):
+        principal = CurrentPrincipal(
+            provider_user_id="u1",
+            provider_session_ref="s1",
+            user_id=_USER,
+            email="t@example.com",
+            tenant_id=_TENANT,
+            role=role,
+            membership_version=1,
+            mfa_verified=False,
+        )
+        enforce_mfa(principal, required_roles=required)  # must not raise
 
 
 def test_auth_session_migration_has_no_raw_token_storage_and_forced_rls() -> None:

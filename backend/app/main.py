@@ -14,7 +14,9 @@ from datetime import timedelta
 
 from fastapi import FastAPI
 
+from app.auth.clerk_jwks import build_managed_clerk_verifier
 from app.auth.local_mock import build_local_mock_auth_service
+from app.auth.managed import is_managed_auth_configured
 from app.config import get_settings
 from app.database import get_engine
 from app.middleware.error_handler import register_error_handlers
@@ -79,6 +81,8 @@ def create_app() -> FastAPI:
 
     if not settings.is_production and settings.mock_verifier:
         app.state.auth_service = build_local_mock_auth_service()
+    elif settings.auth_provider == "managed" and is_managed_auth_configured(settings):
+        app.state.clerk_verifier = build_managed_clerk_verifier(settings)
 
     register_error_handlers(app)
     app.include_router(health.router)
