@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     mock_verifier: bool = True
     mock_research: bool = True
     controlled_demo: bool = False
+    # controlled_demo permits mock providers under APP_ENV=production. It is an
+    # owner-gated escape hatch: a blank/placeholder approver makes the boot guard
+    # fail closed (see app/observability/boot_guard.py).
+    controlled_demo_approved_by: str | None = None
 
     # Production secrets — shape-checked by the boot guard only; real secret
     # handling (AWS Secrets Manager / KMS) lands in Slice 10.

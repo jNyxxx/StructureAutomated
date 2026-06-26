@@ -14,10 +14,47 @@ from app.config import Settings
 from app.database import ROLE_SAFETY_SQL, code_head_revision
 from app.integrations.registry import mocked_kinds
 
-# Tenant-owned tables that MUST have ENABLE + FORCE RLS. audit_events is a
-# documented exception (stores tenant + platform events; immutable via
-# trigger/grants), so it is intentionally NOT listed here.
-TENANT_OWNED_TABLES = ("tenants", "tenant_memberships")
+# Tenant-owned tables that MUST have ENABLE + FORCE RLS, verified at boot.
+#
+# Source of truth: every table the migrations force RLS on — the
+# ``apply_forced_rls()`` callers in migrations/versions/* plus the literal
+# ``ALTER TABLE ... ENABLE/FORCE ROW LEVEL SECURITY`` statements. That set is 30
+# tables; ``audit_events`` is a documented exception (stores tenant + platform
+# events; immutable via trigger/grants; non-standard policy), so it is
+# intentionally NOT listed here, leaving the 29 below. Adding a new tenant-owned
+# table requires adding it both to a migration and to this tuple (the
+# test suite fails closed if a tenant_id model table is missing here).
+TENANT_OWNED_TABLES = (
+    "auth_sessions",
+    "campaign_contacts",
+    "campaign_roi_assumptions",
+    "campaigns",
+    "compliance_profiles",
+    "contact_import_rows",
+    "contact_imports",
+    "contacts",
+    "draft_evidence",
+    "drafts",
+    "followup_rules",
+    "followup_schedules",
+    "idempotency_keys",
+    "integration_credentials",
+    "jobs",
+    "knowledge_chunks",
+    "knowledge_documents",
+    "outbound_messages",
+    "outcome_events",
+    "research_artifacts",
+    "research_runs",
+    "review_items",
+    "safety_gate_results",
+    "send_gate_results",
+    "support_access_grants",
+    "suppressions",
+    "tenant_memberships",
+    "tenant_subscriptions",
+    "tenants",
+)
 
 _REQUIRED_PROD_SECRETS = ("jwt_secret", "encryption_key", "webhook_secret")
 _PLACEHOLDER_MARKERS = ("change_me", "changeme", "placeholder", "todo", "xxx")
@@ -45,6 +82,13 @@ def config_failures(settings: Settings) -> list[str]:
     mocks = mocked_kinds(settings)
     if mocks and not settings.controlled_demo:
         failures.append(f"mock providers enabled in production: {sorted(k.value for k in mocks)}")
+    # controlled_demo is an owner-gated escape hatch that permits mock providers
+    # under APP_ENV=production. It must never be silent: require a recorded
+    # owner-approval attestation, and fail closed when it is missing/placeholder.
+    if settings.controlled_demo and _is_placeholder(settings.controlled_demo_approved_by):
+        failures.append(
+            "controlled_demo requires controlled_demo_approved_by (owner-approval attestation)"
+        )
     for name in _REQUIRED_PROD_SECRETS:
         if _is_placeholder(getattr(settings, name)):
             failures.append(f"required secret '{name}' is blank or placeholder")

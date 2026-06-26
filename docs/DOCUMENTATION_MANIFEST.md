@@ -86,6 +86,7 @@ The Phase 3 analog of doc #14 (`PHASE_0_1_IMPLEMENTATION_PLAN.md`). Planning art
 | File | Purpose |
 |------|---------|
 | `docs/evidence/phase-3-1-production-readiness-audit.md` | P3-1 read-only production-readiness audit: method, re-run gate results (515 backend / 122 frontend), readiness findings (boot-guard/billing/sending/secrets READY; RLS/auth/deploy gaps), stop-gates confirmed, controlled_demo governance note, recommended first hardening slice, honest limits. Verdict: ready for first prod-hardening slice, zero true blockers. |
+| `docs/evidence/phase-3-1a-boot-guard-hardening.md` | P3-1a first hardening slice: boot-guard tenant-owned RLS coverage expanded 2 → 29 tables (count corrected 23 → 29 with evidence); controlled_demo owner-approval attestation added (fails closed in production); 10 new boot-guard tests. Gates: backend 525 / frontend 122 PASS. No production / providers / sending / migrations enabled. |
 
 ---
 

@@ -13,6 +13,8 @@ Implementation-ready for **Phase 0 + Phase 1**, **not** production launch approv
 
 P3-1 read-only production-readiness audit (2026-06-26): ready to begin the first prod-hardening slice, **zero true blockers**, all stop-gates hold — see [evidence/phase-3-1-production-readiness-audit.md](evidence/phase-3-1-production-readiness-audit.md). No production / real providers / sending / Stripe / SMS enabled; no app code changed.
 
+P3-1a first hardening slice (2026-06-26): boot-guard tenant-owned RLS coverage expanded 2→**29** tables (count corrected 23→29 with evidence) and `controlled_demo` owner-approval attestation added (fails closed) — both §6 rows resolved; see [evidence/phase-3-1a-boot-guard-hardening.md](evidence/phase-3-1a-boot-guard-hardening.md). Backend 525 / frontend 122 gates PASS. No production / providers / sending / Stripe / SMS / migrations enabled.
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -54,8 +56,8 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | In-product observability + LangSmith logging | SRE/AI | Demo observability and faithfulness traces |
 | Privacy export/delete/vector purge | Privacy | Working workflows + policy-aligned retention |
 | Production boot guard missing | Security/Ops | Startup checks fail unsafe prod/staging config |
-| Boot-guard RLS coverage (2 of 23 tenant tables) | Security/Ops | Expand boot-guard tenant-owned RLS verification from `tenants`/`tenant_memberships` to all 23 tenant tables + test (P3-1 finding; RLS itself present in migrations, detection-only gap) |
-| controlled_demo lacks owner-approval attestation | Security/Ops | Recorded owner-approval gate around `controlled_demo` before any prod/demo mock-provider exception (P3-1 finding; not currently a reachable live-provider path) |
+| ~~Boot-guard RLS coverage (2 of 23 tenant tables)~~ **RESOLVED (P3-1a)** | Security/Ops | Boot guard now runtime-verifies ENABLE+FORCE RLS on all **29** tenant-owned tables (audit_events documented exception); count corrected 23→29 with evidence; drift-proof + fake-conn tests added. See [evidence/phase-3-1a-boot-guard-hardening.md](evidence/phase-3-1a-boot-guard-hardening.md) |
+| ~~controlled_demo lacks owner-approval attestation~~ **RESOLVED (P3-1a)** | Security/Ops | `controlled_demo_approved_by` attestation added; boot guard fails closed in production when `controlled_demo` is set without a recorded approver. Still no reachable live-provider path. See [evidence/phase-3-1a-boot-guard-hardening.md](evidence/phase-3-1a-boot-guard-hardening.md) |
 
 ## 7. Remaining owner decisions
 
