@@ -15,6 +15,8 @@ P3-1 read-only production-readiness audit (2026-06-26): ready to begin the first
 
 P3-1a first hardening slice (2026-06-26): boot-guard tenant-owned RLS coverage expanded 2→**29** tables (count corrected 23→29 with evidence) and `controlled_demo` owner-approval attestation added (fails closed) — both §6 rows resolved; see [evidence/phase-3-1a-boot-guard-hardening.md](evidence/phase-3-1a-boot-guard-hardening.md). Backend 525 / frontend 122 gates PASS. No production / providers / sending / Stripe / SMS / migrations enabled.
 
+P3-2 live DB smoke (2026-06-26): local compose seeded-demo path verified repeatable — alembic at head, 29/29 boot-guard tables RLS-forced, tenant isolation proven under an ephemeral least-privilege role (A=1/B=0), mock tenant billing gates active, protected API smoke (44 paths/51 ops) all 200; see [evidence/phase-3-2-live-db-smoke.md](evidence/phase-3-2-live-db-smoke.md). Local-dev note: `app_user` is superuser/bypassrls (Postgres image default) so DB-RLS is bypassed for the app's own local connection — already blocked in production by the boot guard's role-safety check; isolation also enforced by repo `tenant_id` predicates. No new blocker (covered by existing "App-side tenant authorization" / "RLS/object-auth tests" rows). No production / providers / sending enabled.
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |

@@ -87,6 +87,7 @@ The Phase 3 analog of doc #14 (`PHASE_0_1_IMPLEMENTATION_PLAN.md`). Planning art
 |------|---------|
 | `docs/evidence/phase-3-1-production-readiness-audit.md` | P3-1 read-only production-readiness audit: method, re-run gate results (515 backend / 122 frontend), readiness findings (boot-guard/billing/sending/secrets READY; RLS/auth/deploy gaps), stop-gates confirmed, controlled_demo governance note, recommended first hardening slice, honest limits. Verdict: ready for first prod-hardening slice, zero true blockers. |
 | `docs/evidence/phase-3-1a-boot-guard-hardening.md` | P3-1a first hardening slice: boot-guard tenant-owned RLS coverage expanded 2 → 29 tables (count corrected 23 → 29 with evidence); controlled_demo owner-approval attestation added (fails closed in production); 10 new boot-guard tests. Gates: backend 525 / frontend 122 PASS. No production / providers / sending / migrations enabled. |
+| `docs/evidence/phase-3-2-live-db-smoke.md` | P3-2 live DB smoke + seeded local demo: compose db/backend, alembic at head `00021_outcomes`, 29/29 boot-guard tables RLS-forced, tenant isolation proven under an ephemeral least-privilege role (A=1/B=0), mock tenant billing gates active, protected API smoke (44 paths / 51 ops) all 200. Honest local finding: `app_user` is superuser/bypassrls (image default) — RLS enforced via least-privilege role + repo `tenant_id` predicates; prod boot guard blocks superuser. Gates: backend 525 / frontend 122 PASS. No production / providers / sending enabled. |
 
 ---
 
