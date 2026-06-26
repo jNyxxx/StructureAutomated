@@ -15,6 +15,8 @@ P3-1 read-only production-readiness audit (2026-06-26): ready to begin the first
 
 P3-1a first hardening slice (2026-06-26): boot-guard tenant-owned RLS coverage expanded 2→**29** tables (count corrected 23→29 with evidence) and `controlled_demo` owner-approval attestation added (fails closed) — both §6 rows resolved; see [evidence/phase-3-1a-boot-guard-hardening.md](evidence/phase-3-1a-boot-guard-hardening.md). Backend 525 / frontend 122 gates PASS. No production / providers / sending / Stripe / SMS / migrations enabled.
 
+P3-3b Clerk JWKS verifier (2026-06-26): backend production Clerk JWT verifier implemented behind the existing `ClerkTokenVerifier` Protocol (`ClerkJwksVerifier`, RS256 via JWKS using `cryptography`; injectable JWKS source; fails closed; never falls back to mock). Boot guard now fails closed in production on missing/placeholder managed-auth config and on mock auth — **`controlled_demo` does not bypass auth**. MFA enforcement primitive implemented + tested but inert (no `platform_admin` role in RBAC yet). The six P3-3a owner decisions are recorded (§2/§7). Production NOT enabled / NOT cut over; no real Clerk secrets; `.env` untouched; frontend Clerk widget unchanged; auth chain/RLS/tenant isolation unchanged. Gates: backend 566 / frontend 122 PASS (+ build). See [evidence/phase-3-3b-clerk-verifier-implementation.md](evidence/phase-3-3b-clerk-verifier-implementation.md).
+
 P3-2 live DB smoke (2026-06-26): local compose seeded-demo path verified repeatable — alembic at head, 29/29 boot-guard tables RLS-forced, tenant isolation proven under an ephemeral least-privilege role (A=1/B=0), mock tenant billing gates active, protected API smoke (44 paths/51 ops) all 200; see [evidence/phase-3-2-live-db-smoke.md](evidence/phase-3-2-live-db-smoke.md). Local-dev note: `app_user` is superuser/bypassrls (Postgres image default) so DB-RLS is bypassed for the app's own local connection — already blocked in production by the boot guard's role-safety check; isolation also enforced by repo `tenant_id` predicates. No new blocker (covered by existing "App-side tenant authorization" / "RLS/object-auth tests" rows). No production / providers / sending enabled.
 
 ## 2. Resolved owner decisions
@@ -30,6 +32,7 @@ P3-2 live DB smoke (2026-06-26): local compose seeded-demo path verified repeata
 | Contact/research deletion | Soft-delete first, hard-delete after 30 days, retain minimum hashed suppression data | [PRIVACY_AND_RETENTION](PRIVACY_AND_RETENTION.md) |
 | Observability MVP | In-product observability + LangSmith faithfulness logging; Slack/internal alerts post-demo | [OPERATIONS_RUNBOOK](OPERATIONS_RUNBOOK.md) |
 | Phase 3 entry (planning) | Owner approved entering Phase 3 (Production-Readiness & Real-Provider Enablement program); scope locked to P3-0…P3-7. No real sending / Stripe / SMS / provider integration / live-scraping / production-deploy work without explicit per-slice owner approval recorded here. | [PHASE_3_IMPLEMENTATION_PLAN](PHASE_3_IMPLEMENTATION_PLAN.md) (owner approval 2026-06-26) |
+| Clerk readiness (P3-3a §6, answered 2026-06-26) | (1) Separate Clerk **Production** project + separate **dev/staging** environments; (2) canonical prod domain `https://app.automatedstructure.com`, **no** localhost/preview/wildcards; (3) first pilot tenant/user/membership via **manual bootstrap** (not public signup); (4) MFA **mandatory** for `platform_admin` at launch; (5) first client via **manual bootstrap**, Clerk invite flow later; (6) **Platform Eng/DevOps** owns Clerk dashboard config, **Security/CTO** approves MFA/JWT claims, **SaaS owner** approves onboarding/role model. | [evidence/phase-3-3b-clerk-verifier-implementation.md](evidence/phase-3-3b-clerk-verifier-implementation.md) §2 (owner answers 2026-06-26) |
 
 ## 3. Must COMPLETE before external users
 
@@ -48,7 +51,7 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Blocker | Area | Required fix |
 |---|---|---|
 | Legal review for live cold outreach/privacy claims | Compliance | Counsel-approved policies + UI copy before live sending |
-| Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production. P3-3a readiness plan complete — verifier contract, env/secrets, and implementation slices defined; see [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md). Gated on 6 owner decisions (§7). |
+| Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production. P3-3a readiness plan complete; **P3-3b backend verifier implemented** (`ClerkJwksVerifier`, boot-guard managed-auth checks, MFA primitive) and 6 owner decisions answered — see [evidence/phase-3-3b-clerk-verifier-implementation.md](evidence/phase-3-3b-clerk-verifier-implementation.md). **Still blocked on cutover:** real Clerk Production values (Secrets Manager), managed `AuthService` store wiring, `platform_admin` role in RBAC + `enforce_mfa()` wiring, frontend `@clerk/nextjs`, and real-JWT smoke (P3-3c→P3-3e). |
 | App-side tenant authorization | Auth/RBAC | Tenant membership, RBAC, object auth, support access, audit, tenant context, and RLS tests |
 | Centralized billing gates | Billing | `is_active(tenant)` + `has_feature(tenant, key)` with route/worker tests |
 | Rate limits + abuse protection | Security | App/WAF/Redis/provider limits |
@@ -70,12 +73,7 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Support access approval operations | Owner/super-admin grant + audit | External users |
 | Production mock-provider exception | No exception by default | Before any prod demo on mock providers |
 | First-paying-client production billing | Stripe products/prices, plan entitlements, webhook/dunning rollout | First paying client |
-| Clerk project/environment — which Clerk instance + prod vs dev/preview; separate staging vs prod instances? | Separate prod + dev instances recommended | P3-3b start | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
-| Clerk allowed domains + callback/redirect URLs for production app | Determined by production domain | P3-3b start | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
-| Production tenant/user bootstrap process — Clerk invite flow, manual DB seed, admin UI, or migration script? | Manual seed + admin bootstrap script for pilot | P3-3b planning | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
-| Platform-admin MFA mandatory at launch? (AUTH_AND_RBAC §5 requires before external users) | Yes — mandatory (recommended) | P3-3b | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
-| First client onboarding: Clerk invite flow or manual bootstrap? | Manual bootstrap for controlled pilot | P3-3b planning | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
-| Who owns Clerk dashboard configuration (keys, JWT templates, MFA policy, domain allow-listing)? | Named owner or ops lead | P3-3b start | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
+| ~~6 Clerk readiness decisions (project/env, domains, bootstrap, platform-admin MFA, onboarding, dashboard ownership)~~ **ANSWERED (P3-3b 2026-06-26)** | Recorded in §2 "Clerk readiness" row; implemented per [evidence/phase-3-3b-clerk-verifier-implementation.md](evidence/phase-3-3b-clerk-verifier-implementation.md) | Resolved |
 | SMS legal wording | Counsel-approved only | Phase 3 |
 
 ## 8. Required >=8/10 categories (external production)

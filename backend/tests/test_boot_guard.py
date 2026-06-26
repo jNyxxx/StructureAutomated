@@ -112,6 +112,10 @@ def _safe_prod(**override: object) -> Settings:
         "https_only": True,
         "cors_allow_all": False,
         "secret_backend": "aws",
+        "auth_provider": "managed",
+        "auth_provider_issuer": "https://clerk.example.com",
+        "auth_provider_secret_key": "sk_live_0123456789abcdef",
+        "auth_provider_publishable_key": "pk_live_0123456789abcdef",
     }
     base.update(override)
     return Settings(**base)  # type: ignore[arg-type]
@@ -236,6 +240,59 @@ def test_controlled_demo_requires_attestation_even_without_mocks() -> None:
     # No mock providers, but controlled_demo set without an approver still fails.
     failures = config_failures(_safe_prod(controlled_demo=True))
     assert any("controlled_demo" in f and "attestation" in f for f in failures)
+
+
+def test_missing_auth_issuer_fails() -> None:
+    failures = config_failures(_safe_prod(auth_provider_issuer=None))
+    assert any("AUTH_PROVIDER_ISSUER" in f for f in failures)
+
+
+def test_placeholder_auth_issuer_fails() -> None:
+    failures = config_failures(_safe_prod(auth_provider_issuer="CHANGE_ME_PLACEHOLDER"))
+    assert any("AUTH_PROVIDER_ISSUER" in f for f in failures)
+
+
+def test_non_https_or_localhost_issuer_fails() -> None:
+    http = config_failures(_safe_prod(auth_provider_issuer="http://clerk.example.com"))
+    local = config_failures(_safe_prod(auth_provider_issuer="https://localhost:3000"))
+    assert any("AUTH_PROVIDER_ISSUER" in f and "https" in f for f in http)
+    assert any("AUTH_PROVIDER_ISSUER" in f and "https" in f for f in local)
+
+
+def test_bad_jwks_url_fails_but_default_ok() -> None:
+    bad = config_failures(_safe_prod(auth_provider_jwks_url="http://localhost/jwks.json"))
+    assert any("AUTH_PROVIDER_JWKS_URL" in f for f in bad)
+    # Unset JWKS URL is fine (defaults to {issuer}/.well-known/jwks.json).
+    assert config_failures(_safe_prod(auth_provider_jwks_url=None)) == []
+
+
+def test_placeholder_auth_secret_and_publishable_keys_fail() -> None:
+    sk = config_failures(_safe_prod(auth_provider_secret_key="CHANGE_ME_PLACEHOLDER"))
+    pk = config_failures(_safe_prod(auth_provider_publishable_key=None))
+    assert any("AUTH_PROVIDER_SECRET_KEY" in f for f in sk)
+    assert any("AUTH_PROVIDER_PUBLISHABLE_KEY" in f for f in pk)
+
+
+def test_non_managed_auth_provider_fails() -> None:
+    failures = config_failures(_safe_prod(auth_provider="mock"))
+    assert any("auth_provider must be a managed provider" in f for f in failures)
+
+
+def test_mock_verifier_fails_in_production() -> None:
+    failures = config_failures(_safe_prod(mock_verifier=True))
+    assert any("mock_verifier" in f for f in failures)
+
+
+def test_controlled_demo_does_not_bypass_mock_auth() -> None:
+    # Even a fully-attested controlled_demo cannot run mock auth in production.
+    failures = config_failures(
+        _safe_prod(
+            mock_verifier=True,
+            controlled_demo=True,
+            controlled_demo_approved_by="owner:ops (P3-3b 2026-06-26)",
+        )
+    )
+    assert any("mock_verifier" in f and "controlled_demo does not bypass" in f for f in failures)
 
 
 def test_adapter_registry_has_no_live_provider_paths() -> None:

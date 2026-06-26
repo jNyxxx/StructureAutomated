@@ -59,6 +59,11 @@ TENANT_OWNED_TABLES = (
 _REQUIRED_PROD_SECRETS = ("jwt_secret", "encryption_key", "webhook_secret")
 _PLACEHOLDER_MARKERS = ("change_me", "changeme", "placeholder", "todo", "xxx")
 _ZERO_UUID = "00000000-0000-0000-0000-000000000000"
+# Managed auth provider identifiers acceptable in production (Clerk-backed).
+_MANAGED_AUTH_PROVIDERS = ("managed", "clerk")
+# Forbidden host markers for public auth URLs in production (owner decision:
+# no localhost / preview / wildcard origins in production).
+_FORBIDDEN_URL_MARKERS = ("localhost", "127.0.0.1", "0.0.0.0", "*")  # noqa: S104 - URL substrings
 
 
 class BootGuardError(RuntimeError):
@@ -72,6 +77,48 @@ def _is_placeholder(value: str | None) -> bool:
         return True
     v = value.strip().lower()
     return v == "" or len(v) < 8 or any(marker in v for marker in _PLACEHOLDER_MARKERS)
+
+
+def _is_https_nonlocal(url: str | None) -> bool:
+    if url is None:
+        return False
+    u = url.strip().lower()
+    return u.startswith("https://") and not any(m in u for m in _FORBIDDEN_URL_MARKERS)
+
+
+def _auth_failures(settings: Settings) -> list[str]:
+    """Production managed-auth (Clerk) config checks.
+
+    Auth is NEVER mockable in production: controlled_demo may permit mock
+    billing/mailbox/dns/research, but it must not bypass real auth. Public
+    issuer/JWKS values must be present + https + non-placeholder; the secret /
+    publishable keys must be non-placeholder (real values come from the secrets
+    backend, not committed). JWKS reachability is intentionally NOT checked here
+    (no network at boot); it is a documented runtime/manual verification.
+    """
+    failures: list[str] = []
+    if settings.mock_verifier:
+        failures.append(
+            "mock_verifier (mock auth) must be false in production; "
+            "controlled_demo does not bypass auth"
+        )
+    if settings.auth_provider not in _MANAGED_AUTH_PROVIDERS:
+        failures.append(
+            f"auth_provider must be a managed provider {_MANAGED_AUTH_PROVIDERS} in production "
+            f"(got '{settings.auth_provider}')"
+        )
+    if _is_placeholder(settings.auth_provider_issuer):
+        failures.append("AUTH_PROVIDER_ISSUER is blank or placeholder")
+    elif not _is_https_nonlocal(settings.auth_provider_issuer):
+        failures.append("AUTH_PROVIDER_ISSUER must be an https non-localhost URL in production")
+    jwks_url = settings.auth_provider_jwks_url
+    if jwks_url is not None and not _is_https_nonlocal(jwks_url):
+        failures.append("AUTH_PROVIDER_JWKS_URL must be an https non-localhost URL in production")
+    if _is_placeholder(settings.auth_provider_secret_key):
+        failures.append("AUTH_PROVIDER_SECRET_KEY is blank or placeholder")
+    if _is_placeholder(settings.auth_provider_publishable_key):
+        failures.append("AUTH_PROVIDER_PUBLISHABLE_KEY is blank or placeholder")
+    return failures
 
 
 def config_failures(settings: Settings) -> list[str]:
@@ -102,6 +149,7 @@ def config_failures(settings: Settings) -> list[str]:
         failures.append("cors_allow_all must be false in production")
     if settings.secret_backend != "aws":  # noqa: S105 - backend selector, not a secret
         failures.append("secret_backend must be 'aws' in production")
+    failures.extend(_auth_failures(settings))
     return failures
 
 

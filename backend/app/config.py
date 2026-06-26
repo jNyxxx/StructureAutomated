@@ -42,6 +42,28 @@ class Settings(BaseSettings):
     encryption_key: str | None = None
     webhook_secret: str | None = None
 
+    # Managed auth provider (Clerk). The mock auth path is gated separately on
+    # ``app_env != production AND mock_verifier`` (see app/main.py). Issuer /
+    # JWKS / audience / authorized-parties are public, non-secret values used by
+    # ClerkJwksVerifier; the secret key is shape-checked by the boot guard only
+    # and is NEVER read into claims. No real Clerk values are committed (P3-3b).
+    auth_provider: str = "managed"  # "managed" (Clerk) in prod; mock path is env-gated
+    auth_provider_issuer: str | None = None
+    auth_provider_jwks_url: str | None = None  # defaults to {issuer}/.well-known/jwks.json
+    auth_provider_audience: str | None = None  # expected `aud` if a JWT template sets it
+    auth_provider_authorized_parties: str | None = None  # comma-separated `azp` allowlist
+    auth_provider_email_claim: str = "email"
+    auth_provider_session_claim: str = "sid"  # noqa: S105 - claim name, not a secret
+    auth_provider_mfa_claim: str | None = None  # e.g. a Clerk JWT-template boolean flag
+    auth_provider_secret_key: str | None = None  # shape-checked only; real value via secrets mgr
+    auth_provider_publishable_key: str | None = None  # public Clerk key; non-placeholder in prod
+
+    # Roles that MUST present a verified MFA factor (owner decision: platform_admin
+    # mandatory at launch). enforce_mfa() (app/auth/mfa.py) consumes this. The role
+    # is not yet in the RBAC matrix (services/authz.py), so enforcement is inert
+    # until it is added — see docs/evidence/phase-3-3b-clerk-verifier-implementation.md.
+    auth_mfa_required_roles: str = "platform_admin"
+
     # Security toggles — must be hardened in production.
     cookie_secure: bool = False
     csrf_enabled: bool = False

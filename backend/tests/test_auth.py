@@ -226,6 +226,20 @@ def test_live_local_app_wires_mock_auth_service_only_for_non_production() -> Non
     assert principal["mfa_verified"] is True
 
 
+def test_production_app_does_not_attach_mock_verifier(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from app.config import get_settings
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("MOCK_VERIFIER", "true")
+    get_settings.cache_clear()
+    try:
+        app = create_app()
+        # Production must NOT wire the LocalMockClerkVerifier-backed service.
+        assert getattr(app.state, "auth_service", None) is None
+    finally:
+        get_settings.cache_clear()
+
+
 def test_auth_session_migration_has_no_raw_token_storage_and_forced_rls() -> None:
     src = (
         Path(__file__).resolve().parents[1] / "migrations" / "versions" / "0007_auth_sessions.py"
