@@ -48,7 +48,7 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Blocker | Area | Required fix |
 |---|---|---|
 | Legal review for live cold outreach/privacy claims | Compliance | Counsel-approved policies + UI copy before live sending |
-| Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production |
+| Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production. P3-3a readiness plan complete — verifier contract, env/secrets, and implementation slices defined; see [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md). Gated on 6 owner decisions (§7). |
 | App-side tenant authorization | Auth/RBAC | Tenant membership, RBAC, object auth, support access, audit, tenant context, and RLS tests |
 | Centralized billing gates | Billing | `is_active(tenant)` + `has_feature(tenant, key)` with route/worker tests |
 | Rate limits + abuse protection | Security | App/WAF/Redis/provider limits |
@@ -70,6 +70,12 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Support access approval operations | Owner/super-admin grant + audit | External users |
 | Production mock-provider exception | No exception by default | Before any prod demo on mock providers |
 | First-paying-client production billing | Stripe products/prices, plan entitlements, webhook/dunning rollout | First paying client |
+| Clerk project/environment — which Clerk instance + prod vs dev/preview; separate staging vs prod instances? | Separate prod + dev instances recommended | P3-3b start | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
+| Clerk allowed domains + callback/redirect URLs for production app | Determined by production domain | P3-3b start | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
+| Production tenant/user bootstrap process — Clerk invite flow, manual DB seed, admin UI, or migration script? | Manual seed + admin bootstrap script for pilot | P3-3b planning | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
+| Platform-admin MFA mandatory at launch? (AUTH_AND_RBAC §5 requires before external users) | Yes — mandatory (recommended) | P3-3b | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
+| First client onboarding: Clerk invite flow or manual bootstrap? | Manual bootstrap for controlled pilot | P3-3b planning | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
+| Who owns Clerk dashboard configuration (keys, JWT templates, MFA policy, domain allow-listing)? | Named owner or ops lead | P3-3b start | [evidence/phase-3-3a-clerk-auth-readiness-plan.md](evidence/phase-3-3a-clerk-auth-readiness-plan.md) §6 |
 | SMS legal wording | Counsel-approved only | Phase 3 |
 
 ## 8. Required >=8/10 categories (external production)
