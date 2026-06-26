@@ -81,6 +81,14 @@ The Phase 3 analog of doc #14 (`PHASE_0_1_IMPLEMENTATION_PLAN.md`). Planning art
 
 ---
 
+## Phase 3 evidence files (not counted among the 20 docs)
+
+| File | Purpose |
+|------|---------|
+| `docs/evidence/phase-3-1-production-readiness-audit.md` | P3-1 read-only production-readiness audit: method, re-run gate results (515 backend / 122 frontend), readiness findings (boot-guard/billing/sending/secrets READY; RLS/auth/deploy gaps), stop-gates confirmed, controlled_demo governance note, recommended first hardening slice, honest limits. Verdict: ready for first prod-hardening slice, zero true blockers. |
+
+---
+
 ## Supplementary process notes (not counted among the 20 docs)
 
 | File | Purpose |

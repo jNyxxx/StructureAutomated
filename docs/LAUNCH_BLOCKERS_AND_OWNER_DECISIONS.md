@@ -11,6 +11,8 @@
 
 Implementation-ready for **Phase 0 + Phase 1**, **not** production launch approval. Readiness **6/10** until implementation evidence exists. Controlled pilot requires **avg >= 8.0/10**, **no critical category < 8/10**, **no open Critical/High blocker**, and a **signed evidence bundle**.
 
+P3-1 read-only production-readiness audit (2026-06-26): ready to begin the first prod-hardening slice, **zero true blockers**, all stop-gates hold — see [evidence/phase-3-1-production-readiness-audit.md](evidence/phase-3-1-production-readiness-audit.md). No production / real providers / sending / Stripe / SMS enabled; no app code changed.
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -52,6 +54,8 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | In-product observability + LangSmith logging | SRE/AI | Demo observability and faithfulness traces |
 | Privacy export/delete/vector purge | Privacy | Working workflows + policy-aligned retention |
 | Production boot guard missing | Security/Ops | Startup checks fail unsafe prod/staging config |
+| Boot-guard RLS coverage (2 of 23 tenant tables) | Security/Ops | Expand boot-guard tenant-owned RLS verification from `tenants`/`tenant_memberships` to all 23 tenant tables + test (P3-1 finding; RLS itself present in migrations, detection-only gap) |
+| controlled_demo lacks owner-approval attestation | Security/Ops | Recorded owner-approval gate around `controlled_demo` before any prod/demo mock-provider exception (P3-1 finding; not currently a reachable live-provider path) |
 
 ## 7. Remaining owner decisions
 
