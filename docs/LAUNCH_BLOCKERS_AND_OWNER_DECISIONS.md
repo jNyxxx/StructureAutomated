@@ -37,6 +37,8 @@ P3-4e Redis readiness/error hardening (2026-06-28): remaining Redis yellow items
 
 P3-4f rate-limit / abuse-protection acceptance (2026-06-28): P3-4 accepted and green. Acceptance covers P3-4a plan, P3-4b endpoint limits/shared limiter, P3-4c Redis backend, P3-4d Redis runtime smoke, and P3-4e Redis readiness/error hardening. Final gates remain backend ruff/black/mypy PASS, backend 598 PASS, frontend lint/typecheck/test/build PASS (122 tests). Honest limits preserved: no production, no deployment, production Redis not provisioned, no real secrets/providers/sending/Stripe/SMS/live scraping. Future production deployment must provision Redis/ElastiCache and set `RATE_LIMIT_BACKEND=redis` + `RATE_LIMIT_REDIS_URL` through approved secret/config path. See [evidence/phase-3-4f-rate-limit-abuse-protection-acceptance.md](evidence/phase-3-4f-rate-limit-abuse-protection-acceptance.md).
 
+P3-5a real sending/provider design inspection (2026-06-28): docs-only stop-gate plan created. Current `/send-intents` path is still `MockSenderService` only; compliance rejects `live_sending_allowed=True`; deliverability/mailbox health remain deterministic mock data; no provider adapter/registry/SDK/webhook/secret path exists. Future lane designed around provider Protocol, fail-closed adapter registry, mock-vs-real boundary, secret-ref-only credential handling, required safety chain, owner decisions, config/boot-guard requirements, implementation slices P3-5b→P3-5f, and tests. No code/config/test/env changes; no production/deploy/provider calls/Stripe/SMS/live scraping. See [evidence/phase-3-5a-real-sending-provider-design.md](evidence/phase-3-5a-real-sending-provider-design.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -69,7 +71,7 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 
 | Blocker | Area | Required fix |
 |---|---|---|
-| Legal review for live cold outreach/privacy claims | Compliance | Counsel-approved policies + UI copy before live sending |
+| Legal review for live cold outreach/privacy claims | Compliance | Counsel-approved policies + UI copy before live sending; P3-5a documents provider-lane decisions and stop gates but does not clear legal/provider launch approval. |
 | Clerk production configuration + platform-admin MFA | Auth | Verify Clerk settings, domains, templates, and MFA before external users / production. P3-3a readiness plan complete; **P3-3b** `ClerkJwksVerifier` + boot-guard checks + MFA primitive done; **P3-3c** managed `AuthService` wiring done; **P3-3d** role model decision resolved; **P3-3e** `platform_admin` role + migration `00022_platform_admin_role` + `enforce_mfa()` now active in live flow; **P3-3f** frontend integration designed (`clerk-real.tsx` adapter plan, catch-all routes, tenant-selector gap documented, 18-step smoke checklist) — see [evidence/phase-3-3f-clerk-frontend-integration-plan.md](evidence/phase-3-3f-clerk-frontend-integration-plan.md). **Blocked on cutover:** real Clerk dev project (owner action), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `AUTH_PROVIDER_ISSUER`, `auth_provider_mfa_claim` (Clerk JWT template), frontend `@clerk/nextjs` installed + wired, tenant-selector step, real-JWT end-to-end smoke. |
 | App-side tenant authorization | Auth/RBAC | Tenant membership, RBAC, object auth, support access, audit, tenant context, and RLS tests |
 | Centralized billing gates | Billing | `is_active(tenant)` + `has_feature(tenant, key)` with route/worker tests |

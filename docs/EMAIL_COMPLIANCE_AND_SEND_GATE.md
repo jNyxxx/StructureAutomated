@@ -54,6 +54,12 @@ For the first real client, every AI-generated cold-email draft requires manual h
 
 Auto-send can be added later only as a per-tenant/per-campaign configuration. Auto-send must still require every safety gate to pass.
 
+## 4B. P3-5a provider lane stop gate
+
+P3-5a is an inspection/design checkpoint only. Future provider work must preserve this document's send-gate authority and add a provider interface behind a fail-closed adapter registry. A real adapter may only be reachable after owner decisions for provider choice, sending domain, DNS/SPF/DKIM/DMARC ownership, mailbox warm-up policy, tenant/provider caps, unsubscribe/legal copy, pilot domain, deliverability owner, and approved secret/config path.
+
+Provider credentials must use secret references only. No raw provider secrets may be stored in DB rows, logs, audit events, frontend state, prompts, exports, or client responses.
+
 ## 5. Suppression model
 
 Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason, source, actor, timestamp). Rules:
