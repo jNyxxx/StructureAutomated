@@ -82,6 +82,13 @@ Rate-limit backend selection:
 - Runtime-smoke evidence: P3-4d proved local Redis counters against a real Redis container, including HTTP 429 behavior, tenant-scoped key isolation, key PII safety, TTL reset, and Redis-down behavior.
 - Redis failure/readiness hardening: P3-4e maps Redis/backend counter outages to a sanitized `503 RATE_LIMIT_BACKEND_UNAVAILABLE` response, keeps rate limiting fail-closed, and includes Redis state in `/ready` when `RATE_LIMIT_BACKEND=redis`. P3-4f accepts this rate-limit/abuse-protection track as green. Production cutover still requires deployment-managed Redis/ElastiCache config and staging smoke.
 
+Email provider boundary / future provider config:
+
+- Current safe default: `EMAIL_PROVIDER=mock` and `LIVE_EMAIL_SENDING_ENABLED=false`.
+- P3-5b registers only the network-free mock adapter; provider names fail closed until a later owner-approved slice adds a real adapter.
+- P3-5c design requires provider credentials and webhook signing secrets to be referenced by secret refs only and loaded from AWS Secrets Manager/KMS in production.
+- Production provider cutover must verify sending domain DNS, webhook signatures, tenant/campaign/mailbox/provider caps, legal footer/unsubscribe copy, and internal-only smoke evidence before any external recipient delivery.
+
 ## B2. CI jobs (all must pass)
 
 1. Backend lint/type.

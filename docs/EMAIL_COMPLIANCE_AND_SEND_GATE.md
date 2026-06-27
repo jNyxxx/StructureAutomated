@@ -62,6 +62,8 @@ Provider credentials must use secret references only. No raw provider secrets ma
 
 P3-5b adds the provider interface boundary and fail-closed adapter registry. Only the network-free mock adapter is registered. `EMAIL_PROVIDER=mock` and `LIVE_EMAIL_SENDING_ENABLED=false` are the safe defaults; live provider names fail closed until a later owner-approved slice adds a real adapter and required secret/config checks.
 
+P3-5c defines provider-selection and secret/config design. Provider choice is not final. The recommended default for a first internal-only technical smoke is Amazon SES if the deployment target remains AWS; Postmark is the alternate when owner prioritizes fastest dashboard/operator workflow. Final selection still requires owner approval for provider, sending domain, DNS owner, webhook scope, caps, legal copy, deliverability monitor, and internal-only smoke scope.
+
 ## 5. Suppression model
 
 Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason, source, actor, timestamp). Rules:
