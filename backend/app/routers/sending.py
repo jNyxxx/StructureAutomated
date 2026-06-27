@@ -103,9 +103,7 @@ async def send_gate_service(
 ) -> AsyncIterator[SendGateService]:
     async with tenant_session(tenant_id=principal.tenant_id, actor_id=principal.user_id) as conn:
         audit = AuditService(AuditRepository(conn))
-        yield _send_gate_service(
-            conn, audit, with_idempotency=True, rate_limiter=rate_limiter
-        )
+        yield _send_gate_service(conn, audit, with_idempotency=True, rate_limiter=rate_limiter)
 
 
 async def mock_sender_service(

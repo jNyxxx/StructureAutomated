@@ -19,9 +19,7 @@ from app.ratelimit.backend import InMemoryRateLimitBackend
 from app.services.rate_limit import DEFAULT_POLICIES, RateLimitPolicy, RateLimitService
 
 TENANT_SEND_POLICY = RateLimitPolicy("tenant_send", limit=100, window=timedelta(minutes=1))
-TENANT_FOLLOWUP_POLICY = RateLimitPolicy(
-    "tenant_followup", limit=60, window=timedelta(minutes=1)
-)
+TENANT_FOLLOWUP_POLICY = RateLimitPolicy("tenant_followup", limit=60, window=timedelta(minutes=1))
 
 _fallback_backend = InMemoryRateLimitBackend()
 _fallback_service = RateLimitService(_fallback_backend)
