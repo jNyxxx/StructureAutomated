@@ -14,6 +14,7 @@ from app.audit.repository import AuditRepository
 from app.audit.service import AuditService
 from app.auth.dependencies import current_principal
 from app.auth.principal import CurrentPrincipal
+from app.config import get_settings
 from app.database import tenant_session
 from app.middleware.error_handler import AppError
 from app.ratelimit.dependencies import (
@@ -42,6 +43,7 @@ from app.schemas.sending import (
 from app.services.authz import ObjectAuthorizationService, RBACService
 from app.services.billing import BillingGateService
 from app.services.compliance import ComplianceGateService
+from app.services.email_provider import build_email_provider
 from app.services.idempotency import IdempotencyConflictError, IdempotencyService
 from app.services.mock_sender import MockSenderService
 from app.services.outbound_read import OutboundReadService
@@ -120,6 +122,7 @@ async def mock_sender_service(
             followups=None,
             idempotency=IdempotencyService(IdempotencyRepository(conn)),
             audit_record=audit.record,
+            email_provider=build_email_provider(get_settings()),
         )
 
 

@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     secret_backend: str = "local"  # noqa: S105 - backend selector, not a secret
     kms_key_id: str | None = None
 
+    # Email provider boundary. P3-5b registers only the network-free mock adapter.
+    # Live email sending remains disabled until a later owner-approved provider slice.
+    email_provider: str = "mock"
+    live_email_sending_enabled: bool = False
+    email_provider_secret_ref: str | None = None
+    email_provider_webhook_secret_ref: str | None = None
+    email_sending_domain: str | None = None
+
     # Rate-limit foundation. Per-endpoint enforcement is always wired at the route
     # layer; deployments opt in to the baseline per-IP middleware guard. Local/test
     # default stays in-memory. Production must select Redis for multi-worker correctness.

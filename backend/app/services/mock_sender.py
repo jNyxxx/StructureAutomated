@@ -9,6 +9,11 @@ from typing import Any, Protocol
 
 from app.auth.principal import CurrentPrincipal
 from app.middleware.error_handler import AppError
+from app.services.email_provider import (
+    EmailSendProvider,
+    MockEmailSendProvider,
+    ProviderSendRequest,
+)
 from app.services.idempotency import IdempotencyOutcome, IdempotencyState
 from app.services.send_gate import SendGateService
 
@@ -76,12 +81,14 @@ class MockSenderService:
         followups: Any = None,
         idempotency: IdempotencyGate | None = None,
         audit_record: Any = None,
+        email_provider: EmailSendProvider | None = None,
     ) -> None:
         self._sending_store = sending_store
         self._send_gate = send_gate
         self._followups = followups
         self._idempotency = idempotency
         self._audit_record = audit_record
+        self._email_provider = email_provider or MockEmailSendProvider()
 
     async def send_approved_draft_idempotent(
         self,
@@ -160,6 +167,45 @@ class MockSenderService:
             )
             raise
 
+        provider_result = await self._email_provider.send(
+            ProviderSendRequest(
+                tenant_id=principal.tenant_id,
+                draft_id=draft_id,
+                idempotency_key=f"mock-send:{draft_id}",
+                requested_at=now,
+                recipient_ref=f"draft:{draft_id}:contact",
+                content_ref=f"draft:{draft_id}:content",
+                safe_metadata={"mock_only": "true"},
+            )
+        )
+        if provider_result.provider_status != "accepted":
+            blocked = await self._sending_store.create_outbound_message(
+                tenant_id=principal.tenant_id,
+                draft_id=draft_id,
+                status="blocked",
+            )
+            await self._audit(
+                event_type="outbound_message.provider_failed",
+                tenant_id=principal.tenant_id,
+                actor_user_id=principal.user_id,
+                object_type="outbound_message",
+                object_id=blocked.id,
+                details={
+                    "provider": provider_result.provider,
+                    "provider_status": provider_result.provider_status,
+                    "error_code": provider_result.error_code,
+                },
+            )
+            raise AppError(
+                "EMAIL_PROVIDER_SEND_FAILED",
+                "Email provider send failed.",
+                status_code=503,
+                details={
+                    "provider_status": provider_result.provider_status,
+                    "error_code": provider_result.error_code,
+                },
+            )
+
         # Create successful mock sent outbound message
         msg = await self._sending_store.create_outbound_message(
             tenant_id=principal.tenant_id,
@@ -175,7 +221,12 @@ class MockSenderService:
             actor_user_id=principal.user_id,
             object_type="outbound_message",
             object_id=msg.id,
-            details={"draft_id": str(draft_id)},
+            details={
+                "draft_id": str(draft_id),
+                "provider": provider_result.provider,
+                "provider_status": provider_result.provider_status,
+                "provider_message_id": provider_result.provider_message_id,
+            },
         )
 
         # Auto-schedule follow-up checkups if rule exists

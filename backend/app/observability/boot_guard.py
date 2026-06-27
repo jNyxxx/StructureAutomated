@@ -93,6 +93,31 @@ def _is_redis_url(url: str | None) -> bool:
     return u.startswith(("redis://", "rediss://"))
 
 
+def _email_provider_failures(settings: Settings) -> list[str]:
+    """Production email-provider config checks.
+
+    P3-5b intentionally implements only the provider interface boundary and mock
+    adapter. Production must fail closed if a live provider is selected or live
+    delivery is enabled before an approved live adapter and secret path exist.
+    controlled_demo must not bypass live email delivery requirements.
+    """
+    failures: list[str] = []
+    provider = settings.email_provider.strip().lower()
+    if provider != "mock":
+        failures.append(
+            f"email_provider '{settings.email_provider}' has no approved live adapter in this build"
+        )
+    if settings.live_email_sending_enabled:
+        failures.append(
+            "live_email_sending_enabled must remain false until approved provider slice"
+        )
+        if _is_placeholder(settings.email_provider_secret_ref):
+            failures.append("EMAIL_PROVIDER_SECRET_REF is blank or placeholder")
+        if _is_placeholder(settings.email_sending_domain):
+            failures.append("EMAIL_SENDING_DOMAIN is blank or placeholder")
+    return failures
+
+
 def _auth_failures(settings: Settings) -> list[str]:
     """Production managed-auth (Clerk) config checks.
 
@@ -160,6 +185,7 @@ def config_failures(settings: Settings) -> list[str]:
         failures.append("rate_limit_backend must be 'redis' in production")
     if not _is_redis_url(settings.rate_limit_redis_url):
         failures.append("RATE_LIMIT_REDIS_URL must be a non-placeholder redis:// or rediss:// URL")
+    failures.extend(_email_provider_failures(settings))
     failures.extend(_auth_failures(settings))
     return failures
 

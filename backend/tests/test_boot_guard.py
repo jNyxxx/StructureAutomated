@@ -297,6 +297,43 @@ def test_controlled_demo_does_not_bypass_mock_auth() -> None:
     assert any("mock_verifier" in f and "controlled_demo does not bypass" in f for f in failures)
 
 
+def test_production_email_provider_must_have_approved_live_adapter() -> None:
+    failures = config_failures(_safe_prod(email_provider="sendgrid"))
+    assert any("email_provider" in f and "no approved live adapter" in f for f in failures)
+
+
+def test_production_live_email_sending_is_not_enabled_in_this_build() -> None:
+    failures = config_failures(
+        _safe_prod(
+            live_email_sending_enabled=True,
+            email_provider_secret_ref="aws-secretsmanager:email/provider",
+            email_sending_domain="mail.example.com",
+        )
+    )
+    assert any("live_email_sending_enabled" in f for f in failures)
+
+
+def test_production_live_email_sending_requires_secret_ref_and_domain() -> None:
+    failures = config_failures(_safe_prod(live_email_sending_enabled=True))
+    joined = " ".join(failures)
+    assert "EMAIL_PROVIDER_SECRET_REF" in joined
+    assert "EMAIL_SENDING_DOMAIN" in joined
+
+
+def test_controlled_demo_does_not_bypass_live_email_requirements() -> None:
+    failures = config_failures(
+        _safe_prod(
+            controlled_demo=True,
+            controlled_demo_approved_by="owner:ops (P3-5b 2026-06-28)",
+            live_email_sending_enabled=True,
+            email_provider="sendgrid",
+        )
+    )
+    joined = " ".join(failures)
+    assert "live_email_sending_enabled" in joined
+    assert "email_provider" in joined
+
+
 def test_production_rate_limit_backend_must_be_redis() -> None:
     failures = config_failures(_safe_prod(rate_limit_backend="in_memory"))
     assert any("rate_limit_backend" in f and "redis" in f for f in failures)

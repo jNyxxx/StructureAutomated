@@ -60,6 +60,8 @@ P3-5a is an inspection/design checkpoint only. Future provider work must preserv
 
 Provider credentials must use secret references only. No raw provider secrets may be stored in DB rows, logs, audit events, frontend state, prompts, exports, or client responses.
 
+P3-5b adds the provider interface boundary and fail-closed adapter registry. Only the network-free mock adapter is registered. `EMAIL_PROVIDER=mock` and `LIVE_EMAIL_SENDING_ENABLED=false` are the safe defaults; live provider names fail closed until a later owner-approved slice adds a real adapter and required secret/config checks.
+
 ## 5. Suppression model
 
 Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason, source, actor, timestamp). Rules:

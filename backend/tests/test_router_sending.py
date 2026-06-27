@@ -378,6 +378,7 @@ async def test_mock_sender_di_opens_tenant_session_with_principal_context(
     assert opened["actor_id"] == _USER
     assert isinstance(service, sending_router.MockSenderService)
     assert service._followups is None  # noqa: SLF001
+    assert service._email_provider.kind == "mock"  # noqa: SLF001
     with pytest.raises(StopAsyncIteration):
         await gen.__anext__()
 
@@ -414,3 +415,4 @@ def test_sending_router_does_not_import_provider_clients() -> None:
     assert "mailgun" not in source
     assert "twilio" not in source
     assert "boto3" not in source
+    assert "smtplib" not in source
