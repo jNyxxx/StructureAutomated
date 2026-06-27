@@ -21,7 +21,12 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
 
 from app.schemas.errors import error_envelope
-from app.services.rate_limit import RateLimitPolicy, RateLimitResult, RateLimitService
+from app.services.rate_limit import (
+    RateLimitBackendUnavailable,
+    RateLimitPolicy,
+    RateLimitResult,
+    RateLimitService,
+)
 
 
 def _apply_headers(response: Response, result: RateLimitResult) -> None:
@@ -49,7 +54,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         ip = request.client.host if request.client else "unknown"
-        result = await self._service.check(self._policy, now=datetime.now(UTC), ip=ip)
+        try:
+            result = await self._service.check(self._policy, now=datetime.now(UTC), ip=ip)
+        except RateLimitBackendUnavailable as exc:
+            request_id = getattr(request.state, "request_id", None)
+            body = error_envelope(
+                code=exc.code,
+                message=exc.message,
+                request_id=request_id,
+                details=exc.details,
+            )
+            return JSONResponse(status_code=exc.status_code, content=body)
 
         if not result.allowed:
             request_id = getattr(request.state, "request_id", None)

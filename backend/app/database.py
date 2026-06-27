@@ -25,6 +25,7 @@ from sqlalchemy.pool import NullPool
 
 from app.config import Settings, get_settings
 from app.observability.logging import get_logger
+from app.ratelimit.redis_backend import check_redis_ready
 
 _logger = get_logger("app.database")
 _CONNECT_TIMEOUT_SECONDS = 3.0
@@ -139,33 +140,48 @@ async def _current_db_revision(conn: AsyncConnection) -> str | None:
 async def check_readiness(settings: Settings | None = None) -> dict[str, Any]:
     """Return a readiness result.
 
-    Never leaks the DSN, credentials, or raw driver errors. When the DB is not
-    configured the app is still considered ready (the API can serve without it).
+    Never leaks the DSN, credentials, Redis URL, or raw driver/backend errors. When
+    the DB is not configured the app can still be ready; Redis is checked only
+    when the rate-limit backend is configured as Redis.
     """
     settings = settings or get_settings()
-    if not settings.is_db_configured or settings.database_url is None:
-        return {"ready": True, "checks": {"database": "not_configured"}}
+    ready = True
+    checks: dict[str, str] = {}
 
-    engine = create_async_engine(
-        settings.database_url,
-        poolclass=NullPool,
-        connect_args={"timeout": _CONNECT_TIMEOUT_SECONDS},
-    )
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-            db_revision = await _current_db_revision(conn)
-        at_head = db_revision is not None and db_revision == code_head_revision()
-        return {
-            "ready": at_head,
-            "checks": {
-                "database": "ok",
-                "migrations": "up_to_date" if at_head else "out_of_date",
-            },
-        }
-    except Exception:
-        # Fixed event only — never the exception text or DSN (may carry credentials).
-        _logger.warning("readiness.db_unavailable", extra={"event": "readiness.db_unavailable"})
-        return {"ready": False, "checks": {"database": "unavailable"}}
-    finally:
-        await engine.dispose()
+    if not settings.is_db_configured or settings.database_url is None:
+        checks["database"] = "not_configured"
+    else:
+        engine = create_async_engine(
+            settings.database_url,
+            poolclass=NullPool,
+            connect_args={"timeout": _CONNECT_TIMEOUT_SECONDS},
+        )
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+                db_revision = await _current_db_revision(conn)
+            at_head = db_revision is not None and db_revision == code_head_revision()
+            checks["database"] = "ok"
+            checks["migrations"] = "up_to_date" if at_head else "out_of_date"
+            ready = ready and at_head
+        except Exception:
+            # Fixed event only — never the exception text or DSN (may carry credentials).
+            _logger.warning("readiness.db_unavailable", extra={"event": "readiness.db_unavailable"})
+            checks["database"] = "unavailable"
+            ready = False
+        finally:
+            await engine.dispose()
+
+    rate_limit_backend = settings.rate_limit_backend.strip().lower()
+    checks["rate_limit_backend"] = rate_limit_backend
+    if rate_limit_backend == "redis":
+        if settings.rate_limit_redis_url and await check_redis_ready(settings.rate_limit_redis_url):
+            checks["redis"] = "ok"
+        else:
+            _logger.warning(
+                "readiness.redis_unavailable", extra={"event": "readiness.redis_unavailable"}
+            )
+            checks["redis"] = "unavailable"
+            ready = False
+
+    return {"ready": ready, "checks": checks}

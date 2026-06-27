@@ -14,6 +14,8 @@ from collections.abc import Awaitable
 from datetime import datetime, timedelta
 from typing import Protocol
 
+_CONNECT_TIMEOUT_SECONDS = 2.0
+
 
 class RedisClient(Protocol):
     async def eval(self, script: str, numkeys: int, *keys_and_args: object) -> object: ...
@@ -61,6 +63,27 @@ return {count, ttl}
         if isinstance(result, Awaitable):
             return await result
         return result
+
+
+async def check_redis_ready(url: str) -> bool:
+    """Return whether Redis responds to PING without leaking connection details."""
+    try:
+        from redis.asyncio import Redis
+    except ImportError:
+        return False
+
+    client = Redis.from_url(
+        url,
+        decode_responses=False,
+        socket_connect_timeout=_CONNECT_TIMEOUT_SECONDS,
+        socket_timeout=_CONNECT_TIMEOUT_SECONDS,
+    )
+    try:
+        return bool(await client.ping())
+    except Exception:
+        return False
+    finally:
+        await client.aclose()
 
 
 def _parse_redis_pair(raw: object) -> tuple[int, int]:

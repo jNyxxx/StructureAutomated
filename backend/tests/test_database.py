@@ -38,6 +38,7 @@ def test_ready_endpoint_without_db_configured(monkeypatch: pytest.MonkeyPatch) -
         body = resp.json()
         assert body["status"] == "ok"
         assert body["checks"]["database"] == "not_configured"
+        assert body["checks"]["rate_limit_backend"] == "in_memory"
     finally:
         get_settings.cache_clear()
 
@@ -54,4 +55,56 @@ async def test_readiness_unavailable_does_not_leak_secrets() -> None:
     result = await check_readiness(settings)
     assert result["ready"] is False
     assert result["checks"]["database"] == "unavailable"
+    assert "SENTINELPW" not in json.dumps(result)
+
+
+async def test_readiness_in_memory_rate_limit_does_not_require_redis() -> None:
+    settings = Settings(database_url=None, rate_limit_backend="in_memory")
+
+    result = await check_readiness(settings)
+
+    assert result["ready"] is True
+    assert result["checks"]["database"] == "not_configured"
+    assert result["checks"]["rate_limit_backend"] == "in_memory"
+    assert "redis" not in result["checks"]
+
+
+async def test_readiness_redis_ok_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _ok(url: str) -> bool:
+        assert url == "redis://redis:6379/0"
+        return True
+
+    monkeypatch.setattr("app.database.check_redis_ready", _ok)
+    settings = Settings(
+        database_url=None,
+        rate_limit_backend="redis",
+        rate_limit_redis_url="redis://redis:6379/0",
+    )
+
+    result = await check_readiness(settings)
+
+    assert result["ready"] is True
+    assert result["checks"]["rate_limit_backend"] == "redis"
+    assert result["checks"]["redis"] == "ok"
+
+
+async def test_readiness_redis_unavailable_is_not_ready_and_sanitized(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _down(url: str) -> bool:
+        assert "SENTINELPW" in url
+        return False
+
+    monkeypatch.setattr("app.database.check_redis_ready", _down)
+    settings = Settings(
+        database_url=None,
+        rate_limit_backend="redis",
+        rate_limit_redis_url="redis://user:SENTINELPW@redis:6379/0",
+    )
+
+    result = await check_readiness(settings)
+
+    assert result["ready"] is False
+    assert result["checks"]["rate_limit_backend"] == "redis"
+    assert result["checks"]["redis"] == "unavailable"
     assert "SENTINELPW" not in json.dumps(result)

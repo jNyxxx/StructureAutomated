@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.main import _build_rate_limit_backend, create_app
@@ -16,6 +17,11 @@ from app.ratelimit.redis_backend import RedisRateLimitBackend
 from app.services.rate_limit import RateLimitPolicy, RateLimitService
 
 _NOW = datetime(2026, 6, 28, 12, 0, 0, tzinfo=UTC)
+
+
+class _FailingBackend:
+    async def incr(self, key: str, *, window: timedelta, now: datetime) -> tuple[int, int]:
+        raise RuntimeError("redis://user:SENTINELPW@redis:6379/0 key=user@example.com")
 
 
 class _FakeRedis:
@@ -141,6 +147,23 @@ def test_create_app_wires_in_memory_backend_by_default() -> None:
         assert isinstance(app.state.rate_limit_service, RateLimitService)
     finally:
         get_settings.cache_clear()
+
+
+def test_endpoint_rate_limit_backend_unavailable_returns_sanitized_503() -> None:
+    app = create_app()
+    app.state.rate_limit_service = RateLimitService(_FailingBackend())
+    client = TestClient(app, raise_server_exceptions=False)
+
+    resp = client.post("/auth/session")
+
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["error"]["code"] == "RATE_LIMIT_BACKEND_UNAVAILABLE"
+    assert body["error"]["message"] == "Rate limit backend unavailable."
+    serialized = resp.text
+    assert "SENTINELPW" not in serialized
+    assert "user@example.com" not in serialized
+    assert "redis://" not in serialized
 
 
 def test_create_app_wires_redis_backend_when_configured(

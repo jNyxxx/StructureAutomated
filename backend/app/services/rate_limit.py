@@ -52,6 +52,17 @@ class RateLimitExceeded(AppError):
         self.result = result
 
 
+class RateLimitBackendUnavailable(AppError):
+    """Raised when the shared rate-limit counter backend is unavailable."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "RATE_LIMIT_BACKEND_UNAVAILABLE",
+            "Rate limit backend unavailable.",
+            status_code=503,
+        )
+
+
 def _hash_identifier(value: str) -> str:
     # Truncated SHA-256 — enough entropy to separate identifiers without storing PII.
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
@@ -103,7 +114,10 @@ class RateLimitService:
             job_type=job_type,
             identifier=identifier,
         )
-        count, reset_after = await self._backend.incr(key, window=policy.window, now=now)
+        try:
+            count, reset_after = await self._backend.incr(key, window=policy.window, now=now)
+        except Exception as exc:
+            raise RateLimitBackendUnavailable() from exc
         return RateLimitResult(
             allowed=count <= policy.limit,
             limit=policy.limit,

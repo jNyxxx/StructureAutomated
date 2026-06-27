@@ -16,6 +16,7 @@ from app.middleware.rate_limit import RateLimitMiddleware
 from app.ratelimit.backend import InMemoryRateLimitBackend
 from app.services.rate_limit import (
     DEFAULT_POLICIES,
+    RateLimitBackendUnavailable,
     RateLimitExceeded,
     RateLimitPolicy,
     RateLimitService,
@@ -23,6 +24,11 @@ from app.services.rate_limit import (
 from app.workers.throttle import JobThrottle
 
 _NOW = datetime(2026, 6, 22, 12, 0, 0, tzinfo=UTC)
+
+
+class _FailingBackend:
+    async def incr(self, key: str, *, window: timedelta, now: datetime) -> tuple[int, int]:
+        raise RuntimeError("redis://user:SENTINELPW@redis:6379/0 raw-key=user@example.com")
 
 
 def _service() -> RateLimitService:
@@ -91,6 +97,28 @@ async def test_enforce_raises_rate_limited_app_error() -> None:
     assert exc.code == "RATE_LIMITED"
     assert exc.status_code == 429
     assert exc.result.retry_after > 0
+
+
+async def test_backend_unavailable_is_sanitized_fail_closed_app_error() -> None:
+    svc = RateLimitService(_FailingBackend())
+    policy = RateLimitPolicy("test", limit=1, window=timedelta(minutes=1))
+
+    with pytest.raises(RateLimitBackendUnavailable) as excinfo:
+        await svc.check(
+            policy,
+            now=_NOW,
+            ip="1.2.3.4",
+            identifier="user@example.com",
+        )
+
+    exc = excinfo.value
+    assert isinstance(exc, AppError)
+    assert exc.code == "RATE_LIMIT_BACKEND_UNAVAILABLE"
+    assert exc.status_code == 503
+    assert exc.message == "Rate limit backend unavailable."
+    assert exc.details == {}
+    assert "SENTINELPW" not in str(exc)
+    assert "user@example.com" not in str(exc)
 
 
 def test_default_policies_cover_auth_webhook_import_risky_and_job() -> None:
@@ -180,3 +208,25 @@ def test_middleware_disabled_is_passthrough() -> None:
     assert first.status_code == 200
     assert second.status_code == 200  # not limited when disabled
     assert "RateLimit-Limit" not in first.headers
+
+
+def test_middleware_backend_unavailable_returns_sanitized_503() -> None:
+    app = FastAPI()
+    service = RateLimitService(_FailingBackend())
+    policy = RateLimitPolicy("ip", limit=1, window=timedelta(minutes=1))
+    app.add_middleware(RateLimitMiddleware, service=service, policy=policy, enabled=True)
+
+    @app.get("/ping")
+    async def _ping() -> dict[str, bool]:
+        return {"ok": True}
+
+    client = TestClient(app, raise_server_exceptions=False)
+    resp = client.get("/ping")
+
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["error"]["code"] == "RATE_LIMIT_BACKEND_UNAVAILABLE"
+    assert body["error"]["message"] == "Rate limit backend unavailable."
+    serialized = resp.text
+    assert "SENTINELPW" not in serialized
+    assert "user@example.com" not in serialized
