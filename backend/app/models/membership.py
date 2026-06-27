@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-ROLES = ("owner", "admin", "marketer", "reviewer", "viewer", "billing_admin")
+ROLES = ("owner", "admin", "marketer", "reviewer", "viewer", "billing_admin", "platform_admin")
 _ROLE_LIST = ",".join(f"'{r}'" for r in ROLES)
 
 

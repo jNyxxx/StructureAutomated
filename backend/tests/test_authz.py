@@ -15,6 +15,7 @@ from app.auth.principal import CurrentPrincipal
 from app.config import get_settings
 from app.middleware.error_handler import AppError
 from app.services.authz import (
+    CAN_ACCESS_PLATFORM,
     CAN_APPROVE_DRAFT,
     CAN_CREATE_CAMPAIGN,
     CAN_GRANT_SUPPORT_ACCESS,
@@ -27,6 +28,7 @@ from app.services.authz import (
     CAN_REVIEW_DRAFT,
     CAN_RUN_CAMPAIGN,
     CAN_SCHEDULE_SEND,
+    ROLE_PERMISSIONS,
     ObjectAuthorizationService,
     RBACService,
     SupportAccessGrant,
@@ -148,6 +150,10 @@ class _SupportStore:
         ("reviewer", {CAN_REVIEW_DRAFT, CAN_APPROVE_DRAFT}),
         ("viewer", {CAN_READ_DASHBOARD}),
         ("billing_admin", {CAN_MANAGE_BILLING}),
+        # platform_admin has no tenant permissions — only the platform:access perm,
+        # which is not in _ALL_PERMISSIONS (tenant universe). Default-deny for all
+        # tenant permissions is proven by the loop below.
+        ("platform_admin", set()),
         ("unknown", set()),
     ],
 )
@@ -292,6 +298,43 @@ async def test_support_access_expired_grant_denied() -> None:
     assert expired.value.code == "SUPPORT_ACCESS_DENIED"
 
 
+def test_platform_admin_has_only_platform_access_permission() -> None:
+    rbac = RBACService()
+    # platform_admin has the platform:access permission
+    assert rbac.has_permission("platform_admin", CAN_ACCESS_PLATFORM) is True
+    # platform_admin has NO tenant permissions
+    for perm in _ALL_PERMISSIONS:
+        assert (
+            rbac.has_permission("platform_admin", perm) is False
+        ), f"platform_admin must not have tenant permission {perm!r}"
+    # owner does NOT get platform:access (universes are separate)
+    assert rbac.has_permission("owner", CAN_ACCESS_PLATFORM) is False
+    # platform_admin is registered in the RBAC matrix
+    assert "platform_admin" in ROLE_PERMISSIONS
+
+
+async def test_platform_admin_cannot_grant_support_access_or_bypass_require_active() -> None:
+    service = SupportAccessService(store=_SupportStore(), rbac=RBACService())
+    platform = _principal("platform_admin")
+
+    # platform_admin cannot grant support access (lacks CAN_GRANT_SUPPORT_ACCESS)
+    with pytest.raises(AppError) as exc:
+        await service.grant(
+            principal=platform,
+            support_user_id=_SUPPORT,
+            reason="platform attempt",
+            scope="read:audit",
+            now=_NOW,
+        )
+    assert exc.value.status_code == 403
+    assert exc.value.code == "FORBIDDEN"
+
+    # platform_admin cannot bypass require_active (no active grant → denied)
+    with pytest.raises(AppError) as exc2:
+        await service.require_active(principal=platform, scope="read:audit", now=_NOW)
+    assert exc2.value.code == "SUPPORT_ACCESS_DENIED"
+
+
 def test_support_access_migration_shape_and_forced_rls() -> None:
     src = (
         Path(__file__).resolve().parents[1]
@@ -317,6 +360,51 @@ def test_support_access_migration_shape_and_forced_rls() -> None:
     assert "tenant_id = current_setting('app.current_tenant_id', true)::uuid" in src
     assert "raw_token" not in src
     assert 'sa.Column("secret"' not in src
+
+
+def test_platform_admin_role_migration_shape() -> None:
+    src = (
+        Path(__file__).resolve().parents[1]
+        / "migrations"
+        / "versions"
+        / "00022_platform_admin_role.py"
+    ).read_text(encoding="utf-8")
+
+    assert "00022_platform_admin_role" in src
+    assert "00021_outcomes" in src  # down_revision
+    assert "platform_admin" in src
+    assert "ck_tenant_memberships_role" in src
+    # must not touch RLS, policies, or other tables
+    assert "ENABLE ROW LEVEL SECURITY" not in src
+    assert "FORCE ROW LEVEL SECURITY" not in src
+    assert "CREATE POLICY" not in src
+    assert "DROP POLICY" not in src
+    # downgrade must restore original 6-role constraint
+    assert "def downgrade" in src
+
+
+def test_platform_admin_role_migration_offline_sql(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend_root = Path(__file__).resolve().parents[1]
+    monkeypatch.setenv(
+        "DATABASE_URL", "postgresql+asyncpg://app_user:example@localhost:5432/automatedstructure"
+    )
+    get_settings.cache_clear()
+    try:
+        config = Config(str(backend_root / "alembic.ini"))
+        buffer = StringIO()
+        with redirect_stdout(buffer):
+            command.upgrade(config, "00021_outcomes:00022_platform_admin_role", sql=True)
+        sql = buffer.getvalue()
+    finally:
+        get_settings.cache_clear()
+
+    assert "'platform_admin'" in sql
+    assert "ck_tenant_memberships_role" in sql
+    # must not alter RLS or policies in this migration
+    assert "ENABLE ROW LEVEL SECURITY" not in sql
+    assert "FORCE ROW LEVEL SECURITY" not in sql
 
 
 def test_support_access_offline_sql_contains_forced_rls_and_tenant_policy(

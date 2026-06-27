@@ -279,11 +279,7 @@ def test_managed_auth_service_uses_correct_store_types() -> None:
 
 
 def test_current_principal_enforces_mfa_for_platform_admin_role() -> None:
-    """enforce_mfa raises MFA_REQUIRED for platform_admin role.
-
-    Currently a no-op in live code because platform_admin is not in the RBAC matrix.
-    Wiring is in place; enforcement activates when the role is added.
-    """
+    """enforce_mfa raises MFA_REQUIRED for platform_admin without MFA, passes with MFA."""
     from app.auth.mfa import enforce_mfa, mfa_required_roles
     from app.auth.principal import CurrentPrincipal
     from app.config import Settings
@@ -304,6 +300,26 @@ def test_current_principal_enforces_mfa_for_platform_admin_role() -> None:
         enforce_mfa(principal, required_roles=mfa_required_roles(settings))
     assert exc_info.value.code == "MFA_REQUIRED"
     assert exc_info.value.status_code == 403
+
+
+def test_current_principal_platform_admin_with_mfa_passes() -> None:
+    """platform_admin with mfa_verified=True passes enforce_mfa."""
+    from app.auth.mfa import enforce_mfa, mfa_required_roles
+    from app.auth.principal import CurrentPrincipal
+    from app.config import Settings
+
+    principal = CurrentPrincipal(
+        provider_user_id="u1",
+        provider_session_ref="s1",
+        user_id=_USER,
+        email="admin@example.com",
+        tenant_id=_TENANT,
+        role="platform_admin",
+        membership_version=1,
+        mfa_verified=True,
+    )
+    settings = Settings(auth_mfa_required_roles="platform_admin")
+    enforce_mfa(principal, required_roles=mfa_required_roles(settings))  # must not raise
 
 
 def test_current_principal_mfa_noop_for_existing_roles() -> None:

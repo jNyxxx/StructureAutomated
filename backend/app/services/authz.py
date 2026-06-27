@@ -28,6 +28,7 @@ CAN_GRANT_SUPPORT_ACCESS = "support_access:grant"
 CAN_USE_SUPPORT_ACCESS = "support_access:use"
 CAN_MANAGE_KNOWLEDGE = "knowledge:manage"
 CAN_CREATE_DRAFT = "draft:create"
+CAN_ACCESS_PLATFORM = "platform:access"
 
 ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
     "owner": frozenset(
@@ -80,6 +81,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
     "viewer": frozenset({CAN_READ_DASHBOARD}),
     "billing_admin": frozenset({CAN_MANAGE_BILLING}),
     "support": frozenset({CAN_USE_SUPPORT_ACCESS}),
+    "platform_admin": frozenset({CAN_ACCESS_PLATFORM}),
 }
 
 
