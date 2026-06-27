@@ -125,7 +125,53 @@ Every tenant job payload must include: `tenant_id`, `actor_user_id` or `system_a
 - Break-glass requires super admin, reason, incident ID, post-incident review.
 - The platform role is `platform_admin` — see §4 for the permission boundary and storage model.
 
-## 8. Required isolation tests
+## 8. Frontend auth layer
+
+### Adapter contract
+
+The frontend uses a custom `FrontendAuthState` interface (`frontend/lib/clerk.tsx:9`) as an adapter boundary. All app code consumes this interface — not `@clerk/nextjs` directly — so the real Clerk provider can be injected without touching downstream components.
+
+```typescript
+interface FrontendAuthState {
+  isLoaded: boolean;
+  isSignedIn: boolean;
+  userId: string | null;
+  email: string | null;
+  getToken: () => Promise<string | null>;  // same signature as Clerk's getToken()
+  mode?: "real_clerk" | "local_mock";
+}
+```
+
+### ClerkFrontendProvider injection point
+
+`ClerkFrontendProvider` (`frontend/lib/clerk.tsx:55`) accepts `value?: FrontendAuthState`. When `value` is supplied, the internal mock logic is bypassed and the injected state is used directly. When absent, it defaults to `{isSignedIn: false, getToken: async () => null, mode: "local_mock"}`.
+
+Real Clerk wiring (`@clerk/nextjs` not yet installed — P3-3f) adds a wrapper:
+- `RealClerkProvider` mounts `<ClerkProvider>` from `@clerk/nextjs` and maps `useAuth()`/`useUser()` to `FrontendAuthState`, passing it as `value` to the existing `ClerkFrontendProvider`.
+- Root `layout.tsx` conditionally mounts `RealClerkProvider` when `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is present; otherwise keeps the existing mock provider.
+- Mock mode is fully preserved when the key is absent — local demo is unaffected.
+
+### getToken() → API client
+
+`api-client.ts:AuthenticatedApiClientOptions.getToken: () => Promise<string|null>` already matches Clerk's `getToken()` signature. `TenantProvider` passes `auth.getToken` to all backend calls. No downstream changes are needed when real Clerk is wired.
+
+### Tenant context after login
+
+After real Clerk sign-in, `TenantProvider` calls `/auth/me` with `X-Tenant-ID`. If no tenant is pre-selected (null), the backend returns `400 TENANT_REQUIRED`. A tenant-selector step is required between sign-in and the `(app)` route group. Deferred — see `LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md §7` (owner decision: auto-select vs explicit selector).
+
+### Mock / production behavior
+
+| State | `mode` | `isLocalMockAuthAllowed()` | Result |
+|---|---|---|---|
+| Local dev, no key | `local_mock` | true | Mock runs, `isSignedIn=false` |
+| Production, no key, no mock flag | `local_mock` | false | `AuthGate` and `ClerkAuthCard` fail closed |
+| Production, real key | `real_clerk` | — | Real Clerk session |
+
+### Required isolation tests
+
+`frontend/app/(app)/layout.tsx:11` — `AuthGate` blocks unauthenticated users (client-side). No `middleware.ts` exists; server-side protection via `clerkMiddleware` is deferred to post-smoke hardening.
+
+## 9. Required isolation tests
 
 With Tenant A/B fixtures (users, roles, contacts, prospects, campaigns, drafts, agent runs, billing, jobs, audit), prove:
 
