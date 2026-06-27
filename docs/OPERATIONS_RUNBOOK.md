@@ -80,7 +80,7 @@ Rate-limit backend selection:
 - Optional local Redis: start `docker compose --profile cache up` and set `RATE_LIMIT_BACKEND=redis` plus `RATE_LIMIT_REDIS_URL=redis://redis:6379/0` for container-local Redis testing.
 - Production: `RATE_LIMIT_BACKEND=redis` is required for multi-worker correctness. Real Redis/ElastiCache URL must come from deployment/secrets configuration, not committed files.
 - Runtime-smoke evidence: P3-4d proved local Redis counters against a real Redis container, including HTTP 429 behavior, tenant-scoped key isolation, key PII safety, TTL reset, and Redis-down behavior.
-- Redis failure/readiness hardening: P3-4e maps Redis/backend counter outages to a sanitized `503 RATE_LIMIT_BACKEND_UNAVAILABLE` response, keeps rate limiting fail-closed, and includes Redis state in `/ready` when `RATE_LIMIT_BACKEND=redis`. Production cutover still requires deployment-managed Redis/ElastiCache config and staging smoke.
+- Redis failure/readiness hardening: P3-4e maps Redis/backend counter outages to a sanitized `503 RATE_LIMIT_BACKEND_UNAVAILABLE` response, keeps rate limiting fail-closed, and includes Redis state in `/ready` when `RATE_LIMIT_BACKEND=redis`. P3-4f accepts this rate-limit/abuse-protection track as green. Production cutover still requires deployment-managed Redis/ElastiCache config and staging smoke.
 
 ## B2. CI jobs (all must pass)
 
