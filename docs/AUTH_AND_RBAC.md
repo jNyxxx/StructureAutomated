@@ -57,6 +57,28 @@ RLS is the final guardrail, not the only one (CLAUDE rule 6).
 | Audit log read | Yes | Admin-level | No | No | No | Billing events only |
 | Integration credentials | Yes | Yes, limited | No | No | No | No |
 
+### platform_admin role (decision resolved P3-3d 2026-06-28)
+
+`platform_admin` is stored in the existing tenant-scoped membership model for MVP, but its permissions are limited to explicit platform/admin routes and do not grant implicit tenant data access, RLS bypass, or tenant-owner powers.
+
+| Capability | platform_admin |
+|---|---|
+| Platform routes (`/api/v1/platform/*`) | Yes |
+| Platform health/ops read | Yes |
+| Support-grant oversight | Yes |
+| Tenant data read (without active support grant) | **No** |
+| RLS bypass | **No** |
+| Tenant membership/ownership bypass | **No** |
+| Implicit tenant owner/admin powers | **No** |
+
+MFA: **mandatory** before external users / production (owner decision, LAUNCH_BLOCKERS §2 #4).
+
+Storage model: `platform_admin` is added to `tenant_memberships.role` (CHECK constraint update + migration). Principal resolution is identical to tenant roles — `principal.role = "platform_admin"` is loaded from the selected tenant membership. The already-wired `enforce_mfa()` in `auth/dependencies.py` activates automatically with zero enforcement code change. Cross-tenant operations still require an active time-boxed support grant via `SupportAccessService`.
+
+Why Option A (tenant-scoped over a separate global table): activates the wired-and-tested `enforce_mfa()` primitive (which keys off `principal.role`) without restructuring principal resolution. A separate `users.is_platform_admin` model would require principal-resolution changes and new enforcement paths — deferred complexity not needed for MVP.
+
+**`support` role drift (pre-existing, flagged):** `ROLE_PERMISSIONS` in `services/authz.py` defines a `support` role, but it is absent from `models/membership.py ROLES` tuple and the `tenant_memberships` CHECK constraint — rows with `role='support'` cannot be inserted into the DB. Live support access uses the grant-based `SupportAccessService` (time-boxed, 60-min default, audited), not a membership role. The `support` entry in `ROLE_PERMISSIONS` is vestigial. Reconciled in the P3-3e migration alongside `platform_admin`.
+
 ## 5. App-side session and tenant binding
 
 The app validates Clerk session/token state, resolves the app user by Clerk identity mapping, then resolves tenant membership. App-side session/revocation state is minimal and exists only for tenant access invalidation, audit, and membership-version enforcement.
@@ -101,6 +123,7 @@ Every tenant job payload must include: `tenant_id`, `actor_user_id` or `system_a
 - **Default support grant duration: 60 minutes.** Support actions log `support_access_id`.
 - Support **cannot** view secrets, raw credentials, full payment details, or unredacted PII unless scoped + approved.
 - Break-glass requires super admin, reason, incident ID, post-incident review.
+- The platform role is `platform_admin` — see §4 for the permission boundary and storage model.
 
 ## 8. Required isolation tests
 
