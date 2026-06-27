@@ -74,11 +74,14 @@ class Settings(BaseSettings):
     secret_backend: str = "local"  # noqa: S105 - backend selector, not a secret
     kms_key_id: str | None = None
 
-    # Rate-limit foundation (Slice 12). Off by default — per-endpoint enforcement
-    # lands with each route; deployments opt in to the baseline per-IP guard.
+    # Rate-limit foundation. Per-endpoint enforcement is always wired at the route
+    # layer; deployments opt in to the baseline per-IP middleware guard. Local/test
+    # default stays in-memory. Production must select Redis for multi-worker correctness.
     rate_limit_enabled: bool = False
     rate_limit_default_limit: int = 60
     rate_limit_window_seconds: int = 60
+    rate_limit_backend: str = "in_memory"
+    rate_limit_redis_url: str | None = None
 
     @property
     def is_production(self) -> bool:

@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from app.auth.clerk_jwks import build_managed_clerk_verifier
 from app.auth.local_mock import build_local_mock_auth_service
 from app.auth.managed import is_managed_auth_configured
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.database import get_engine
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.logging import RequestLoggingMiddleware
@@ -25,7 +25,8 @@ from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.observability.boot_guard import BootGuardError, database_failures, enforce_config
 from app.observability.logging import setup_logging
-from app.ratelimit.backend import InMemoryRateLimitBackend
+from app.ratelimit.backend import InMemoryRateLimitBackend, RateLimitBackend
+from app.ratelimit.redis_backend import RedisRateLimitBackend
 from app.routers import (
     auth,
     billing,
@@ -57,13 +58,24 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+def _build_rate_limit_backend(settings: Settings) -> RateLimitBackend:
+    backend = settings.rate_limit_backend.strip().lower()
+    if backend == "in_memory":
+        return InMemoryRateLimitBackend()
+    if backend == "redis":
+        if not settings.rate_limit_redis_url:
+            raise RuntimeError("RATE_LIMIT_REDIS_URL is required when RATE_LIMIT_BACKEND=redis")
+        return RedisRateLimitBackend.from_url(settings.rate_limit_redis_url)
+    raise RuntimeError(f"Unsupported RATE_LIMIT_BACKEND '{settings.rate_limit_backend}'")
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     setup_logging(settings)
 
     app = FastAPI(title="AutomatedStructure API", version="0.0.0", lifespan=_lifespan)
 
-    rate_limit_backend = InMemoryRateLimitBackend()
+    rate_limit_backend = _build_rate_limit_backend(settings)
     rate_limit_service = RateLimitService(rate_limit_backend)
     app.state.rate_limit_backend = rate_limit_backend
     app.state.rate_limit_service = rate_limit_service

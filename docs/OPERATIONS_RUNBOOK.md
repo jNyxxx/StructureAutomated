@@ -74,6 +74,12 @@ External Slack/internal alerts are **post-demo**. The first future Slack alert s
 
 Postgres + pgvector - backend - frontend - worker - n8n - Redis (optional, local rate limiting) - LocalStack (optional, SQS/S3 sim).
 
+Rate-limit backend selection:
+
+- Local/test/default: `RATE_LIMIT_BACKEND=in_memory`.
+- Optional local Redis: start `docker compose --profile cache up` and set `RATE_LIMIT_BACKEND=redis` plus `RATE_LIMIT_REDIS_URL=redis://redis:6379/0` for container-local Redis testing.
+- Production: `RATE_LIMIT_BACKEND=redis` is required for multi-worker correctness. Real Redis/ElastiCache URL must come from deployment/secrets configuration, not committed files.
+
 ## B2. CI jobs (all must pass)
 
 1. Backend lint/type.
@@ -119,7 +125,9 @@ CI **blocks** secrets, failing tests, and migration drift.
 
 ## C1. Production/staging boot guard
 
-Backend **and** workers fail boot on unsafe config (mock providers in prod, blank/placeholder secrets, secrets not sourced from AWS Secrets Manager in production, KMS/Secrets Manager unavailable, RLS off/not-forced, `BYPASSRLS` roles, migration/code mismatch, disabled cookie/CORS/CSRF/HTTPS, unverifiable tenant context). Full fail-boot condition list + allowed-environments table -> [CLAUDE](../CLAUDE.md).
+Backend **and** workers fail boot on unsafe config (mock providers in prod, blank/placeholder secrets, secrets not sourced from AWS Secrets Manager in production, KMS/Secrets Manager unavailable, RLS off/not-forced, `BYPASSRLS` roles, migration/code mismatch, disabled cookie/CORS/CSRF/HTTPS, unverifiable tenant context, missing production Redis rate-limit backend/URL). Full fail-boot condition list + allowed-environments table -> [CLAUDE](../CLAUDE.md).
+
+Redis reachability is not a boot-time network check in P3-4c; it should be added to readiness/smoke checks before production cutover so boot stays deterministic while `/health/ready` can verify dependencies.
 
 ## C2. Staging/prod parity
 

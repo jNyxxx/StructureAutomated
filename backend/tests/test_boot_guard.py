@@ -116,6 +116,8 @@ def _safe_prod(**override: object) -> Settings:
         "auth_provider_issuer": "https://clerk.example.com",
         "auth_provider_secret_key": "sk_live_0123456789abcdef",
         "auth_provider_publishable_key": "pk_live_0123456789abcdef",
+        "rate_limit_backend": "redis",
+        "rate_limit_redis_url": "rediss://redis.example.internal:6379/0",
     }
     base.update(override)
     return Settings(**base)  # type: ignore[arg-type]
@@ -293,6 +295,31 @@ def test_controlled_demo_does_not_bypass_mock_auth() -> None:
         )
     )
     assert any("mock_verifier" in f and "controlled_demo does not bypass" in f for f in failures)
+
+
+def test_production_rate_limit_backend_must_be_redis() -> None:
+    failures = config_failures(_safe_prod(rate_limit_backend="in_memory"))
+    assert any("rate_limit_backend" in f and "redis" in f for f in failures)
+
+
+def test_production_rate_limit_redis_url_is_required() -> None:
+    missing = config_failures(_safe_prod(rate_limit_redis_url=None))
+    placeholder = config_failures(_safe_prod(rate_limit_redis_url="CHANGE_ME_PLACEHOLDER"))
+    wrong_scheme = config_failures(_safe_prod(rate_limit_redis_url="postgres://redis"))
+    assert any("RATE_LIMIT_REDIS_URL" in f for f in missing)
+    assert any("RATE_LIMIT_REDIS_URL" in f for f in placeholder)
+    assert any("RATE_LIMIT_REDIS_URL" in f for f in wrong_scheme)
+
+
+def test_controlled_demo_does_not_bypass_redis_rate_limit_requirement() -> None:
+    failures = config_failures(
+        _safe_prod(
+            controlled_demo=True,
+            controlled_demo_approved_by="owner:ops (P3-4c 2026-06-28)",
+            rate_limit_backend="in_memory",
+        )
+    )
+    assert any("rate_limit_backend" in f and "redis" in f for f in failures)
 
 
 def test_adapter_registry_has_no_live_provider_paths() -> None:

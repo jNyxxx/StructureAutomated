@@ -86,6 +86,13 @@ def _is_https_nonlocal(url: str | None) -> bool:
     return u.startswith("https://") and not any(m in u for m in _FORBIDDEN_URL_MARKERS)
 
 
+def _is_redis_url(url: str | None) -> bool:
+    if _is_placeholder(url) or url is None:
+        return False
+    u = url.strip().lower()
+    return u.startswith(("redis://", "rediss://"))
+
+
 def _auth_failures(settings: Settings) -> list[str]:
     """Production managed-auth (Clerk) config checks.
 
@@ -149,6 +156,10 @@ def config_failures(settings: Settings) -> list[str]:
         failures.append("cors_allow_all must be false in production")
     if settings.secret_backend != "aws":  # noqa: S105 - backend selector, not a secret
         failures.append("secret_backend must be 'aws' in production")
+    if settings.rate_limit_backend != "redis":
+        failures.append("rate_limit_backend must be 'redis' in production")
+    if not _is_redis_url(settings.rate_limit_redis_url):
+        failures.append("RATE_LIMIT_REDIS_URL must be a non-placeholder redis:// or rediss:// URL")
     failures.extend(_auth_failures(settings))
     return failures
 
