@@ -141,6 +141,7 @@ class RateLimitService:
 DEFAULT_POLICIES: dict[str, RateLimitPolicy] = {
     "auth": RateLimitPolicy("auth", limit=10, window=timedelta(minutes=1)),
     "webhook": RateLimitPolicy("webhook", limit=120, window=timedelta(minutes=1)),
+    "import": RateLimitPolicy("import", limit=10, window=timedelta(minutes=5)),
     "risky_action": RateLimitPolicy("risky_action", limit=30, window=timedelta(minutes=1)),
     "job": RateLimitPolicy("job", limit=60, window=timedelta(minutes=1)),
 }

@@ -93,11 +93,26 @@ async def test_enforce_raises_rate_limited_app_error() -> None:
     assert exc.result.retry_after > 0
 
 
-def test_default_policies_cover_auth_webhook_risky_and_job() -> None:
-    for name in ("auth", "webhook", "risky_action", "job"):
+def test_default_policies_cover_auth_webhook_import_risky_and_job() -> None:
+    for name in ("auth", "webhook", "import", "risky_action", "job"):
         assert name in DEFAULT_POLICIES
         assert DEFAULT_POLICIES[name].limit > 0
         assert DEFAULT_POLICIES[name].window.total_seconds() > 0
+    assert DEFAULT_POLICIES["import"].limit == 10
+    assert DEFAULT_POLICIES["import"].window == timedelta(minutes=5)
+
+
+async def test_shared_backend_persists_counter_across_service_instances() -> None:
+    backend = InMemoryRateLimitBackend()
+    svc_one = RateLimitService(backend)
+    svc_two = RateLimitService(backend)
+    policy = RateLimitPolicy("shared", limit=1, window=timedelta(minutes=1))
+
+    first = await svc_one.check(policy, now=_NOW, tenant_id="tenant-1")
+    second = await svc_two.check(policy, now=_NOW, tenant_id="tenant-1")
+
+    assert first.allowed
+    assert not second.allowed
 
 
 async def test_job_throttle_is_scoped_per_tenant_and_job_type() -> None:

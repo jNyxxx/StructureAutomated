@@ -22,6 +22,7 @@ from app.auth.dependencies import current_principal
 from app.auth.principal import CurrentPrincipal
 from app.database import tenant_session
 from app.middleware.error_handler import AppError
+from app.ratelimit.dependencies import enforce_import_rate_limit
 from app.repositories.billing_repo import BillingRepository
 from app.repositories.compliance_repo import ComplianceRepository
 from app.repositories.contact_repo import ContactImportRepository
@@ -76,6 +77,7 @@ async def csv_import_service(
 async def import_contacts(
     body: ContactImportRequest,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_import_rate_limit)],
     service: Annotated[CsvImportService, Depends(csv_import_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> ContactImportResponse:

@@ -20,6 +20,10 @@ from app.auth.dependencies import current_principal
 from app.auth.principal import CurrentPrincipal
 from app.database import tenant_session
 from app.middleware.error_handler import AppError
+from app.ratelimit.dependencies import (
+    enforce_campaign_contact_select_rate_limit,
+    enforce_campaign_create_rate_limit,
+)
 from app.repositories.billing_repo import BillingRepository
 from app.repositories.campaign_repo import CampaignRepository
 from app.repositories.idempotency_repo import IdempotencyRepository
@@ -113,6 +117,7 @@ async def list_campaigns(
 async def create_campaign(
     body: CampaignCreateRequest,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_campaign_create_rate_limit)],
     service: Annotated[CampaignService, Depends(campaign_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> CampaignCreateResponse:
@@ -188,6 +193,7 @@ async def select_campaign_contact(
     campaign_id: uuid.UUID,
     body: CampaignContactSelectRequest,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_campaign_contact_select_rate_limit)],
     service: Annotated[CampaignService, Depends(campaign_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> CampaignContactSelectionResponse:

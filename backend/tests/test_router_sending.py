@@ -13,11 +13,13 @@ from app.auth.dependencies import current_principal
 from app.auth.principal import CurrentPrincipal
 from app.main import create_app
 from app.middleware.error_handler import AppError
+from app.ratelimit.backend import InMemoryRateLimitBackend
 from app.repositories.sending_repo import OutboundMessageRecord, SendGateResultRecord
 from app.routers import sending as sending_router
 from app.routers.sending import mock_sender_service, outbound_read_service, send_gate_service
 from app.services.mock_sender import MockSendIntentResult, MockSendResult
 from app.services.outbound_read import OutboundMessagePage
+from app.services.rate_limit import RateLimitService
 from app.services.send_gate import SendGateDryRunResult
 
 _TENANT = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -240,6 +242,25 @@ def test_send_intent_calls_mock_sender_with_tenant_context_and_mock_only_respons
     assert call["idempotency_key"] == "send-key-1"
 
 
+def test_send_intent_rate_limit_blocks_101st_request_and_preserves_counter() -> None:
+    sender = _FakeMockSenderService()
+    client = _client(sender_service=sender)
+
+    responses = [
+        client.post(
+            "/api/v1/send-intents",
+            json=_BODY,
+            headers={"Idempotency-Key": f"send-key-{idx}"},
+        )
+        for idx in range(101)
+    ]
+
+    assert [resp.status_code for resp in responses[:100]] == [201] * 100
+    assert responses[100].status_code == 429
+    assert responses[100].json()["error"]["code"] == "RATE_LIMITED"
+    assert len(sender.calls) == 100
+
+
 def test_send_intent_duplicate_maps_to_409() -> None:
     sender = _FakeMockSenderService(
         error=AppError("DUPLICATE_SEND", "Duplicate send blocked.", status_code=409)
@@ -321,7 +342,9 @@ async def test_send_gate_di_opens_tenant_session_with_principal_context(
         yield _FakeConn()
 
     monkeypatch.setattr(sending_router, "tenant_session", fake_tenant_session)
-    gen = sending_router.send_gate_service(_principal())
+    gen = sending_router.send_gate_service(
+        _principal(), RateLimitService(InMemoryRateLimitBackend())
+    )
     service = await gen.__anext__()
     assert opened["tenant_id"] == _TENANT
     assert opened["actor_id"] == _USER
@@ -347,7 +370,9 @@ async def test_mock_sender_di_opens_tenant_session_with_principal_context(
         yield _FakeConn()
 
     monkeypatch.setattr(sending_router, "tenant_session", fake_tenant_session)
-    gen = sending_router.mock_sender_service(_principal())
+    gen = sending_router.mock_sender_service(
+        _principal(), RateLimitService(InMemoryRateLimitBackend())
+    )
     service = await gen.__anext__()
     assert opened["tenant_id"] == _TENANT
     assert opened["actor_id"] == _USER

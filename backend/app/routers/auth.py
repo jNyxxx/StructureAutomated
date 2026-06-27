@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 
 from app.auth.dependencies import auth_service, current_principal
 from app.auth.principal import CurrentPrincipal
+from app.ratelimit.dependencies import enforce_auth_session_rate_limit
 from app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -28,6 +29,7 @@ def _principal_payload(principal: CurrentPrincipal) -> dict[str, Any]:
 
 @router.post("/session")
 async def exchange_session(
+    _rate_limit: Annotated[None, Depends(enforce_auth_session_rate_limit)],
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
 ) -> dict[str, Any]:
     return {"principal": _principal_payload(principal)}

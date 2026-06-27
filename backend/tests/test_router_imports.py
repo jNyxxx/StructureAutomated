@@ -137,6 +137,25 @@ def test_valid_import_calls_service_with_tenant_context_and_returns_summary() ->
     assert "jane@example.com" not in resp.text
 
 
+def test_import_contacts_rate_limit_blocks_eleventh_request_per_tenant() -> None:
+    fake = _FakeImportService(result=_completed_result())
+    client = _client(fake, principal=_principal())
+
+    responses = [
+        client.post(
+            "/api/v1/imports/contacts",
+            json=_BODY,
+            headers={"Idempotency-Key": f"import-key-{idx}"},
+        )
+        for idx in range(11)
+    ]
+
+    assert [resp.status_code for resp in responses[:10]] == [201] * 10
+    assert responses[10].status_code == 429
+    assert responses[10].json()["error"]["code"] == "RATE_LIMITED"
+    assert len(fake.calls) == 10
+
+
 def test_service_app_error_maps_to_standard_envelope() -> None:
     fake = _FakeImportService(
         error=AppError("BILLING_FEATURE_DENIED", "Billing access denied.", status_code=403)

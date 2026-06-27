@@ -143,6 +143,18 @@ def test_valid_token_resolves_principal_user_mapping_and_tenant_membership() -> 
     assert sessions.upserts[0]["provider_session_ref"] == _SESSION_REF
 
 
+def test_auth_session_rate_limit_blocks_eleventh_request_without_token_leak() -> None:
+    client = _client(_service())
+
+    responses = [client.post("/auth/session", headers=_headers()) for _ in range(11)]
+
+    assert [resp.status_code for resp in responses[:10]] == [200] * 10
+    assert responses[10].status_code == 429
+    body = responses[10].json()
+    assert body["error"]["code"] == "RATE_LIMITED"
+    assert _TOKEN not in json.dumps(body)
+
+
 def test_missing_token_returns_standard_error_envelope() -> None:
     resp = _client().get("/auth/me", headers={"X-Tenant-ID": str(_TENANT)})
 

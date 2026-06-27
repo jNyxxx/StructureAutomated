@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -16,7 +16,11 @@ from app.auth.dependencies import current_principal
 from app.auth.principal import CurrentPrincipal
 from app.database import tenant_session
 from app.middleware.error_handler import AppError
-from app.ratelimit.backend import InMemoryRateLimitBackend
+from app.ratelimit.dependencies import (
+    TENANT_FOLLOWUP_POLICY,
+    enforce_followup_rate_limit,
+    get_rate_limit_service,
+)
 from app.repositories.billing_repo import BillingRepository
 from app.repositories.campaign_repo import CampaignRepository
 from app.repositories.compliance_repo import ComplianceRepository
@@ -41,7 +45,7 @@ from app.services.billing import BillingGateService
 from app.services.compliance import ComplianceGateService
 from app.services.followup_scheduler import FollowUpSchedulerService
 from app.services.idempotency import IdempotencyConflictError, IdempotencyService
-from app.services.rate_limit import RateLimitPolicy, RateLimitService
+from app.services.rate_limit import RateLimitService
 from app.services.send_gate import SendGateService
 
 router = APIRouter(prefix="/api/v1/followups", tags=["followups"])
@@ -72,7 +76,9 @@ def idempotency_key(request: Request) -> str:
     return raw.strip()
 
 
-def _send_gate_service(conn: Any, audit: AuditService) -> SendGateService:
+def _send_gate_service(
+    conn: Any, audit: AuditService, *, rate_limiter: RateLimitService
+) -> SendGateService:
     return SendGateService(
         sending_store=SendingRepository(conn),
         draft_store=DraftRepository(conn),
@@ -83,18 +89,15 @@ def _send_gate_service(conn: Any, audit: AuditService) -> SendGateService:
         rbac=RBACService(),
         object_authz=ObjectAuthorizationService(),
         compliance=ComplianceGateService(ComplianceRepository(conn), audit.record),
-        rate_limiter=RateLimitService(InMemoryRateLimitBackend()),
-        rate_limit_policy=RateLimitPolicy(
-            "tenant_followup",
-            limit=100,
-            window=timedelta(minutes=1),
-        ),
+        rate_limiter=rate_limiter,
+        rate_limit_policy=TENANT_FOLLOWUP_POLICY,
         audit_record=audit.record,
     )
 
 
 async def followup_service(
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    rate_limiter: Annotated[RateLimitService, Depends(get_rate_limit_service)],
 ) -> AsyncIterator[FollowUpSchedulerService]:
     async with tenant_session(tenant_id=principal.tenant_id, actor_id=principal.user_id) as conn:
         audit = AuditService(AuditRepository(conn))
@@ -108,7 +111,7 @@ async def followup_service(
             billing=BillingGateService(BillingRepository(conn)),
             outbound_store=SendingRepository(conn),
             idempotency=IdempotencyService(IdempotencyRepository(conn)),
-            send_gate=_send_gate_service(conn, audit),
+            send_gate=_send_gate_service(conn, audit, rate_limiter=rate_limiter),
             audit_record=audit.record,
         )
 
@@ -131,6 +134,7 @@ async def list_followup_rules(
 async def create_followup_rule(
     body: FollowUpRuleCreateRequest,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_followup_rate_limit)],
     service: Annotated[FollowUpSchedulerService, Depends(followup_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> FollowUpRuleActionResponse:
@@ -169,6 +173,7 @@ async def list_followup_schedules(
 async def create_followup_schedule(
     body: FollowUpScheduleCreateRequest,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_followup_rate_limit)],
     service: Annotated[FollowUpSchedulerService, Depends(followup_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> FollowUpScheduleActionResponse:
@@ -192,6 +197,7 @@ async def create_followup_schedule(
 async def mock_run_followup_schedule(
     schedule_id: uuid.UUID,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_followup_rate_limit)],
     service: Annotated[FollowUpSchedulerService, Depends(followup_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> FollowUpScheduleActionResponse:

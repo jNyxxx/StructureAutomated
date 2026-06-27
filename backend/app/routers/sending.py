@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -16,7 +16,12 @@ from app.auth.dependencies import current_principal
 from app.auth.principal import CurrentPrincipal
 from app.database import tenant_session
 from app.middleware.error_handler import AppError
-from app.ratelimit.backend import InMemoryRateLimitBackend
+from app.ratelimit.dependencies import (
+    TENANT_SEND_POLICY,
+    enforce_send_gate_rate_limit,
+    enforce_send_intent_rate_limit,
+    get_rate_limit_service,
+)
 from app.repositories.billing_repo import BillingRepository
 from app.repositories.compliance_repo import ComplianceRepository
 from app.repositories.contact_repo import ContactReadRepository
@@ -40,7 +45,7 @@ from app.services.compliance import ComplianceGateService
 from app.services.idempotency import IdempotencyConflictError, IdempotencyService
 from app.services.mock_sender import MockSenderService
 from app.services.outbound_read import OutboundReadService
-from app.services.rate_limit import RateLimitPolicy, RateLimitService
+from app.services.rate_limit import RateLimitService
 from app.services.send_gate import SendGateService
 
 router = APIRouter(tags=["sending"])
@@ -68,7 +73,11 @@ def idempotency_key(request: Request) -> str:
 
 
 def _send_gate_service(
-    conn: Any, audit: AuditService, *, with_idempotency: bool
+    conn: Any,
+    audit: AuditService,
+    *,
+    with_idempotency: bool,
+    rate_limiter: RateLimitService,
 ) -> SendGateService:
     idempotency = IdempotencyService(IdempotencyRepository(conn)) if with_idempotency else None
     return SendGateService(
@@ -81,8 +90,8 @@ def _send_gate_service(
         rbac=RBACService(),
         object_authz=ObjectAuthorizationService(),
         compliance=ComplianceGateService(ComplianceRepository(conn), audit.record),
-        rate_limiter=RateLimitService(InMemoryRateLimitBackend()),
-        rate_limit_policy=RateLimitPolicy("tenant_send", limit=100, window=timedelta(minutes=1)),
+        rate_limiter=rate_limiter,
+        rate_limit_policy=TENANT_SEND_POLICY,
         idempotency=idempotency,
         audit_record=audit.record,
     )
@@ -90,20 +99,26 @@ def _send_gate_service(
 
 async def send_gate_service(
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    rate_limiter: Annotated[RateLimitService, Depends(get_rate_limit_service)],
 ) -> AsyncIterator[SendGateService]:
     async with tenant_session(tenant_id=principal.tenant_id, actor_id=principal.user_id) as conn:
         audit = AuditService(AuditRepository(conn))
-        yield _send_gate_service(conn, audit, with_idempotency=True)
+        yield _send_gate_service(
+            conn, audit, with_idempotency=True, rate_limiter=rate_limiter
+        )
 
 
 async def mock_sender_service(
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    rate_limiter: Annotated[RateLimitService, Depends(get_rate_limit_service)],
 ) -> AsyncIterator[MockSenderService]:
     async with tenant_session(tenant_id=principal.tenant_id, actor_id=principal.user_id) as conn:
         audit = AuditService(AuditRepository(conn))
         yield MockSenderService(
             sending_store=SendingRepository(conn),
-            send_gate=_send_gate_service(conn, audit, with_idempotency=False),
+            send_gate=_send_gate_service(
+                conn, audit, with_idempotency=False, rate_limiter=rate_limiter
+            ),
             followups=None,
             idempotency=IdempotencyService(IdempotencyRepository(conn)),
             audit_record=audit.record,
@@ -121,6 +136,7 @@ async def outbound_read_service(
 async def dry_run_send_gate(
     body: SendGateDryRunRequest,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_send_gate_rate_limit)],
     service: Annotated[SendGateService, Depends(send_gate_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> SendGateDryRunResponse:
@@ -144,6 +160,7 @@ async def dry_run_send_gate(
 async def create_send_intent(
     body: SendIntentRequest,
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    _rate_limit: Annotated[None, Depends(enforce_send_intent_rate_limit)],
     service: Annotated[MockSenderService, Depends(mock_sender_service)],
     key: Annotated[str, Depends(idempotency_key)],
 ) -> SendIntentResponse:

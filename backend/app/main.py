@@ -63,13 +63,18 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="AutomatedStructure API", version="0.0.0", lifespan=_lifespan)
 
+    rate_limit_backend = InMemoryRateLimitBackend()
+    rate_limit_service = RateLimitService(rate_limit_backend)
+    app.state.rate_limit_backend = rate_limit_backend
+    app.state.rate_limit_service = rate_limit_service
+
     # Added last = outermost. RequestIdMiddleware must wrap the others so that
     # request/correlation context (and request_id for the rate-limit envelope)
     # is set before they run.
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(
         RateLimitMiddleware,
-        service=RateLimitService(InMemoryRateLimitBackend()),
+        service=rate_limit_service,
         policy=RateLimitPolicy(
             "ip",
             limit=settings.rate_limit_default_limit,

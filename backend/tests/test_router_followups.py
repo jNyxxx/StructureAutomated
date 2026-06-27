@@ -13,6 +13,7 @@ from app.auth.dependencies import current_principal
 from app.auth.principal import CurrentPrincipal
 from app.main import create_app
 from app.middleware.error_handler import AppError
+from app.ratelimit.backend import InMemoryRateLimitBackend
 from app.repositories.followup_repo import FollowUpRuleRecord, FollowUpScheduleRecord
 from app.routers import followups as followups_router
 from app.routers.followups import followup_service
@@ -21,6 +22,7 @@ from app.services.followup_scheduler import (
     FollowUpRulePage,
     FollowUpSchedulePage,
 )
+from app.services.rate_limit import RateLimitService
 
 _TENANT = uuid.UUID("11111111-1111-1111-1111-111111111111")
 _USER = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
@@ -224,6 +226,25 @@ def test_rule_create_calls_service_with_tenant_context() -> None:
     assert call["idempotency_key"] == "followup-key-1"
 
 
+def test_followup_mutation_rate_limit_blocks_61st_request() -> None:
+    fake = _FakeFollowUpService()
+    client = _client(fake)
+
+    responses = [
+        client.post(
+            "/api/v1/followups/rules",
+            json=_RULE_BODY,
+            headers={"Idempotency-Key": f"followup-key-{idx}"},
+        )
+        for idx in range(61)
+    ]
+
+    assert [resp.status_code for resp in responses[:60]] == [201] * 60
+    assert responses[60].status_code == 429
+    assert responses[60].json()["error"]["code"] == "RATE_LIMITED"
+    assert len(fake.calls) == 60
+
+
 def test_rule_create_duplicate_maps_to_409() -> None:
     fake = _FakeFollowUpService(
         error=AppError("DUPLICATE_RULE", "Duplicate rule.", status_code=409)
@@ -337,7 +358,9 @@ async def test_followup_di_opens_tenant_session_with_principal_context(
         yield _FakeConn()
 
     monkeypatch.setattr(followups_router, "tenant_session", fake_tenant_session)
-    gen = followups_router.followup_service(_principal())
+    gen = followups_router.followup_service(
+        _principal(), RateLimitService(InMemoryRateLimitBackend())
+    )
     service = await gen.__anext__()
     assert opened["tenant_id"] == _TENANT
     assert opened["actor_id"] == _USER
