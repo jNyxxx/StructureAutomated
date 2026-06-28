@@ -50,18 +50,19 @@ Classes: **planning** · **local/mock hardening** · **production readiness** ·
 | **P3-2** | Live DB smoke + seeded demo env | local/mock hardening + production readiness | Postgres via `docker-compose`; `alembic upgrade head`; least-privilege app-role (`NOSUPERUSER`, no `BYPASSRLS`); seed a demo tenant; **live RLS isolation test** (query tenant A under tenant B context → empty); duplicate-send prevention + send-gate **dry-run** against the real DB; `/ready` reports `migrations: up_to_date`. No providers, no production, no real sending. |
 | **P3-3** | Auth / Clerk production readiness | production readiness | **Owner decision needed** (Clerk prod config + keys). Real JWKS verification, session revocation, MFA position; keep `local_mock` auth for non-prod. Behind config; no production cutover in this slice. |
 | **P3-4** | Provider-integration **design** (no implementation) | production readiness (design) | Adapter contracts/design only for mailbox (SES/SendGrid), Twilio SMS, Stripe, DNS verifier. Zero real network calls, zero credentials. |
-| **P3-5** | Real sending / provider integration | real provider integration — **DEFERRED** | **STOP GATE.** P3-5a design inspection may run as docs-only. Any implementation beyond design-only boundary work requires written owner approval **and**: provider choice, counsel-approved legal language, SMS legal wording, SPF/DKIM/DMARC, real suppression sync, bounce/complaint webhooks. No live adapter, provider credentials, provider calls, or deployment until all recorded. |
+| **P3-5** | Real sending / provider integration | real provider integration — **DEFERRED** | **STOP GATE.** P3-5a→P3-5d docs-only design/packet done; **P3-5b** shipped the fail-closed provider boundary (mock adapter only); **P3-5e** recorded owner approval — **provider = Resend**, subdomain/sender/footer/first-pilot caps/webhook scope/ownership recorded, real sending still disabled, adapter not built. Future real-adapter slices **P3-5f→P3-5h** gated on the 8 concrete pre-smoke values (secret refs, DNS verification, monitored Reply-To, mailing details, internal recipient, emergency-stop + deliverability owner names) + counsel-approved legal copy. External sending (P3-5i) needs separate approval + green internal-smoke evidence. No live adapter, provider credentials, provider calls, or deployment until recorded. See [evidence/phase-3-5e-owner-approval-resend-roadmap.md](evidence/phase-3-5e-owner-approval-resend-roadmap.md). |
 | **P3-6** | Stripe / payment | real provider integration — **DEFERRED** | **STOP GATE.** Requires written owner approval **and**: first-paying-client billing decision (products/prices/entitlements/webhooks/dunning). Not started until recorded. |
 | **P3-7** | Deployment runbook + staging | production readiness | Staging provisioning, AWS Secrets Manager + KMS wiring, backup/restore drill + RPO/RTO, go/no-go. **All boot-guard conditions must pass before any production boot.** |
 
-Suggested execution order: P3-1 → P3-2 → P3-4 (done as rate-limit/abuse-protection hardening) → P3-5a docs-only provider-lane design → P3-3 frontend Clerk when owner values are available → P3-7, with P3-5 implementation and P3-6 only after their stop gates clear.
+Suggested execution order: P3-1 → P3-2 → P3-4 (done as rate-limit/abuse-protection hardening) → P3-5a–P3-5e docs-only provider-lane design + owner approval (Resend selected) → P3-3 frontend Clerk when owner values are available → P3-7, with P3-5f→P3-5h real-adapter work (and P3-6) only after their stop gates clear.
 
 ## 5. Required owner decisions before risky work
 
 | Decision | Blocks | Register status |
 |---|---|---|
-| Real-sending approval | P3-5 | Open (Launch blocker: legal review) |
-| Mailbox + SMS provider choice | P3-5 | Open |
+| Real-sending approval | P3-5 | **Pilot lane approved** (P3-5e 2026-06-28) — provider/domain/caps/webhook/ownership recorded; live sending still disabled; full live-send approval still gated on legal copy + 8 concrete pre-smoke values |
+| Email provider choice | P3-5 | **Resolved** — **Resend** (P3-5e 2026-06-28) |
+| SMS provider choice | P3-5 | Open |
 | Stripe / payment approval | P3-6 | Open ("First-paying-client production billing", Needed by: first paying client) |
 | SMS approval + **SMS legal wording** | P3-4/P3-5 | Open ("SMS legal wording", Needed by: Phase 3) |
 | Live scraping / enrichment (CRE research source) | P3-4/P3-5 | Open (Needed by: Live research) |

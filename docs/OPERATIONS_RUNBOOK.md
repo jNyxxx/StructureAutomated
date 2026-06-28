@@ -87,6 +87,7 @@ Email provider boundary / future provider config:
 - Current safe default: `EMAIL_PROVIDER=mock` and `LIVE_EMAIL_SENDING_ENABLED=false`.
 - P3-5b registers only the network-free mock adapter; provider names fail closed until a later owner-approved slice adds a real adapter.
 - P3-5c design requires provider credentials and webhook signing secrets to be referenced by secret refs only and loaded from AWS Secrets Manager/KMS in production.
+- P3-5e owner approval (2026-06-28): **Resend** selected as the pilot email provider; sending subdomain `outreach.automatedstructure.com`; conservative first-pilot caps (tenant 10/hr·50/day, campaign 50/day, mailbox 25/day); webhook events normalized to `delivered`/`bounced`/`complained`/`deferred`/`failed`/`unsubscribed` with signature verify + idempotency required (no open/click tracking). Real sending stays disabled (`EMAIL_PROVIDER=mock`, `LIVE_EMAIL_SENDING_ENABLED=false`); the Resend adapter is **not** built. **Emergency stop:** owner/operator and engineering can flip `LIVE_EMAIL_SENDING_ENABLED=false` to disable live sending immediately. See [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS](LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) §2 and [evidence/phase-3-5e-owner-approval-resend-roadmap.md](evidence/phase-3-5e-owner-approval-resend-roadmap.md).
 - Production provider cutover must verify sending domain DNS, webhook signatures, tenant/campaign/mailbox/provider caps, legal footer/unsubscribe copy, and internal-only smoke evidence before any external recipient delivery.
 
 ## B2. CI jobs (all must pass)

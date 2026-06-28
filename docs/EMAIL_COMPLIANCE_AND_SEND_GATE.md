@@ -64,6 +64,20 @@ P3-5b adds the provider interface boundary and fail-closed adapter registry. Onl
 
 P3-5c defines provider-selection and secret/config design. Provider choice is not final. The recommended default for a first internal-only technical smoke is Amazon SES if the deployment target remains AWS; Postmark is the alternate when owner prioritizes fastest dashboard/operator workflow. Final selection still requires owner approval for provider, sending domain, DNS owner, webhook scope, caps, legal copy, deliverability monitor, and internal-only smoke scope.
 
+## 4C. Owner-approved sending decisions (P3-5d packet → P3-5e)
+
+The owner answered the P3-5d packet on 2026-06-28 (recorded in [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS §2](LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) and [evidence/phase-3-5e-owner-approval-resend-roadmap.md](evidence/phase-3-5e-owner-approval-resend-roadmap.md)). **This selects the pilot lane; it does NOT enable live sending** — `EMAIL_PROVIDER=mock`, `LIVE_EMAIL_SENDING_ENABLED=false`, and no Resend adapter is built. These decisions bind future provider work:
+
+- **Provider:** **Resend** (main email provider).
+- **Sending subdomain:** `outreach.automatedstructure.com` (dedicated cold-outreach subdomain per §7) unless owner later changes it.
+- **Sender identity:** `From: AutomatedStructure <outreach@outreach.automatedstructure.com>`; `Reply-To: replies@automatedstructure.com` or another monitored owner-provided inbox.
+- **Required unsubscribe footer (all outbound):** *"You are receiving this because we found your business contact for relevant B2B outreach. To stop receiving emails, unsubscribe here: {{unsubscribe_url}}."* Company/legal mailing details appended once final business address is confirmed; counsel sign-off on copy still pending.
+- **First-pilot caps (conservative; override the §7 defaults downward for the first pilot):** tenant hourly **10**, tenant daily **50**, campaign daily **50**, mailbox/sender daily **25**. The §7 warm-up ramp and pause thresholds still apply; the lower of (§4C cap, §7 cap) wins.
+- **Webhook event scope:** normalize `delivered`, `bounced`, `complained`, `deferred`, `failed`, and `unsubscribed/suppressed` (if supported by the normalized Resend event shape). **No open/click tracking** unless explicitly enabled later. Webhook **signature verification + idempotency required**; no raw payload leakage (rule 12/14).
+- **First smoke is internal-only:** allowed only after DNS verification, Resend API + webhook secret_refs, legal footer, and all send gates pass. No prospect/client recipient during first smoke; external-recipient sending needs separate approval + green internal-smoke evidence.
+- **Emergency stop:** owner/operator and engineering can emergency-stop; `LIVE_EMAIL_SENDING_ENABLED=false` (config/feature flag) disables live sending immediately.
+- **Ownership:** owner/operator owns the Resend account and deliverability monitoring (bounces/complaints/DNS health/blocks/suppressions/warm-up) until a dedicated ops owner exists.
+
 ## 5. Suppression model
 
 Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason, source, actor, timestamp). Rules:
