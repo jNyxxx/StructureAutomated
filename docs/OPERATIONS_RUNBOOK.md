@@ -113,9 +113,12 @@ P3-7a readiness inspection (2026-06-28): current Dockerfiles are local/dev-orien
 
 P3-7b production Dockerfile hardening (2026-06-28): added production-specific `backend/Dockerfile.prod` and `frontend/Dockerfile.prod`, preserved dev Dockerfiles/Compose, hardened backend/frontend `.dockerignore`, and enabled Next standalone output for the production frontend image. Backend/frontend code gates passed. P3-7b-verify cleared the Docker build blocker: Docker Desktop/Linux engine ran on Docker 29.5.3 and both production images built locally. The frontend build required a minimal `frontend/package-lock.json` npm 10 sync so Docker `npm ci` is deterministic. See [evidence/phase-3-7b-production-dockerfile-hardening.md](evidence/phase-3-7b-production-dockerfile-hardening.md) and [evidence/phase-3-7b-production-docker-build-smoke.md](evidence/phase-3-7b-production-docker-build-smoke.md).
 
+P3-7c staging environment + secret template (2026-06-28): docs-only staging config map created in [STAGING_ENVIRONMENT_TEMPLATE.md](STAGING_ENVIRONMENT_TEMPLATE.md). It groups backend, frontend, worker, migration, database, Redis, Clerk, mock billing, Resend-disabled, and observability variables; defines secret-ref naming under `/automatedstructure/staging/...`; records staging preflight/boot-guard requirements; and keeps Resend/live email, Stripe, SMS, and live scraping disabled. See [evidence/phase-3-7c-staging-env-secret-template.md](evidence/phase-3-7c-staging-env-secret-template.md).
+
 1. Prepare hardened backend/frontend/worker runtime images.
 2. Keep production Docker builds in CI/CD before staging release.
-3. Deploy to **staging first** after owner approval.
+3. Use the staging env/secret template to collect owner/operator values.
+4. Deploy to **staging first** after owner approval.
 3. Run migrations in a one-off task.
 4. Run smoke tests.
 5. Release backend, worker, frontend.
