@@ -109,13 +109,16 @@ CI **blocks** secrets, failing tests, and migration drift.
 
 ## B3. Deployment pipeline
 
-1. Deploy to **staging first**.
-2. Run migrations in a one-off task.
-3. Run smoke tests.
-4. Deploy backend, worker, frontend.
-5. Verify readiness (`/health/ready`).
-6. Run synthetic campaign in mock mode.
-7. Promote to production **only after staging passes**.
+P3-7a readiness inspection (2026-06-28): current Dockerfiles are local/dev-oriented (`uvicorn --reload`, `next dev`, bind mounts in Compose), CI is green-shaped for lint/type/test/build/migration smoke, backend boot guard/readiness are strong, Redis/rate-limit track is accepted, and P3-5e Resend direction is recorded. Staging/production work remains blocked on owner/operator values for AWS account/region, deployment platform, domains/TLS, Secrets Manager/KMS, RDS, Redis, backups, alerts, CI/CD approvals, migration/rollback owners, and production cutover approver. See [evidence/phase-3-7a-deployment-ops-readiness-plan.md](evidence/phase-3-7a-deployment-ops-readiness-plan.md).
+
+1. Prepare hardened backend/frontend/worker runtime images.
+2. Deploy to **staging first** after owner approval.
+3. Run migrations in a one-off task.
+4. Run smoke tests.
+5. Release backend, worker, frontend.
+6. Verify readiness (`/health`, `/live`, `/ready`).
+7. Run synthetic campaign in mock mode.
+8. Promote to production **only after staging passes** and a separate production cutover is approved.
 
 ## B4. Migration & rollback rules
 
