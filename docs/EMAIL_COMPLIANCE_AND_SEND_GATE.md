@@ -84,6 +84,8 @@ P3-5g implementation note: `POST /api/v1/webhooks/resend` now exists as a verifi
 
 P3-5h-prep implementation note: the internal-only Resend smoke is now documented but not executed. A future real-smoke slice is limited to one internal recipient, one approved email, conservative caps, no automatic follow-up, no open/click tracking, full send-gate/compliance/billing/rate-limit/idempotency/audit evidence, and an emergency-stop plan. The required concrete values and hard-stop conditions are recorded in [evidence/phase-3-5h-prep-internal-resend-smoke.md](evidence/phase-3-5h-prep-internal-resend-smoke.md).
 
+P3-5i implementation note: the Resend secret-resolution and smoke-readiness contract is now defined. `config_ready` means refs/domain/caps are present only; `smoke_ready` adds DNS proof and owner/legal/internal-recipient values; `send_ready` additionally requires all runtime gates to pass immediately before the provider boundary. P3-5i grants none of those states by itself and does not approve external-recipient sending. See [evidence/phase-3-5i-resend-secret-readiness-contract.md](evidence/phase-3-5i-resend-secret-readiness-contract.md).
+
 ## 5. Suppression model
 
 Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason, source, actor, timestamp). Rules:

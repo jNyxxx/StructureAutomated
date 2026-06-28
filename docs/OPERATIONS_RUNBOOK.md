@@ -121,6 +121,8 @@ P3-7d-impl CI validation gates (2026-06-28): validation-only workflow hardening 
 
 P3-5h-prep internal-only Resend smoke preparation (2026-06-28): docs-only smoke checklist created. Future real smoke remains blocked until the concrete Resend secret refs, DNS verification, monitored Reply-To, legal/company footer details, internal recipient, emergency-stop owner, deliverability owner, real adapter implementation, and explicit owner approval are recorded. Smoke must be one internal email only, with no prospect/client recipient, no automatic follow-up, no open/click tracking, full gate evidence, and a rollback/emergency-stop result. See [evidence/phase-3-5h-prep-internal-resend-smoke.md](evidence/phase-3-5h-prep-internal-resend-smoke.md).
 
+P3-5i Resend secret-readiness contract (2026-06-28): docs-only readiness contract created. Defines secret-ref rules, DNS/domain proof, smoke owner values, gate readiness, `config_ready` / `smoke_ready` / `send_ready` / `production_ready` state definitions, secret-resolution boundary, evidence requirements, and hard stops. No code, Resend SDK/API call, credentials, deployment, live-provider behavior, or production enablement was added. See [evidence/phase-3-5i-resend-secret-readiness-contract.md](evidence/phase-3-5i-resend-secret-readiness-contract.md).
+
 1. Prepare hardened backend/frontend/worker runtime images.
 2. Keep production Docker builds in CI/CD before staging release.
 3. Use the staging env/secret template to collect owner/operator values.

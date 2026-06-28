@@ -274,7 +274,8 @@ Disallowed by default:
 - prospect/client real email delivery;
 - Resend API calls;
 - Resend webhook endpoint exposure with real secret;
-- internal-only real smoke until P3-5h concrete values and approval are recorded;
+- internal-only real smoke until P3-5h/P3-5i concrete values, readiness contract, and approval are recorded;
+- claiming `config_ready`, `smoke_ready`, `send_ready`, or `production_ready` without the required evidence;
 - open/click tracking.
 
 ---
