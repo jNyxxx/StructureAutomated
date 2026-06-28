@@ -55,7 +55,7 @@ Clerk session exchange/status/logout (by IP + user/session) · imports (by tenan
 
 ## 7. Webhook verification
 
-- **Future Stripe:** verify `Stripe-Signature` over raw body. Real Stripe webhooks are not part of the local mock MVP.
+- **Stripe (P3-6d foundation):** `POST /api/v1/webhooks/stripe` verifies the raw request body using the `Stripe-Signature` header before parsing event fields. The default runtime dependency remains fail-closed until approved webhook-secret resolution is added. It normalizes only safe billing event references, performs provider-event-id idempotency through a boundary, and does not mutate tenant billing state.
 - **n8n internal:** HMAC or shared-secret header, rotatable, fail closed.
 - **Resend (P3-5g foundation):** `POST /api/v1/webhooks/resend` verifies the raw request body using the Resend/Svix signature header set before parsing event fields. The default runtime dependency remains fail-closed until approved webhook-secret resolution is added. It normalizes only safe delivery/bounce/complaint/deferred/failed/suppressed fields and ignores open/click tracking.
 - **Future Twilio/mailbox:** provider-specific signature verification before parsing.
@@ -73,7 +73,7 @@ Clerk session exchange/status/logout (by IP + user/session) · imports (by tenan
 | Sending/messages | `POST /send-intents/{id}/schedule`, `GET /outbound-messages`, `POST /send-gate/dry-run` |
 | Deliverability/mailboxes | `GET /deliverability`, `GET/POST/PATCH /mailboxes` |
 | Compliance/suppression | `GET/PUT /compliance/profile`, `GET/POST /suppressions`, `POST /suppressions/{id}/reinstate` |
-| Integrations/webhooks | `GET /integrations`, `POST /integrations/{provider}/connect`, `POST /webhooks/n8n/{name}`, `POST /webhooks/resend` (verification/normalization foundation only); future `POST /webhooks/stripe` only in production billing phase |
+| Integrations/webhooks | `GET /integrations`, `POST /integrations/{provider}/connect`, `POST /webhooks/n8n/{name}`, `POST /webhooks/resend` (verification/normalization foundation only), `POST /webhooks/stripe` (verification/normalization foundation only; no checkout or billing-state mutation) |
 | Billing/usage | `GET /billing/subscription`, mock billing state transition endpoint for local/demo admins, `GET /usage`; real checkout/portal deferred |
 | Audit/privacy | `GET /audit-events`, `POST /privacy/export`, `POST /privacy/delete` |
 | Platform/admin | `GET /platform/tenants`, `POST /platform/support-access` |

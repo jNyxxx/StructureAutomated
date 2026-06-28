@@ -15,3 +15,15 @@ class ResendWebhookAcceptedResponse(BaseModel):
     duplicate: bool = False
     event_type: str | None = None
     mock_only: bool = True
+
+
+class StripeWebhookAcceptedResponse(BaseModel):
+    """Safe response returned after Stripe webhook verification and normalization."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
+    status: str
+    duplicate: bool = False
+    event_type: str | None = None
+    mock_only: bool = True

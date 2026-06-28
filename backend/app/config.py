@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     encryption_key: str | None = None
     webhook_secret: str | None = None
 
+    # Stripe billing boundary. P3-6d adds webhook verification only; checkout,
+    # billing portal, Stripe API calls, and money movement remain disabled.
+    stripe_mode: str = "test"
+    stripe_webhooks_enabled: bool = False
+    stripe_webhook_secret_ref: str | None = None
+
     # Managed auth provider (Clerk). The mock auth path is gated separately on
     # ``app_env != production AND mock_verifier`` (see app/main.py). Issuer /
     # JWKS / audience / authorized-parties are public, non-secret values used by

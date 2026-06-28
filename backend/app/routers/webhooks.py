@@ -13,16 +13,34 @@ from fastapi import APIRouter, Depends
 from starlette.requests import Request
 
 from app.config import get_settings
-from app.schemas.webhooks import ResendWebhookAcceptedResponse
+from app.schemas.webhooks import ResendWebhookAcceptedResponse, StripeWebhookAcceptedResponse
 from app.services.resend_webhooks import (
     InMemoryResendWebhookEventStore,
     ResendWebhookProcessor,
     ResendWebhookVerifier,
 )
+from app.services.stripe_webhooks import (
+    InMemoryStripeWebhookEventStore,
+    StripeWebhookProcessor,
+    StripeWebhookVerifier,
+)
 
 router = APIRouter(tags=["webhooks"])
 
 _RESEND_WEBHOOK_STORE = InMemoryResendWebhookEventStore()
+_STRIPE_WEBHOOK_STORE = InMemoryStripeWebhookEventStore()
+
+
+def stripe_webhook_processor() -> StripeWebhookProcessor:
+    settings = get_settings()
+    # Real secret resolution from STRIPE_WEBHOOK_SECRET_REF is deferred to a
+    # later approved billing smoke slice. Passing no secret keeps the route
+    # fail-closed by default in every environment.
+    verifier = StripeWebhookVerifier(
+        webhook_secret=None,
+        secret_ref=settings.stripe_webhook_secret_ref,
+    )
+    return StripeWebhookProcessor(verifier=verifier, store=_STRIPE_WEBHOOK_STORE)
 
 
 def resend_webhook_processor() -> ResendWebhookProcessor:
@@ -45,6 +63,22 @@ async def receive_resend_webhook(
     raw_body = await request.body()
     result = await processor.process(raw_body=raw_body, headers=request.headers)
     return ResendWebhookAcceptedResponse(
+        provider=result.provider,
+        status=result.status,
+        duplicate=result.duplicate,
+        event_type=result.event_type,
+        mock_only=True,
+    )
+
+
+@router.post("/api/v1/webhooks/stripe", response_model=StripeWebhookAcceptedResponse)
+async def receive_stripe_webhook(
+    request: Request,
+    processor: Annotated[StripeWebhookProcessor, Depends(stripe_webhook_processor)],
+) -> StripeWebhookAcceptedResponse:
+    raw_body = await request.body()
+    result = await processor.process(raw_body=raw_body, headers=request.headers)
+    return StripeWebhookAcceptedResponse(
         provider=result.provider,
         status=result.status,
         duplicate=result.duplicate,

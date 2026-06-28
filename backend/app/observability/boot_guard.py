@@ -98,6 +98,18 @@ def _is_redis_url(url: str | None) -> bool:
     return u.startswith(("redis://", "rediss://"))
 
 
+def _stripe_billing_failures(settings: Settings) -> list[str]:
+    """Stripe billing/webhook config checks for production and staging.
+
+    P3-6d adds only a webhook verification foundation. controlled_demo must not
+    bypass Stripe webhook signing requirements.
+    """
+    failures: list[str] = []
+    if settings.stripe_webhooks_enabled and _is_placeholder(settings.stripe_webhook_secret_ref):
+        failures.append("STRIPE_WEBHOOK_SECRET_REF is blank or placeholder")
+    return failures
+
+
 def _email_provider_failures(settings: Settings) -> list[str]:
     """Email-provider config checks for production and staging live-send attempts.
 
@@ -165,7 +177,7 @@ def config_failures(settings: Settings) -> list[str]:
     provider gates clear.
     """
     if settings.app_env == "staging":
-        return _email_provider_failures(settings)
+        return _email_provider_failures(settings) + _stripe_billing_failures(settings)
     if settings.app_env != "production":
         return []
     failures: list[str] = []
@@ -197,6 +209,7 @@ def config_failures(settings: Settings) -> list[str]:
     if not _is_redis_url(settings.rate_limit_redis_url):
         failures.append("RATE_LIMIT_REDIS_URL must be a non-placeholder redis:// or rediss:// URL")
     failures.extend(_email_provider_failures(settings))
+    failures.extend(_stripe_billing_failures(settings))
     failures.extend(_auth_failures(settings))
     return failures
 

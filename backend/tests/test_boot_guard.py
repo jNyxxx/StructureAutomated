@@ -132,6 +132,36 @@ def test_safe_production_passes() -> None:
     enforce_config(_safe_prod())  # does not raise
 
 
+def test_production_blocks_enabled_stripe_webhooks_without_secret_ref() -> None:
+    failures = config_failures(
+        _safe_prod(stripe_webhooks_enabled=True, stripe_webhook_secret_ref=None)
+    )
+    assert any("STRIPE_WEBHOOK_SECRET_REF" in failure for failure in failures)
+
+
+def test_staging_blocks_enabled_stripe_webhooks_without_secret_ref() -> None:
+    failures = config_failures(
+        Settings(
+            app_env="staging",
+            stripe_webhooks_enabled=True,
+            stripe_webhook_secret_ref="CHANGE_ME_PLACEHOLDER",
+        )
+    )
+    assert any("STRIPE_WEBHOOK_SECRET_REF" in failure for failure in failures)
+
+
+def test_controlled_demo_does_not_bypass_stripe_webhook_signing_requirement() -> None:
+    failures = config_failures(
+        _safe_prod(
+            controlled_demo=True,
+            controlled_demo_approved_by="owner:ops p3-6d",
+            stripe_webhooks_enabled=True,
+            stripe_webhook_secret_ref=None,
+        )
+    )
+    assert any("STRIPE_WEBHOOK_SECRET_REF" in failure for failure in failures)
+
+
 def test_mocks_in_production_fail_unless_controlled_demo() -> None:
     failures = config_failures(_safe_prod(mock_stripe=True))
     assert any("mock providers" in f for f in failures)

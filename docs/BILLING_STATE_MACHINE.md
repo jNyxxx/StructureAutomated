@@ -26,6 +26,8 @@ P3-6b update (2026-06-28): the Stripe config / secret-readiness contract now exi
 
 P3-6c update (2026-06-28): safe owner defaults are recorded at [evidence/phase-3-6c-stripe-owner-defaults.md](evidence/phase-3-6c-stripe-owner-defaults.md). Defaults select Stripe as the future provider direction, keep mock billing as default, require test mode first, disable self-serve checkout by default, define placeholder internal plans, set a 14-day trial default, map billing-state access defaults, and keep central gates authoritative. Real billing remains disabled.
 
+P3-6d update (2026-06-29): the Stripe webhook verification foundation now exists at [evidence/phase-3-6d-stripe-webhook-verification-foundation.md](evidence/phase-3-6d-stripe-webhook-verification-foundation.md). It adds signature verification, safe event normalization, idempotency boundary, fail-closed route behavior, and boot-guard checks only. It does not add checkout, billing portal, Stripe API calls, tenant billing-state mutation, real billing, or money movement.
+
 ## 2. MVP mock billing states
 
 | State | Meaning | Default access |
@@ -89,7 +91,7 @@ The following rules are documented for the later first-paying-client / productio
 - Customer cancellation = `canceled`; access continues until paid period ends, then locks.
 - Full refund = canceled/inactive.
 - Chargeback/dispute = immediate `inactive` hard stop and manual review.
-- Stripe webhooks will later drive `tenant_status`, but not during local MVP.
+- Stripe webhooks will later drive `tenant_status`, but P3-6d does not mutate tenant billing state yet.
 
 ## 6. Billing audit
 
