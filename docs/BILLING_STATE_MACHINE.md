@@ -24,6 +24,8 @@ P3-6a update (2026-06-28): the Stripe / real billing owner decision packet now e
 
 P3-6b update (2026-06-28): the Stripe config / secret-readiness contract now exists at [evidence/phase-3-6b-stripe-config-secret-readiness-contract.md](evidence/phase-3-6b-stripe-config-secret-readiness-contract.md). It defines required refs, URLs, mode settings, product/price mappings, readiness states, central gate requirements, webhook readiness, hard stops, and remaining owner answers. It grants no config/test/money/production readiness state.
 
+P3-6c update (2026-06-28): safe owner defaults are recorded at [evidence/phase-3-6c-stripe-owner-defaults.md](evidence/phase-3-6c-stripe-owner-defaults.md). Defaults select Stripe as the future provider direction, keep mock billing as default, require test mode first, disable self-serve checkout by default, define placeholder internal plans, set a 14-day trial default, map billing-state access defaults, and keep central gates authoritative. Real billing remains disabled.
+
 ## 2. MVP mock billing states
 
 | State | Meaning | Default access |
