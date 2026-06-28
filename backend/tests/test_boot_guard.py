@@ -162,6 +162,35 @@ def test_controlled_demo_does_not_bypass_stripe_webhook_signing_requirement() ->
     assert any("STRIPE_WEBHOOK_SECRET_REF" in failure for failure in failures)
 
 
+def test_production_blocks_enabled_stripe_checkout_without_safe_config() -> None:
+    failures = config_failures(_safe_prod(stripe_checkout_enabled=True))
+    assert any("STRIPE_SECRET_KEY_REF" in failure for failure in failures)
+    assert any("STRIPE_SUCCESS_URL" in failure for failure in failures)
+    assert any("STRIPE_CANCEL_URL" in failure for failure in failures)
+    assert any("STRIPE_PRICE_IDS_REF" in failure for failure in failures)
+
+
+def test_staging_blocks_enabled_stripe_portal_without_safe_config() -> None:
+    failures = config_failures(Settings(app_env="staging", stripe_billing_portal_enabled=True))
+    assert any("STRIPE_SECRET_KEY_REF" in failure for failure in failures)
+    assert any("STRIPE_PORTAL_RETURN_URL" in failure for failure in failures)
+
+
+def test_controlled_demo_does_not_bypass_stripe_checkout_portal_requirements() -> None:
+    failures = config_failures(
+        _safe_prod(
+            controlled_demo=True,
+            controlled_demo_approved_by="owner:ops p3-6e",
+            stripe_checkout_enabled=True,
+            stripe_billing_portal_enabled=True,
+            stripe_secret_key_ref=None,
+        )
+    )
+    assert any("STRIPE_SECRET_KEY_REF" in failure for failure in failures)
+    assert any("STRIPE_SUCCESS_URL" in failure for failure in failures)
+    assert any("STRIPE_PORTAL_RETURN_URL" in failure for failure in failures)
+
+
 def test_mocks_in_production_fail_unless_controlled_demo() -> None:
     failures = config_failures(_safe_prod(mock_stripe=True))
     assert any("mock providers" in f for f in failures)

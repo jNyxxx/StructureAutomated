@@ -74,7 +74,7 @@ Clerk session exchange/status/logout (by IP + user/session) · imports (by tenan
 | Deliverability/mailboxes | `GET /deliverability`, `GET/POST/PATCH /mailboxes` |
 | Compliance/suppression | `GET/PUT /compliance/profile`, `GET/POST /suppressions`, `POST /suppressions/{id}/reinstate` |
 | Integrations/webhooks | `GET /integrations`, `POST /integrations/{provider}/connect`, `POST /webhooks/n8n/{name}`, `POST /webhooks/resend` (verification/normalization foundation only), `POST /webhooks/stripe` (verification/normalization foundation only; no checkout or billing-state mutation) |
-| Billing/usage | `GET /billing/subscription`, mock billing state transition endpoint for local/demo admins, `GET /usage`; real checkout/portal deferred |
+| Billing/usage | `GET /billing/subscription`, mock billing state transition endpoint for local/demo admins, `GET /usage`, `POST /billing/checkout-session` and `POST /billing/portal-session` as fail-closed skeletons only; real checkout/portal deferred |
 | Audit/privacy | `GET /audit-events`, `POST /privacy/export`, `POST /privacy/delete` |
 | Platform/admin | `GET /platform/tenants`, `POST /platform/support-access` |
 | Demo/future | `POST /mock/outcomes`, `GET /signals`, `POST /signals/mock` (where environment allows) |

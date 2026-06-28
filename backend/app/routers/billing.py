@@ -24,12 +24,16 @@ from app.schemas.billing import (
     BillingStateTransitionRequest,
     BillingStateTransitionResponse,
     BillingSubscriptionResponse,
+    StripeCheckoutSessionRequest,
+    StripePortalSessionRequest,
+    StripeSessionResponse,
     UsageResponse,
 )
 from app.services.authz import RBACService
 from app.services.billing import BillingGateService
 from app.services.billing_api import BillingAPIService
 from app.services.idempotency import IdempotencyConflictError, IdempotencyService
+from app.services.stripe_billing import StripeBillingAPIService, build_stripe_billing_provider
 
 router = APIRouter(tags=["billing"])
 IDEMPOTENCY_HEADER = "idempotency-key"
@@ -63,6 +67,19 @@ async def billing_api_service(
         )
 
 
+async def stripe_billing_api_service(
+    principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+) -> AsyncIterator[StripeBillingAPIService]:
+    settings = get_settings()
+    async with tenant_session(tenant_id=principal.tenant_id, actor_id=principal.user_id) as conn:
+        billing_repo = BillingRepository(conn)
+        yield StripeBillingAPIService(
+            billing=BillingGateService(billing_repo),
+            rbac=RBACService(),
+            provider=build_stripe_billing_provider(settings),
+        )
+
+
 @router.get("/api/v1/billing/subscription", response_model=BillingSubscriptionResponse)
 async def get_billing_subscription(
     principal: Annotated[CurrentPrincipal, Depends(current_principal)],
@@ -87,6 +104,40 @@ async def get_usage(
     service: Annotated[BillingAPIService, Depends(billing_api_service)],
 ) -> UsageResponse:
     return UsageResponse.from_record(await service.get_usage(principal))
+
+
+@router.post(
+    "/api/v1/billing/checkout-session",
+    response_model=StripeSessionResponse,
+)
+async def create_stripe_checkout_session(
+    _body: StripeCheckoutSessionRequest,
+    principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    service: Annotated[StripeBillingAPIService, Depends(stripe_billing_api_service)],
+) -> StripeSessionResponse:
+    result = await service.create_checkout_session(principal, now=datetime.now(UTC))
+    return StripeSessionResponse(
+        provider=result.provider,
+        session_url=result.session_url,
+        mock_only=result.mock_only,
+    )
+
+
+@router.post(
+    "/api/v1/billing/portal-session",
+    response_model=StripeSessionResponse,
+)
+async def create_stripe_billing_portal_session(
+    _body: StripePortalSessionRequest,
+    principal: Annotated[CurrentPrincipal, Depends(current_principal)],
+    service: Annotated[StripeBillingAPIService, Depends(stripe_billing_api_service)],
+) -> StripeSessionResponse:
+    result = await service.create_billing_portal_session(principal, now=datetime.now(UTC))
+    return StripeSessionResponse(
+        provider=result.provider,
+        session_url=result.session_url,
+        mock_only=result.mock_only,
+    )
 
 
 @router.post(

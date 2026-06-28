@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.repositories.usage_repo import UsageSnapshotRecord
 from app.services.billing import BillingPlan, TenantSubscriptionRecord
@@ -120,6 +120,28 @@ class UsageResponse(BaseModel):
 class BillingStateTransitionRequest(BaseModel):
     tenant_status: str
     grace_until: datetime | None = None
+
+
+class StripeCheckoutSessionRequest(BaseModel):
+    """Safe placeholder request for future test-mode checkout sessions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StripePortalSessionRequest(BaseModel):
+    """Safe placeholder request for future billing portal sessions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StripeSessionResponse(BaseModel):
+    """Safe future response shape for Stripe session endpoints."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
+    session_url: str | None = None
+    mock_only: bool = True
 
 
 class BillingStateTransitionResponse(BaseModel):

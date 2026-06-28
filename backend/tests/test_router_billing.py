@@ -15,7 +15,7 @@ from app.main import create_app
 from app.middleware.error_handler import AppError
 from app.repositories.usage_repo import UsageSnapshotRecord
 from app.routers import billing as billing_router
-from app.routers.billing import billing_api_service
+from app.routers.billing import billing_api_service, stripe_billing_api_service
 from app.services.authz import RBACService
 from app.services.billing import BillingGateService, BillingPlan, TenantSubscriptionRecord
 from app.services.billing_api import (
@@ -83,6 +83,28 @@ def _usage() -> UsageSnapshotRecord:
     )
 
 
+class _FakeStripeBillingAPIService:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[dict[str, Any]] = []
+
+    async def create_checkout_session(self, principal: CurrentPrincipal, **kwargs: Any) -> object:
+        self.calls.append({"method": "create_checkout_session", "principal": principal, **kwargs})
+        if self.error is not None:
+            raise self.error
+        raise AssertionError("Stripe checkout skeleton must fail closed in P3-6e")
+
+    async def create_billing_portal_session(
+        self, principal: CurrentPrincipal, **kwargs: Any
+    ) -> object:
+        self.calls.append(
+            {"method": "create_billing_portal_session", "principal": principal, **kwargs}
+        )
+        if self.error is not None:
+            raise self.error
+        raise AssertionError("Stripe portal skeleton must fail closed in P3-6e")
+
+
 class _FakeBillingAPIService:
     def __init__(self, *, error: Exception | None = None, replay: bool = False) -> None:
         self.error = error
@@ -134,11 +156,16 @@ class _FakeBillingAPIService:
         )
 
 
-def _client(service: _FakeBillingAPIService | None = None) -> TestClient:
+def _client(
+    service: _FakeBillingAPIService | None = None,
+    stripe_service: _FakeStripeBillingAPIService | None = None,
+) -> TestClient:
     app = create_app()
     app.dependency_overrides[current_principal] = _principal
     if service is not None:
         app.dependency_overrides[billing_api_service] = lambda: service
+    if stripe_service is not None:
+        app.dependency_overrides[stripe_billing_api_service] = lambda: stripe_service
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -149,6 +176,8 @@ def _client(service: _FakeBillingAPIService | None = None) -> TestClient:
         ("get", "/api/v1/billing/access", None, None),
         ("get", "/api/v1/usage", None, None),
         ("post", "/api/v1/billing/state-transition", {"tenant_status": "active"}, _HEADERS),
+        ("post", "/api/v1/billing/checkout-session", {}, None),
+        ("post", "/api/v1/billing/portal-session", {}, None),
     ],
 )
 def test_billing_routes_require_authentication(
@@ -170,6 +199,63 @@ def test_billing_routes_are_mounted() -> None:
     assert "/api/v1/billing/access" in spec
     assert "/api/v1/usage" in spec
     assert "/api/v1/billing/state-transition" in spec
+    assert "/api/v1/billing/checkout-session" in spec
+    assert "/api/v1/billing/portal-session" in spec
+
+
+def test_checkout_session_endpoint_fails_closed_when_disabled() -> None:
+    fake = _FakeStripeBillingAPIService(
+        error=AppError(
+            "STRIPE_CHECKOUT_NOT_AVAILABLE",
+            "Stripe checkout is not available.",
+            status_code=503,
+        )
+    )
+
+    resp = _client(stripe_service=fake).post("/api/v1/billing/checkout-session", json={})
+
+    assert resp.status_code == 503
+    error = resp.json()["error"]
+    assert error["code"] == "STRIPE_CHECKOUT_NOT_AVAILABLE"
+    assert error["message"] == "Stripe checkout is not available."
+    assert error["details"] == {}
+    assert fake.calls[0]["principal"].tenant_id == _TENANT
+
+
+def test_portal_session_endpoint_fails_closed_when_disabled() -> None:
+    fake = _FakeStripeBillingAPIService(
+        error=AppError(
+            "STRIPE_PORTAL_NOT_AVAILABLE",
+            "Stripe billing portal is not available.",
+            status_code=503,
+        )
+    )
+
+    resp = _client(stripe_service=fake).post("/api/v1/billing/portal-session", json={})
+
+    assert resp.status_code == 503
+    error = resp.json()["error"]
+    assert error["code"] == "STRIPE_PORTAL_NOT_AVAILABLE"
+    assert error["message"] == "Stripe billing portal is not available."
+    assert error["details"] == {}
+    assert fake.calls[0]["principal"].tenant_id == _TENANT
+
+
+def test_checkout_and_portal_routes_reject_client_supplied_tenant_id() -> None:
+    fake = _FakeStripeBillingAPIService()
+
+    checkout = _client(stripe_service=fake).post(
+        "/api/v1/billing/checkout-session",
+        json={"tenant_id": "99999999-9999-9999-9999-999999999999"},
+    )
+    portal = _client(stripe_service=fake).post(
+        "/api/v1/billing/portal-session",
+        json={"tenant_id": "99999999-9999-9999-9999-999999999999"},
+    )
+
+    assert checkout.status_code == 422
+    assert portal.status_code == 422
+    assert fake.calls == []
 
 
 def test_get_subscription_returns_safe_mock_subscription_dto() -> None:
@@ -461,7 +547,11 @@ async def test_billing_di_opens_tenant_session_with_principal_context(
 def test_billing_router_does_not_import_payment_or_provider_clients() -> None:
     source = inspect.getsource(billing_router).lower()
     forbidden = (
-        "stripe",
+        "\nimport " + "stripe",
+        "\nfrom " + "stripe",
+        "api." + "stripe",
+        "checkout.sessions" + ".create",
+        "billing_portal.sessions" + ".create",
         "boto3",
         "sendgrid",
         "mailgun",

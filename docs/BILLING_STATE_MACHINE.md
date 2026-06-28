@@ -28,6 +28,8 @@ P3-6c update (2026-06-28): safe owner defaults are recorded at [evidence/phase-3
 
 P3-6d update (2026-06-29): the Stripe webhook verification foundation now exists at [evidence/phase-3-6d-stripe-webhook-verification-foundation.md](evidence/phase-3-6d-stripe-webhook-verification-foundation.md). It adds signature verification, safe event normalization, idempotency boundary, fail-closed route behavior, and boot-guard checks only. It does not add checkout, billing portal, Stripe API calls, tenant billing-state mutation, real billing, or money movement.
 
+P3-6e update (2026-06-29): the Stripe checkout / billing portal skeleton now exists at [evidence/phase-3-6e-stripe-checkout-portal-skeleton.md](evidence/phase-3-6e-stripe-checkout-portal-skeleton.md). It adds a disabled provider boundary, fail-closed checkout/portal endpoints, safe config placeholders, and boot-guard checks only. It does not create checkout sessions, create billing portal sessions, call Stripe, mutate billing state, enable real billing, or move money.
+
 ## 2. MVP mock billing states
 
 | State | Meaning | Default access |

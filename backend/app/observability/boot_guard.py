@@ -18,6 +18,7 @@ from app.services.email_provider import (
     RESEND_EMAIL_PROVIDER,
     resend_config_failures,
 )
+from app.services.stripe_billing import stripe_billing_config_failures
 
 # Tenant-owned tables that MUST have ENABLE + FORCE RLS, verified at boot.
 #
@@ -107,6 +108,8 @@ def _stripe_billing_failures(settings: Settings) -> list[str]:
     failures: list[str] = []
     if settings.stripe_webhooks_enabled and _is_placeholder(settings.stripe_webhook_secret_ref):
         failures.append("STRIPE_WEBHOOK_SECRET_REF is blank or placeholder")
+    if settings.stripe_checkout_enabled or settings.stripe_billing_portal_enabled:
+        failures.extend(stripe_billing_config_failures(settings))
     return failures
 
 
