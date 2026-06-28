@@ -68,10 +68,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      # No lockfile is committed yet (Slice 1). `npm install` is correct until a
-      # package-lock.json lands; switch to `npm ci` once it does.
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Lint
         run: npm run lint
       - name: Type check
@@ -80,6 +78,76 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Dependency audit (report only)
+        run: npm audit --audit-level=high || true
+
+  safety-guards:
+    name: Safety guards (changed files)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Guard changed files
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          base_ref="${PR_BASE_SHA:-}"
+          if [ -z "$base_ref" ]; then
+            base_ref="${PUSH_BEFORE_SHA:-}"
+          fi
+          if [ -z "$base_ref" ] || echo "$base_ref" | grep -Eq '^0+$'; then
+            base_ref="$(git rev-parse HEAD~1 2>/dev/null || true)"
+          fi
+          if [ -n "$base_ref" ] && git cat-file -e "$base_ref^{commit}" 2>/dev/null; then
+            range="$base_ref...HEAD"
+          else
+            range="HEAD~1...HEAD"
+          fi
+
+          git diff --name-only "$range" > /tmp/changed-files.txt
+          echo "Changed files:"
+          cat /tmp/changed-files.txt
+
+          env_matches="$(grep -E '(^|/)\.env($|\.)' /tmp/changed-files.txt | grep -vE '(^|/)\.env\.example$' || true)"
+          if [ -n "$env_matches" ]; then
+            echo "Real environment files must not be committed or modified:"
+            echo "$env_matches"
+            exit 1
+          fi
+
+          added_non_doc="$(git diff --unified=0 "$range" -- . ':(exclude)docs/**' || true)"
+          secret_pattern='(sk_''live_|pk_''live_|A''KIA[0-9A-Z]{16}|SECRET''_ACCESS_KEY|aws_secret''_access_key|re_''[A-Za-z0-9]{20,})'
+          if echo "$added_non_doc" | grep '^+' | grep -v '^+++' | grep -E "$secret_pattern"; then
+            echo "Secret-looking value added outside docs. Remove it and use the approved secrets path."
+            exit 1
+          fi
+          if echo "$added_non_doc" | grep '^+' | grep -v '^+++' | grep -E 'LIVE_EMAIL_SENDING_ENABLED\s*[:=]\s*["'"'']?true["'"'']?'; then
+            echo "Live email sending cannot be enabled in CI/config without an approved future gate."
+            exit 1
+          fi
+          if echo "$added_non_doc" | grep '^+' | grep -v '^+++' | grep -E 'APP_ENV\s*[:=]\s*["'"'']?production["'"'']?'; then
+            echo "Production mode must not be hardcoded into committed CI/config defaults."
+            exit 1
+          fi
+
+  docker-build-validation:
+    name: Docker build validation (no push)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, safety-guards]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend production image
+        run: docker build -f backend/Dockerfile.prod -t automatedstructure-backend:ci-${{ github.sha }} backend
+      - name: Build frontend production image
+        run: docker build -f frontend/Dockerfile.prod -t automatedstructure-frontend:ci-${{ github.sha }} frontend
+      - name: Inspect local validation images
+        run: |
+          docker image inspect automatedstructure-backend:ci-${{ github.sha }} >/dev/null
+          docker image inspect automatedstructure-frontend:ci-${{ github.sha }} >/dev/null
 
   secret-scan:
     name: Secret scan (gitleaks)

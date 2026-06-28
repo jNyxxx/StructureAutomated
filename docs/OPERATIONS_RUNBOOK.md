@@ -117,10 +117,12 @@ P3-7c staging environment + secret template (2026-06-28): docs-only staging conf
 
 P3-7d CI/CD release pipeline plan (2026-06-28): docs-only release plan created. Current CI already covers backend Ruff/Black/mypy/pytest/migration smoke, frontend lint/typecheck/test/build, gitleaks, and pre-commit. Future implementation should add `npm ci`, production Docker image builds, immutable SHA tags, registry push only after approval, migration one-off tasks, staging/production GitHub Environment approvals, smoke evidence capture, and rollback gates. No workflow implementation yet. See [evidence/phase-3-7d-cicd-release-pipeline-plan.md](evidence/phase-3-7d-cicd-release-pipeline-plan.md).
 
+P3-7d-impl CI validation gates (2026-06-28): validation-only workflow hardening implemented. CI now uses `npm ci`, keeps backend/frontend/secret-scan/pre-commit checks, adds changed-file safety guards, and builds backend/frontend production Docker images locally with commit-SHA validation tags only. No release job, registry upload, AWS configuration, staging release, production release, live-provider behavior, or money/SMS/scraping enablement was added. See [evidence/phase-3-7d-ci-validation-gates-implementation.md](evidence/phase-3-7d-ci-validation-gates-implementation.md).
+
 1. Prepare hardened backend/frontend/worker runtime images.
 2. Keep production Docker builds in CI/CD before staging release.
 3. Use the staging env/secret template to collect owner/operator values.
-4. Implement CI/CD only after owner/operator values and explicit approval.
+4. Add release/deploy automation only after owner/operator values and explicit approval.
 5. Deploy to **staging first** after owner approval.
 3. Run migrations in a one-off task.
 4. Run smoke tests.
