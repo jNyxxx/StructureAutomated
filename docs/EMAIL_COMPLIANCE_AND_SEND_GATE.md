@@ -82,6 +82,8 @@ P3-5f implementation note: the Resend provider now exists only as a fail-closed 
 
 P3-5g implementation note: `POST /api/v1/webhooks/resend` now exists as a verification and normalization foundation only. It verifies the raw request body before parsing, normalizes safe delivery/bounce/complaint/deferred/failed/suppressed events, ignores open/click tracking, dedupes through a provider-event-id boundary, and does not mutate outbound delivery state yet. The default route dependency remains fail-closed until approved webhook-secret resolution is implemented.
 
+P3-5h-prep implementation note: the internal-only Resend smoke is now documented but not executed. A future real-smoke slice is limited to one internal recipient, one approved email, conservative caps, no automatic follow-up, no open/click tracking, full send-gate/compliance/billing/rate-limit/idempotency/audit evidence, and an emergency-stop plan. The required concrete values and hard-stop conditions are recorded in [evidence/phase-3-5h-prep-internal-resend-smoke.md](evidence/phase-3-5h-prep-internal-resend-smoke.md).
+
 ## 5. Suppression model
 
 Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason, source, actor, timestamp). Rules:

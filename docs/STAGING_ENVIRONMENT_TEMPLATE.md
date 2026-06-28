@@ -266,14 +266,15 @@ Allowed:
 - send-gate dry-run;
 - mock send-intent smoke;
 - suppression/compliance/review gate smoke;
-- webhook design/docs work.
+- webhook design/docs work;
+- internal-only Resend smoke preparation docs.
 
-Disallowed:
+Disallowed by default:
 
 - prospect/client real email delivery;
-- Resend adapter registration;
 - Resend API calls;
 - Resend webhook endpoint exposure with real secret;
+- internal-only real smoke until P3-5h concrete values and approval are recorded;
 - open/click tracking.
 
 ---

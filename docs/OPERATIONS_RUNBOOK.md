@@ -119,6 +119,8 @@ P3-7d CI/CD release pipeline plan (2026-06-28): docs-only release plan created. 
 
 P3-7d-impl CI validation gates (2026-06-28): validation-only workflow hardening implemented. CI now uses `npm ci`, keeps backend/frontend/secret-scan/pre-commit checks, adds changed-file safety guards, and builds backend/frontend production Docker images locally with commit-SHA validation tags only. No release job, registry upload, AWS configuration, staging release, production release, live-provider behavior, or money/SMS/scraping enablement was added. See [evidence/phase-3-7d-ci-validation-gates-implementation.md](evidence/phase-3-7d-ci-validation-gates-implementation.md).
 
+P3-5h-prep internal-only Resend smoke preparation (2026-06-28): docs-only smoke checklist created. Future real smoke remains blocked until the concrete Resend secret refs, DNS verification, monitored Reply-To, legal/company footer details, internal recipient, emergency-stop owner, deliverability owner, real adapter implementation, and explicit owner approval are recorded. Smoke must be one internal email only, with no prospect/client recipient, no automatic follow-up, no open/click tracking, full gate evidence, and a rollback/emergency-stop result. See [evidence/phase-3-5h-prep-internal-resend-smoke.md](evidence/phase-3-5h-prep-internal-resend-smoke.md).
+
 1. Prepare hardened backend/frontend/worker runtime images.
 2. Keep production Docker builds in CI/CD before staging release.
 3. Use the staging env/secret template to collect owner/operator values.
