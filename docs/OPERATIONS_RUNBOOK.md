@@ -115,10 +115,13 @@ P3-7b production Dockerfile hardening (2026-06-28): added production-specific `b
 
 P3-7c staging environment + secret template (2026-06-28): docs-only staging config map created in [STAGING_ENVIRONMENT_TEMPLATE.md](STAGING_ENVIRONMENT_TEMPLATE.md). It groups backend, frontend, worker, migration, database, Redis, Clerk, mock billing, Resend-disabled, and observability variables; defines secret-ref naming under `/automatedstructure/staging/...`; records staging preflight/boot-guard requirements; and keeps Resend/live email, Stripe, SMS, and live scraping disabled. See [evidence/phase-3-7c-staging-env-secret-template.md](evidence/phase-3-7c-staging-env-secret-template.md).
 
+P3-7d CI/CD release pipeline plan (2026-06-28): docs-only release plan created. Current CI already covers backend Ruff/Black/mypy/pytest/migration smoke, frontend lint/typecheck/test/build, gitleaks, and pre-commit. Future implementation should add `npm ci`, production Docker image builds, immutable SHA tags, registry push only after approval, migration one-off tasks, staging/production GitHub Environment approvals, smoke evidence capture, and rollback gates. No workflow implementation yet. See [evidence/phase-3-7d-cicd-release-pipeline-plan.md](evidence/phase-3-7d-cicd-release-pipeline-plan.md).
+
 1. Prepare hardened backend/frontend/worker runtime images.
 2. Keep production Docker builds in CI/CD before staging release.
 3. Use the staging env/secret template to collect owner/operator values.
-4. Deploy to **staging first** after owner approval.
+4. Implement CI/CD only after owner/operator values and explicit approval.
+5. Deploy to **staging first** after owner approval.
 3. Run migrations in a one-off task.
 4. Run smoke tests.
 5. Release backend, worker, frontend.
