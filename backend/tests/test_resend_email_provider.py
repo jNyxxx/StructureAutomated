@@ -252,3 +252,39 @@ def test_staging_live_resend_uses_same_email_fail_closed_guard() -> None:
     )
     assert any("EMAIL_PROVIDER_SECRET_REF" in failure for failure in failures)
     assert any("EMAIL_SENDING_DOMAIN" in failure for failure in failures)
+
+
+def test_production_boot_guard_blocks_enabled_webhooks_without_secret_ref() -> None:
+    failures = config_failures(
+        _safe_prod(
+            email_provider="resend",
+            email_provider_webhooks_enabled=True,
+            email_provider_webhook_secret_ref=None,
+        )
+    )
+    assert any("EMAIL_PROVIDER_WEBHOOK_SECRET_REF" in failure for failure in failures)
+
+
+def test_staging_boot_guard_blocks_enabled_webhooks_without_secret_ref() -> None:
+    failures = config_failures(
+        Settings(
+            app_env="staging",
+            email_provider="resend",
+            email_provider_webhooks_enabled=True,
+            email_provider_webhook_secret_ref=None,
+        )
+    )
+    assert any("EMAIL_PROVIDER_WEBHOOK_SECRET_REF" in failure for failure in failures)
+
+
+def test_controlled_demo_does_not_bypass_webhook_signing_requirements() -> None:
+    failures = config_failures(
+        _safe_prod(
+            controlled_demo=True,
+            controlled_demo_approved_by="owner:ops p3-5g",
+            email_provider="resend",
+            email_provider_webhooks_enabled=True,
+            email_provider_webhook_secret_ref=None,
+        )
+    )
+    assert any("EMAIL_PROVIDER_WEBHOOK_SECRET_REF" in failure for failure in failures)

@@ -80,6 +80,8 @@ The owner answered the P3-5d packet on 2026-06-28 (recorded in [LAUNCH_BLOCKERS_
 
 P3-5f implementation note: the Resend provider now exists only as a fail-closed skeleton behind the provider boundary. It imports no provider SDK, performs no outbound call, exposes no raw provider payloads, and fails every send attempt until a later approved smoke slice replaces the skeleton. Resend selection must never fall back to mock.
 
+P3-5g implementation note: `POST /api/v1/webhooks/resend` now exists as a verification and normalization foundation only. It verifies the raw request body before parsing, normalizes safe delivery/bounce/complaint/deferred/failed/suppressed events, ignores open/click tracking, dedupes through a provider-event-id boundary, and does not mutate outbound delivery state yet. The default route dependency remains fail-closed until approved webhook-secret resolution is implemented.
+
 ## 5. Suppression model
 
 Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason, source, actor, timestamp). Rules:

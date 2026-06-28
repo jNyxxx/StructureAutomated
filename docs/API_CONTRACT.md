@@ -57,8 +57,9 @@ Clerk session exchange/status/logout (by IP + user/session) · imports (by tenan
 
 - **Future Stripe:** verify `Stripe-Signature` over raw body. Real Stripe webhooks are not part of the local mock MVP.
 - **n8n internal:** HMAC or shared-secret header, rotatable, fail closed.
+- **Resend (P3-5g foundation):** `POST /api/v1/webhooks/resend` verifies the raw request body using the Resend/Svix signature header set before parsing event fields. The default runtime dependency remains fail-closed until approved webhook-secret resolution is added. It normalizes only safe delivery/bounce/complaint/deferred/failed/suppressed fields and ignores open/click tracking.
 - **Future Twilio/mailbox:** provider-specific signature verification before parsing.
-- All webhooks are **stored first, deduped, then processed asynchronously** (CLAUDE rule 12). Processing detail → [WORKERS_QUEUE_AND_WEBHOOKS](WORKERS_QUEUE_AND_WEBHOOKS.md).
+- Webhooks must be verified, deduped by provider event ID, and then processed. P3-5g uses an in-memory boundary only; durable stored-first persistence is still deferred to a later approved slice. Processing detail → [WORKERS_QUEUE_AND_WEBHOOKS](WORKERS_QUEUE_AND_WEBHOOKS.md).
 
 ## 8. Required endpoint groups
 
@@ -72,7 +73,7 @@ Clerk session exchange/status/logout (by IP + user/session) · imports (by tenan
 | Sending/messages | `POST /send-intents/{id}/schedule`, `GET /outbound-messages`, `POST /send-gate/dry-run` |
 | Deliverability/mailboxes | `GET /deliverability`, `GET/POST/PATCH /mailboxes` |
 | Compliance/suppression | `GET/PUT /compliance/profile`, `GET/POST /suppressions`, `POST /suppressions/{id}/reinstate` |
-| Integrations/webhooks | `GET /integrations`, `POST /integrations/{provider}/connect`, `POST /webhooks/n8n/{name}`; future `POST /webhooks/stripe` only in production billing phase |
+| Integrations/webhooks | `GET /integrations`, `POST /integrations/{provider}/connect`, `POST /webhooks/n8n/{name}`, `POST /webhooks/resend` (verification/normalization foundation only); future `POST /webhooks/stripe` only in production billing phase |
 | Billing/usage | `GET /billing/subscription`, mock billing state transition endpoint for local/demo admins, `GET /usage`; real checkout/portal deferred |
 | Audit/privacy | `GET /audit-events`, `POST /privacy/export`, `POST /privacy/delete` |
 | Platform/admin | `GET /platform/tenants`, `POST /platform/support-access` |

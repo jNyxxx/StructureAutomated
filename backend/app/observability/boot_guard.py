@@ -111,6 +111,10 @@ def _email_provider_failures(settings: Settings) -> list[str]:
         failures.append(
             f"email_provider '{settings.email_provider}' has no approved live adapter in this build"
         )
+    if settings.email_provider_webhooks_enabled and _is_placeholder(
+        settings.email_provider_webhook_secret_ref
+    ):
+        failures.append("EMAIL_PROVIDER_WEBHOOK_SECRET_REF is blank or placeholder")
     if settings.live_email_sending_enabled:
         if provider != RESEND_EMAIL_PROVIDER:
             failures.append("live_email_sending_enabled requires EMAIL_PROVIDER=resend")
