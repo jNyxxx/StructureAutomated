@@ -20,6 +20,8 @@ During the local mock MVP, build only:
 
 Do **not** build real Stripe checkout, real Stripe calls, real Stripe webhooks, dunning processing, or money movement during the local MVP. Real Stripe starts later when the first paying client is being onboarded.
 
+P3-6a update (2026-06-28): the Stripe / real billing owner decision packet now exists at [evidence/phase-3-6a-stripe-billing-owner-decision-packet.md](evidence/phase-3-6a-stripe-billing-owner-decision-packet.md). It is unanswered and grants no implementation approval. Stripe remains deferred; no SDK, API call, checkout, webhook, real billing, or money movement is approved.
+
 ## 2. MVP mock billing states
 
 | State | Meaning | Default access |
@@ -71,7 +73,7 @@ Keep available longer:
 
 ## 5. Later production Stripe / dunning behavior
 
-The following rules are documented for the later first-paying-client / production billing phase, not the local MVP:
+The following rules are documented for the later first-paying-client / production billing phase, not the local MVP. They are planning placeholders only until the P3-6a owner packet is answered:
 
 - `trialing` = full access during trial.
 - Trial ends with no payment method -> `inactive`.
