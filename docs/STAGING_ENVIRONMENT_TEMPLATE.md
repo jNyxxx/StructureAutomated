@@ -275,7 +275,8 @@ Disallowed by default:
 - Resend API calls;
 - Resend webhook endpoint exposure with real secret;
 - internal-only real smoke until P3-5h/P3-5i concrete values, readiness contract, and approval are recorded;
-- claiming `config_ready`, `smoke_ready`, `send_ready`, or `production_ready` without the required evidence;
+- Stripe API calls, checkout, billing portal, webhook processing, real billing, or money movement until P3-6 owner answers and implementation approvals are recorded;
+- claiming email `config_ready`, `smoke_ready`, `send_ready`, billing `config_ready`, `test_billing_ready`, `money_ready`, or `production_ready` without the required evidence;
 - open/click tracking.
 
 ---

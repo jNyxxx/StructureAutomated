@@ -22,6 +22,8 @@ Do **not** build real Stripe checkout, real Stripe calls, real Stripe webhooks, 
 
 P3-6a update (2026-06-28): the Stripe / real billing owner decision packet now exists at [evidence/phase-3-6a-stripe-billing-owner-decision-packet.md](evidence/phase-3-6a-stripe-billing-owner-decision-packet.md). It is unanswered and grants no implementation approval. Stripe remains deferred; no SDK, API call, checkout, webhook, real billing, or money movement is approved.
 
+P3-6b update (2026-06-28): the Stripe config / secret-readiness contract now exists at [evidence/phase-3-6b-stripe-config-secret-readiness-contract.md](evidence/phase-3-6b-stripe-config-secret-readiness-contract.md). It defines required refs, URLs, mode settings, product/price mappings, readiness states, central gate requirements, webhook readiness, hard stops, and remaining owner answers. It grants no config/test/money/production readiness state.
+
 ## 2. MVP mock billing states
 
 | State | Meaning | Default access |
