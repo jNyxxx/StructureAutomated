@@ -1,8 +1,8 @@
 """Email provider interface and mock/live boundary for P3-5.
 
-This module is intentionally provider-neutral and network-free. It defines the
-shape future live adapters must implement, while only registering the safe mock
-adapter in this slice.
+This module is intentionally network-free in P3-5f. It defines the shape future
+live adapters must implement, registers the safe mock adapter, and adds a
+fail-closed Resend skeleton that cannot send until a later approved smoke slice.
 """
 
 from __future__ import annotations
@@ -16,11 +16,18 @@ from typing import Final, Literal, Protocol
 from app.config import Settings
 from app.middleware.error_handler import AppError
 
-MOCK_EMAIL_PROVIDER = "mock"
+MOCK_EMAIL_PROVIDER: Final = "mock"
+RESEND_EMAIL_PROVIDER: Final = "resend"
 ProviderStatus = Literal["accepted", "deferred", "failed"]
 _PROVIDER_STATUS_ACCEPTED: Final[ProviderStatus] = "accepted"
 _PROVIDER_STATUS_DEFERRED: Final[ProviderStatus] = "deferred"
 _PROVIDER_STATUS_FAILED: Final[ProviderStatus] = "failed"
+_REQUIRED_RESEND_CAP_FIELDS: Final = (
+    "email_tenant_hourly_cap",
+    "email_tenant_daily_cap",
+    "email_campaign_daily_cap",
+    "email_mailbox_daily_cap",
+)
 
 
 @dataclass(frozen=True)
@@ -73,8 +80,24 @@ class EmailSendProvider(Protocol):
 class EmailProviderConfigurationError(AppError):
     """Raised when an email provider is not safely available."""
 
-    def __init__(self, *, code: str = "EMAIL_PROVIDER_NOT_AVAILABLE") -> None:
-        super().__init__(code, "Email provider is not available.", status_code=503)
+    def __init__(
+        self,
+        *,
+        code: str = "EMAIL_PROVIDER_NOT_AVAILABLE",
+        message: str = "Email provider is not available.",
+    ) -> None:
+        super().__init__(code, message, status_code=503)
+
+
+class LiveEmailProviderDisabled(AppError):
+    """Raised by live-provider skeletons that are intentionally not deliverable yet."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "LIVE_EMAIL_PROVIDER_DISABLED",
+            "Live email provider is disabled.",
+            status_code=503,
+        )
 
 
 class MockEmailSendProvider:
@@ -93,23 +116,103 @@ class MockEmailSendProvider:
         )
 
 
+@dataclass
+class ResendEmailSendProvider:
+    """Fail-closed Resend adapter skeleton.
+
+    P3-5f intentionally does not import a provider SDK, perform outbound calls,
+    resolve secret values, or emit raw provider responses. A later owner-approved
+    smoke slice must replace this method with a real adapter implementation after
+    the DNS, secret-ref, webhook, cap, legal, and internal-recipient gates clear.
+    """
+
+    live_enabled: bool
+    secret_ref: str | None
+    webhook_secret_ref: str | None
+    sending_domain: str | None
+    webhooks_enabled: bool = False
+    kind: str = RESEND_EMAIL_PROVIDER
+
+    async def send(self, message: ProviderSendRequest) -> ProviderSendResult:
+        raise LiveEmailProviderDisabled()
+
+
+def _is_placeholder(value: str | None) -> bool:
+    if value is None:
+        return True
+    v = value.strip().lower()
+    return (
+        v == ""
+        or len(v) < 8
+        or any(marker in v for marker in ("change_me", "changeme", "placeholder", "todo", "xxx"))
+    )
+
+
+def _is_positive_int(value: int | None) -> bool:
+    return isinstance(value, int) and value > 0
+
+
+def resend_config_failures(settings: Settings) -> list[str]:
+    """Return safe Resend config failure labels without exposing secret values."""
+    failures: list[str] = []
+    if _is_placeholder(settings.email_provider_secret_ref):
+        failures.append("EMAIL_PROVIDER_SECRET_REF is blank or placeholder")
+    if settings.email_provider_webhooks_enabled and _is_placeholder(
+        settings.email_provider_webhook_secret_ref
+    ):
+        failures.append("EMAIL_PROVIDER_WEBHOOK_SECRET_REF is blank or placeholder")
+    if _is_placeholder(settings.email_sending_domain):
+        failures.append("EMAIL_SENDING_DOMAIN is blank or placeholder")
+    for field_name in _REQUIRED_RESEND_CAP_FIELDS:
+        if not _is_positive_int(getattr(settings, field_name)):
+            failures.append(f"{field_name.upper()} must be a positive integer")
+    return failures
+
+
 class EmailProviderRegistry:
     """Fail-closed adapter registry.
 
-    P3-5b intentionally registers only the mock adapter. Live provider keys must
-    not silently resolve to mock; they fail closed until a later owner-approved
-    slice adds a real adapter and its boot-guard requirements.
+    Live provider keys must not silently resolve to mock. Resend can resolve only
+    to a disabled skeleton in P3-5f; real delivery remains unreachable.
     """
 
-    def __init__(self, *, mock_provider: EmailSendProvider | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        mock_provider: EmailSendProvider | None = None,
+        resend_provider: EmailSendProvider | None = None,
+    ) -> None:
         self._mock_provider = mock_provider or MockEmailSendProvider()
+        self._resend_provider = resend_provider
 
-    def resolve(self, *, provider_key: str, live_enabled: bool) -> EmailSendProvider:
+    def resolve(
+        self,
+        *,
+        provider_key: str,
+        live_enabled: bool,
+        settings: Settings | None = None,
+    ) -> EmailSendProvider:
         provider = provider_key.strip().lower()
         if provider == MOCK_EMAIL_PROVIDER and not live_enabled:
             return self._mock_provider
         if provider == MOCK_EMAIL_PROVIDER and live_enabled:
             raise EmailProviderConfigurationError(code="LIVE_EMAIL_PROVIDER_NOT_IMPLEMENTED")
+        if provider == RESEND_EMAIL_PROVIDER:
+            if self._resend_provider is not None:
+                return self._resend_provider
+            if settings is None:
+                raise EmailProviderConfigurationError(code="EMAIL_PROVIDER_CONFIG_INCOMPLETE")
+            if live_enabled:
+                failures = resend_config_failures(settings)
+                if failures:
+                    raise EmailProviderConfigurationError(code="EMAIL_PROVIDER_CONFIG_INCOMPLETE")
+            return ResendEmailSendProvider(
+                live_enabled=live_enabled,
+                secret_ref=settings.email_provider_secret_ref,
+                webhook_secret_ref=settings.email_provider_webhook_secret_ref,
+                sending_domain=settings.email_sending_domain,
+                webhooks_enabled=settings.email_provider_webhooks_enabled,
+            )
         raise EmailProviderConfigurationError()
 
 
@@ -118,4 +221,5 @@ def build_email_provider(settings: Settings) -> EmailSendProvider:
     return EmailProviderRegistry().resolve(
         provider_key=settings.email_provider,
         live_enabled=settings.live_email_sending_enabled,
+        settings=settings,
     )

@@ -66,7 +66,7 @@ P3-5c defines provider-selection and secret/config design. Provider choice is no
 
 ## 4C. Owner-approved sending decisions (P3-5d packet → P3-5e)
 
-The owner answered the P3-5d packet on 2026-06-28 (recorded in [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS §2](LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) and [evidence/phase-3-5e-owner-approval-resend-roadmap.md](evidence/phase-3-5e-owner-approval-resend-roadmap.md)). **This selects the pilot lane; it does NOT enable live sending** — `EMAIL_PROVIDER=mock`, `LIVE_EMAIL_SENDING_ENABLED=false`, and no Resend adapter is built. These decisions bind future provider work:
+The owner answered the P3-5d packet on 2026-06-28 (recorded in [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS §2](LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) and [evidence/phase-3-5e-owner-approval-resend-roadmap.md](evidence/phase-3-5e-owner-approval-resend-roadmap.md)). **This selects the pilot lane; it does NOT enable live sending** — mock remains the default and the live-send flag remains off. P3-5f adds only a disabled Resend adapter skeleton. These decisions bind future provider work:
 
 - **Provider:** **Resend** (main email provider).
 - **Sending subdomain:** `outreach.automatedstructure.com` (dedicated cold-outreach subdomain per §7) unless owner later changes it.
@@ -77,6 +77,8 @@ The owner answered the P3-5d packet on 2026-06-28 (recorded in [LAUNCH_BLOCKERS_
 - **First smoke is internal-only:** allowed only after DNS verification, Resend API + webhook secret_refs, legal footer, and all send gates pass. No prospect/client recipient during first smoke; external-recipient sending needs separate approval + green internal-smoke evidence.
 - **Emergency stop:** owner/operator and engineering can emergency-stop; `LIVE_EMAIL_SENDING_ENABLED=false` (config/feature flag) disables live sending immediately.
 - **Ownership:** owner/operator owns the Resend account and deliverability monitoring (bounces/complaints/DNS health/blocks/suppressions/warm-up) until a dedicated ops owner exists.
+
+P3-5f implementation note: the Resend provider now exists only as a fail-closed skeleton behind the provider boundary. It imports no provider SDK, performs no outbound call, exposes no raw provider payloads, and fails every send attempt until a later approved smoke slice replaces the skeleton. Resend selection must never fall back to mock.
 
 ## 5. Suppression model
 

@@ -13,6 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from app.config import Settings
 from app.database import ROLE_SAFETY_SQL, code_head_revision
 from app.integrations.registry import mocked_kinds
+from app.services.email_provider import (
+    MOCK_EMAIL_PROVIDER,
+    RESEND_EMAIL_PROVIDER,
+    resend_config_failures,
+)
 
 # Tenant-owned tables that MUST have ENABLE + FORCE RLS, verified at boot.
 #
@@ -94,27 +99,22 @@ def _is_redis_url(url: str | None) -> bool:
 
 
 def _email_provider_failures(settings: Settings) -> list[str]:
-    """Production email-provider config checks.
+    """Email-provider config checks for production and staging live-send attempts.
 
-    P3-5b intentionally implements only the provider interface boundary and mock
-    adapter. Production must fail closed if a live provider is selected or live
-    delivery is enabled before an approved live adapter and secret path exist.
-    controlled_demo must not bypass live email delivery requirements.
+    P3-5f adds only a fail-closed Resend skeleton. Provider selection must not
+    silently fall back to mock. controlled_demo must not bypass live email
+    delivery requirements.
     """
     failures: list[str] = []
     provider = settings.email_provider.strip().lower()
-    if provider != "mock":
+    if provider not in {MOCK_EMAIL_PROVIDER, RESEND_EMAIL_PROVIDER}:
         failures.append(
             f"email_provider '{settings.email_provider}' has no approved live adapter in this build"
         )
     if settings.live_email_sending_enabled:
-        failures.append(
-            "live_email_sending_enabled must remain false until approved provider slice"
-        )
-        if _is_placeholder(settings.email_provider_secret_ref):
-            failures.append("EMAIL_PROVIDER_SECRET_REF is blank or placeholder")
-        if _is_placeholder(settings.email_sending_domain):
-            failures.append("EMAIL_SENDING_DOMAIN is blank or placeholder")
+        if provider != RESEND_EMAIL_PROVIDER:
+            failures.append("live_email_sending_enabled requires EMAIL_PROVIDER=resend")
+        failures.extend(resend_config_failures(settings))
     return failures
 
 
@@ -154,7 +154,14 @@ def _auth_failures(settings: Settings) -> list[str]:
 
 
 def config_failures(settings: Settings) -> list[str]:
-    """Sync configuration checks. Empty outside production."""
+    """Sync configuration checks.
+
+    Production gets the full boot guard. Staging gets the email live-send guard
+    so live delivery cannot be accidentally toggled there before the approved
+    provider gates clear.
+    """
+    if settings.app_env == "staging":
+        return _email_provider_failures(settings)
     if settings.app_env != "production":
         return []
     failures: list[str] = []

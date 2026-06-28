@@ -80,7 +80,12 @@ class Settings(BaseSettings):
     live_email_sending_enabled: bool = False
     email_provider_secret_ref: str | None = None
     email_provider_webhook_secret_ref: str | None = None
+    email_provider_webhooks_enabled: bool = False
     email_sending_domain: str | None = None
+    email_tenant_hourly_cap: int | None = None
+    email_tenant_daily_cap: int | None = None
+    email_campaign_daily_cap: int | None = None
+    email_mailbox_daily_cap: int | None = None
 
     # Rate-limit foundation. Per-endpoint enforcement is always wired at the route
     # layer; deployments opt in to the baseline per-IP middleware guard. Local/test
