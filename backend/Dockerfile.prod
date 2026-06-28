@@ -1,0 +1,58 @@
+# Backend production image for AutomatedStructure.
+#
+# This image is runtime-only: no autoreload, no dev extras, no baked config, and
+# no secrets. Runtime configuration must be supplied through environment values
+# and the approved secret/config path. The production boot guard remains active
+# in app.main lifespan.
+
+FROM python:3.12-slim AS builder
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /build
+
+# Build tools are confined to the builder stage so the runtime image stays small.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+COPY app ./app
+
+RUN python -m pip install --upgrade pip \
+    && python -m pip wheel --wheel-dir /wheels .
+
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app
+
+WORKDIR /app
+
+RUN groupadd --system app \
+    && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
+
+COPY --from=builder /wheels /wheels
+RUN python -m pip install --upgrade pip \
+    && python -m pip install --no-index --find-links=/wheels automatedstructure-backend \
+    && rm -rf /wheels
+
+# Keep source + Alembic files under /app so code_head_revision() resolves the
+# migration head from the same layout used in local/CI. This does not include
+# tests, .env files, caches, or local artifacts because .dockerignore excludes them.
+COPY --chown=app:app app ./app
+COPY --chown=app:app alembic.ini ./alembic.ini
+COPY --chown=app:app migrations ./migrations
+
+USER app
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -111,8 +111,11 @@ CI **blocks** secrets, failing tests, and migration drift.
 
 P3-7a readiness inspection (2026-06-28): current Dockerfiles are local/dev-oriented (`uvicorn --reload`, `next dev`, bind mounts in Compose), CI is green-shaped for lint/type/test/build/migration smoke, backend boot guard/readiness are strong, Redis/rate-limit track is accepted, and P3-5e Resend direction is recorded. Staging/production work remains blocked on owner/operator values for AWS account/region, deployment platform, domains/TLS, Secrets Manager/KMS, RDS, Redis, backups, alerts, CI/CD approvals, migration/rollback owners, and production cutover approver. See [evidence/phase-3-7a-deployment-ops-readiness-plan.md](evidence/phase-3-7a-deployment-ops-readiness-plan.md).
 
+P3-7b production Dockerfile hardening (2026-06-28): added production-specific `backend/Dockerfile.prod` and `frontend/Dockerfile.prod`, preserved dev Dockerfiles/Compose, hardened backend/frontend `.dockerignore`, and enabled Next standalone output for the production frontend image. Backend/frontend code gates passed; Docker build validation is still pending because Docker Desktop/Linux engine was unavailable locally. See [evidence/phase-3-7b-production-dockerfile-hardening.md](evidence/phase-3-7b-production-dockerfile-hardening.md).
+
 1. Prepare hardened backend/frontend/worker runtime images.
-2. Deploy to **staging first** after owner approval.
+2. Re-run production Docker image builds after Docker Desktop/Linux engine is available.
+3. Deploy to **staging first** after owner approval.
 3. Run migrations in a one-off task.
 4. Run smoke tests.
 5. Release backend, worker, frontend.

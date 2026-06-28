@@ -1,16 +1,49 @@
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-build/
-dist/
-.venv/
-venv/
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-.coverage
-htmlcov/
+# Secrets / local environment
 .env
 .env.*
 !.env.example
+
+# Python caches / bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# Virtualenvs / local dependency dirs
+.venv/
+venv/
+env/
+
+# Build / packaging output
+build/
+dist/
+.wheels/
+
+# Test / coverage / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# Editor / OS noise
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs / local artifacts
+*.log
+logs/
+tmp/
+temp/
+
+# Runtime/local data should never be baked into images
+db_data/
+n8n_data/

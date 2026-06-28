@@ -1,0 +1,47 @@
+# Frontend production image for AutomatedStructure.
+#
+# This image uses a Next.js production build with standalone output. It does not
+# copy .env files or secrets. Only runtime-safe public configuration should be
+# supplied at deployment time.
+
+FROM node:20-alpine AS deps
+
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Ensure the optional public directory exists so the runtime COPY is stable even
+# before static public assets are added.
+RUN mkdir -p public \
+    && npm run build
+
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+RUN addgroup -S nextjs \
+    && adduser -S nextjs -G nextjs
+
+COPY --from=builder --chown=nextjs:nextjs /app/public ./public
+COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
+
+USER nextjs
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

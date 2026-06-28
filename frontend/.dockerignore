@@ -1,7 +1,38 @@
-node_modules/
-.next/
-out/
-npm-debug.log*
+# Secrets / local environment
 .env
 .env.*
 !.env.example
+
+# Dependencies / build output
+node_modules/
+.next/
+out/
+coverage/
+.playwright/
+
+# Package manager / tooling caches
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+.eslintcache
+.turbo/
+
+# TypeScript / test artifacts
+tsconfig.tsbuildinfo
+vitest-cache/
+.vitest/
+
+# Editor / OS noise
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs / local artifacts
+*.log
+logs/
+tmp/
+temp/
