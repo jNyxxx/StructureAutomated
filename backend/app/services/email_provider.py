@@ -44,6 +44,7 @@ class ProviderSendRequest:
     idempotency_key: str
     requested_at: datetime
     channel: Literal["email"] = "email"
+    send_layer: Literal["transactional", "cold_outreach"] = "cold_outreach"
     recipient_ref: str | None = None
     content_ref: str | None = None
     safe_metadata: Mapping[str, str] = field(default_factory=dict)
@@ -100,6 +101,22 @@ class LiveEmailProviderDisabled(AppError):
         )
 
 
+class ColdOutreachNotAllowedOnTransactionalProvider(AppError):
+    """Raised when a cold-outreach send intent reaches a transactional-only provider.
+
+    Resend handles transactional/opted-in sends only. Cold outreach must route
+    through the dedicated mailbox-pool manager (future, mocked for MVP).
+    """
+
+    def __init__(self, provider: str = "resend") -> None:
+        super().__init__(
+            "COLD_OUTREACH_NOT_ALLOWED",
+            f"Provider '{provider}' handles transactional/opted-in sends only. "
+            "Cold outreach must use the dedicated mailbox-pool manager.",
+            status_code=422,
+        )
+
+
 class MockEmailSendProvider:
     """Network-free mock adapter used for local/demo send intent behavior."""
 
@@ -134,6 +151,8 @@ class ResendEmailSendProvider:
     kind: str = RESEND_EMAIL_PROVIDER
 
     async def send(self, message: ProviderSendRequest) -> ProviderSendResult:
+        if message.send_layer == "cold_outreach":
+            raise ColdOutreachNotAllowedOnTransactionalProvider(self.kind)
         raise LiveEmailProviderDisabled()
 
 

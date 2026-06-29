@@ -102,3 +102,27 @@ def test_build_email_provider_defaults_to_mock() -> None:
 def test_build_email_provider_does_not_fallback_live_provider_to_mock() -> None:
     with pytest.raises(AppError):
         build_email_provider(Settings(email_provider="sendgrid"))
+
+
+def test_provider_send_request_defaults_send_layer_to_cold_outreach() -> None:
+    req = ProviderSendRequest(
+        tenant_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
+        draft_id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
+        idempotency_key="key",
+        requested_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    assert req.send_layer == "cold_outreach"
+
+
+async def test_mock_provider_accepts_both_send_layers() -> None:
+    provider = MockEmailSendProvider()
+    base = {
+        "tenant_id": uuid.UUID("11111111-1111-1111-1111-111111111111"),
+        "draft_id": uuid.UUID("22222222-2222-2222-2222-222222222222"),
+        "idempotency_key": "key",
+        "requested_at": datetime(2026, 1, 1, tzinfo=UTC),
+    }
+    for layer in ("transactional", "cold_outreach"):
+        req = ProviderSendRequest(**base, send_layer=layer)  # type: ignore[arg-type]
+        result = await provider.send(req)
+        assert result.provider_status == "accepted"

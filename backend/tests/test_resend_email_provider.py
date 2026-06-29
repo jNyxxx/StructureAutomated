@@ -37,6 +37,19 @@ def _request() -> ProviderSendRequest:
     )
 
 
+def _transactional_request() -> ProviderSendRequest:
+    return ProviderSendRequest(
+        tenant_id=_TENANT,
+        draft_id=_DRAFT,
+        idempotency_key="safe-key",
+        requested_at=_NOW,
+        send_layer="transactional",
+        recipient_ref="draft:recipient",
+        content_ref="draft:content",
+        safe_metadata={"provider": "resend"},
+    )
+
+
 def _resend_ready_settings(**override: object) -> Settings:
     base: dict[str, object] = {
         "email_provider": "resend",
@@ -97,7 +110,7 @@ async def test_resend_skeleton_is_disabled_for_send_attempts_without_live_flag()
     provider = build_email_provider(Settings(email_provider="resend"))
 
     with pytest.raises(AppError) as excinfo:
-        await provider.send(_request())
+        await provider.send(_transactional_request())
 
     exc = excinfo.value
     assert exc.status_code == 503
@@ -143,7 +156,7 @@ async def test_complete_resend_skeleton_still_cannot_send_or_expose_secret_refs(
     provider = build_email_provider(_resend_ready_settings())
 
     with pytest.raises(AppError) as excinfo:
-        await provider.send(_request())
+        await provider.send(_transactional_request())
 
     exc = excinfo.value
     serialized = repr(exc.details) + exc.message
@@ -288,3 +301,47 @@ def test_controlled_demo_does_not_bypass_webhook_signing_requirements() -> None:
         )
     )
     assert any("EMAIL_PROVIDER_WEBHOOK_SECRET_REF" in failure for failure in failures)
+
+
+async def test_resend_rejects_cold_outreach_send_layer() -> None:
+    provider = build_email_provider(Settings(email_provider="resend"))
+
+    with pytest.raises(AppError) as excinfo:
+        await provider.send(_request())  # _request() defaults to cold_outreach
+
+    exc = excinfo.value
+    assert exc.status_code == 422
+    assert exc.code == "COLD_OUTREACH_NOT_ALLOWED"
+
+
+async def test_resend_rejects_cold_outreach_even_when_live_enabled() -> None:
+    provider = build_email_provider(_resend_ready_settings())
+
+    with pytest.raises(AppError) as excinfo:
+        await provider.send(_request())  # cold_outreach default rejected before live check
+
+    exc = excinfo.value
+    assert exc.status_code == 422
+    assert exc.code == "COLD_OUTREACH_NOT_ALLOWED"
+
+
+async def test_resend_cold_outreach_rejection_exposes_no_secrets_or_domain() -> None:
+    provider = build_email_provider(_resend_ready_settings())
+
+    with pytest.raises(AppError) as excinfo:
+        await provider.send(
+            ProviderSendRequest(
+                tenant_id=_TENANT,
+                draft_id=_DRAFT,
+                idempotency_key="key",
+                requested_at=_NOW,
+                send_layer="cold_outreach",
+                safe_metadata={"provider": "resend"},
+            )
+        )
+
+    exc = excinfo.value
+    serialized = repr(exc.details) + exc.message
+    assert exc.code == "COLD_OUTREACH_NOT_ALLOWED"
+    assert "secret-ref" not in serialized
+    assert "outreach.automatedstructure.com" not in serialized
