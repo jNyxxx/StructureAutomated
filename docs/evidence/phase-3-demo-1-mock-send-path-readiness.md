@@ -214,17 +214,18 @@ Frontend test notes: expected local/mock fallback warnings appeared for unavaila
 
 | Command | Result |
 |---|---:|
-| `docker build -f backend/Dockerfile.prod -t automatedstructure-backend:p3-demo-1-local backend` | BLOCKED locally — Docker Desktop Linux engine unavailable |
-| `docker build -f frontend/Dockerfile.prod -t automatedstructure-frontend:p3-demo-1-local frontend` | BLOCKED locally — Docker Desktop Linux engine unavailable |
+| `docker build -f backend/Dockerfile.prod -t automatedstructure-backend:p3-demo-1-local backend` | PASS — image built as `automatedstructure-backend:p3-demo-1-local` |
+| `docker build -f frontend/Dockerfile.prod -t automatedstructure-frontend:p3-demo-1-local frontend` | PASS — image built as `automatedstructure-frontend:p3-demo-1-local` |
 
-Docker client was installed (`Docker 29.5.3`, context `desktop-linux`), but both builds failed before repo build steps with:
+Docker Desktop was rechecked after the daemon came online:
 
 ```text
-failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine;
-The system cannot find the file specified.
+Docker client: 29.5.3
+Docker server: Docker Desktop 4.78.0 / Engine 29.5.3
+Context: desktop-linux
 ```
 
-Interpretation: this is a local Docker daemon availability issue, not an application/test failure. Prior P3-7b evidence already proved both production images build when Docker Desktop/Linux engine is running. No registry push or deployment was attempted.
+Both production Docker builds completed successfully. No registry push or deployment was attempted.
 
 ---
 
@@ -272,4 +273,4 @@ Interpretation: this is a local Docker daemon availability issue, not an applica
 - **P3-Demo-1 evidence/readiness slice:** complete.
 - **Mock send path:** demoable in local/mock mode.
 - **Real providers:** no real Resend, Stripe, SMS, live scraping, AWS, registry push, or production deployment enabled.
-- **Caveat:** Docker image re-build was not re-run in this pass because the local Docker Desktop Linux engine was unavailable. This does not change mock-send demo readiness, but Docker should be re-run when the daemon is available before claiming a fully green Docker replay for P3-Demo-1.
+- **Docker replay:** backend and frontend production Docker builds passed locally with `p3-demo-1-local` tags after Docker Desktop Linux engine came online.
