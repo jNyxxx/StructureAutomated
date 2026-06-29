@@ -148,6 +148,8 @@ P3-5h-prep internal-only Resend smoke preparation (2026-06-28): docs-only smoke 
 
 P3-5i Resend secret-readiness contract (2026-06-28): docs-only readiness contract created. Defines secret-ref rules, DNS/domain proof, smoke owner values, gate readiness, `config_ready` / `smoke_ready` / `send_ready` / `production_ready` state definitions, secret-resolution boundary, evidence requirements, and hard stops. No code, Resend SDK/API call, credentials, deployment, live-provider behavior, or production enablement was added. See [evidence/phase-3-5i-resend-secret-readiness-contract.md](evidence/phase-3-5i-resend-secret-readiness-contract.md).
 
+P3-Demo-1 mock send path readiness (2026-06-29): evidence-only verification confirms the local/mock demo can show Phase 0 foundation, tenant/auth/billing/access gates, campaign/contact flow, mock draft/evidence, human review, send-gate dry-run, mock send intent/outbound/audit, deliverability/outcomes read path, suppression/compliance gates, and rate limits. It also confirms cold outreach remains mock-only and cannot route through Resend, Stripe remains fail-closed with no money movement, and no production/deployment/provider enablement occurred. See [evidence/phase-3-demo-1-mock-send-path-readiness.md](evidence/phase-3-demo-1-mock-send-path-readiness.md).
+
 1. Prepare hardened backend/frontend/worker runtime images.
 2. Keep production Docker builds in CI/CD before staging release.
 3. Use the staging env/secret template to collect owner/operator values.
