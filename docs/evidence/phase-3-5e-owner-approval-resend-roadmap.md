@@ -1,3 +1,16 @@
+> **SCOPE CORRECTION — P3-5j (2026-06-29):** This document recorded P3-5e
+> decisions before the dual-layer architecture was established. Key corrections:
+> - `outreach.automatedstructure.com` is now designated for **transactional/opted-in**
+>   sends via Resend, not cold outreach.
+> - Cold outreach uses a separate mailbox-pool manager (future, mocked for MVP).
+> - The unsubscribe footer language below ("...we found your business contact for
+>   relevant B2B outreach") was drafted for cold outreach and must NOT be used for
+>   transactional Resend sends. Transactional footer is TBD pending legal review.
+> - All other values (caps, webhook scope, emergency stop) remain valid.
+> See `docs/evidence/phase-3-5j-dual-sending-layer-scope-correction.md`.
+
+---
+
 # P3-5e — Owner Approval + Resend Roadmap
 
 **Purpose:** Record the owner's answers to the P3-5d real-sending decision packet, the selected provider (Resend), the safe defaults that remain in force, the concrete values still required before any live smoke, and the post-approval Phase 3 sending roadmap.

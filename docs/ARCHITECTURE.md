@@ -83,7 +83,25 @@ Enforcement framing and hard stops: see [CLAUDE](../CLAUDE.md).
 
 ---
 
-## 5. Mock vs production model
+## 5. Dual Sending-Layer Architecture
+
+Email sending is split into two independent layers with separate providers, subdomains,
+and routing guards:
+
+| Layer | Provider | Subdomain | Status |
+|---|---|---|---|
+| Transactional / opted-in | Resend | `outreach.automatedstructure.com` | Skeleton; live disabled |
+| Cold outreach | Mailbox-pool manager | Dedicated cold-sending subdomains (not acquired) | Future; mocked for MVP |
+
+`ProviderSendRequest.send_layer` distinguishes the two layers at the adapter boundary.
+Default is `"cold_outreach"` (fail-closed). `ResendEmailSendProvider` rejects
+`send_layer == "cold_outreach"` with code `COLD_OUTREACH_NOT_ALLOWED` (422) before
+any live-send check. Cold outreach must NEVER route through Resend or any
+transactional/bulk ESP.
+
+---
+
+## 6. Mock vs production model
 
 Providers are mocked **through production-shaped adapters** — architecture, interfaces, audit, gates, idempotency, and tenant isolation stay real in every mode.
 
@@ -95,7 +113,7 @@ Enforcement rules (rule 11) and the production boot guard live in [CLAUDE](../CL
 
 ---
 
-## 6. Project structure
+## 7. Project structure
 
 **Backend** (`backend/app/`):
 

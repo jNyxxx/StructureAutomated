@@ -66,17 +66,7 @@ P3-5c defines provider-selection and secret/config design. Provider choice is no
 
 ## 4C. Owner-approved sending decisions (P3-5d packet → P3-5e)
 
-The owner answered the P3-5d packet on 2026-06-28 (recorded in [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS §2](LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) and [evidence/phase-3-5e-owner-approval-resend-roadmap.md](evidence/phase-3-5e-owner-approval-resend-roadmap.md)). **This selects the pilot lane; it does NOT enable live sending** — mock remains the default and the live-send flag remains off. P3-5f adds only a disabled Resend adapter skeleton. These decisions bind future provider work:
-
-- **Provider:** **Resend** (main email provider).
-- **Sending subdomain:** `outreach.automatedstructure.com` (dedicated cold-outreach subdomain per §7) unless owner later changes it.
-- **Sender identity:** `From: AutomatedStructure <outreach@outreach.automatedstructure.com>`; `Reply-To: replies@automatedstructure.com` or another monitored owner-provided inbox.
-- **Required unsubscribe footer (all outbound):** *"You are receiving this because we found your business contact for relevant B2B outreach. To stop receiving emails, unsubscribe here: {{unsubscribe_url}}."* Company/legal mailing details appended once final business address is confirmed; counsel sign-off on copy still pending.
-- **First-pilot caps (conservative; override the §7 defaults downward for the first pilot):** tenant hourly **10**, tenant daily **50**, campaign daily **50**, mailbox/sender daily **25**. The §7 warm-up ramp and pause thresholds still apply; the lower of (§4C cap, §7 cap) wins.
-- **Webhook event scope:** normalize `delivered`, `bounced`, `complained`, `deferred`, `failed`, and `unsubscribed/suppressed` (if supported by the normalized Resend event shape). **No open/click tracking** unless explicitly enabled later. Webhook **signature verification + idempotency required**; no raw payload leakage (rule 12/14).
-- **First smoke is internal-only:** allowed only after DNS verification, Resend API + webhook secret_refs, legal footer, and all send gates pass. No prospect/client recipient during first smoke; external-recipient sending needs separate approval + green internal-smoke evidence.
-- **Emergency stop:** owner/operator and engineering can emergency-stop; `LIVE_EMAIL_SENDING_ENABLED=false` (config/feature flag) disables live sending immediately.
-- **Ownership:** owner/operator owns the Resend account and deliverability monitoring (bounces/complaints/DNS health/blocks/suppressions/warm-up) until a dedicated ops owner exists.
+The owner answered the P3-5d packet on 2026-06-28 (recorded in [LAUNCH_BLOCKERS_AND_OWNER_DECISIONS §2](LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md) and [evidence/phase-3-5e-owner-approval-resend-roadmap.md](evidence/phase-3-5e-owner-approval-resend-roadmap.md)). **This selects the pilot lane; it does NOT enable live sending** — mock remains the default and the live-send flag remains off. P3-5f adds only a disabled Resend adapter skeleton. These decisions bind future provider work.
 
 P3-5f implementation note: the Resend provider now exists only as a fail-closed skeleton behind the provider boundary. It imports no provider SDK, performs no outbound call, exposes no raw provider payloads, and fails every send attempt until a later approved smoke slice replaces the skeleton. Resend selection must never fall back to mock.
 
@@ -85,6 +75,34 @@ P3-5g implementation note: `POST /api/v1/webhooks/resend` now exists as a verifi
 P3-5h-prep implementation note: the internal-only Resend smoke is now documented but not executed. A future real-smoke slice is limited to one internal recipient, one approved email, conservative caps, no automatic follow-up, no open/click tracking, full send-gate/compliance/billing/rate-limit/idempotency/audit evidence, and an emergency-stop plan. The required concrete values and hard-stop conditions are recorded in [evidence/phase-3-5h-prep-internal-resend-smoke.md](evidence/phase-3-5h-prep-internal-resend-smoke.md).
 
 P3-5i implementation note: the Resend secret-resolution and smoke-readiness contract is now defined. `config_ready` means refs/domain/caps are present only; `smoke_ready` adds DNS proof and owner/legal/internal-recipient values; `send_ready` additionally requires all runtime gates to pass immediately before the provider boundary. P3-5i grants none of those states by itself and does not approve external-recipient sending. See [evidence/phase-3-5i-resend-secret-readiness-contract.md](evidence/phase-3-5i-resend-secret-readiness-contract.md).
+
+### §4C. Dual Sending-Layer Architecture (P3-5j correction)
+
+**SCOPE CORRECTION (2026-06-29):** Prior docs positioned Resend as the cold-outreach
+provider. Owner decision on 2026-06-29 corrects this.
+
+#### Transactional / opted-in layer — Resend
+- Purpose: autoresponders, drip campaigns to opted-in contacts, system notifications
+- Provider: Resend
+- Sending subdomain: `outreach.automatedstructure.com`
+- From: `outreach@outreach.automatedstructure.com`
+- Reply-To: `replies@automatedstructure.com` (configurable)
+- Caps: tenant 10/hr / 50/day; campaign 50/day; mailbox 25/day
+- Open/click tracking: disabled by default
+- Webhook events: `delivered`, `bounced`, `complained`, `deferred`, `failed`, `unsubscribed`
+- Emergency stop: `LIVE_EMAIL_SENDING_ENABLED=false`
+- Status: skeleton only; live sending requires DNS verified, secrets resolved, legal approved, internal smoke passed
+
+#### Cold outreach layer — mailbox-pool manager (future, mocked for MVP)
+- Purpose: B2B cold email sends to opted-out / unverified contacts
+- Provider: dedicated mailbox-pool manager (future phase)
+- Must NOT use Resend, SendGrid, or any transactional/bulk ESP
+- Per-inbox caps: 30–50 sends/inbox/day hard max
+- Rotation: across inboxes
+- Sending subdomains: dedicated cold-sending subdomains, NOT yet acquired or configured
+- Warm-up: 10-day ramp; clock mocked for MVP
+- Actual send: mocked for MVP
+- Emergency stop: `LIVE_COLD_SENDING_ENABLED=false` (future, required before going live — hard blocker)
 
 ## 5. Suppression model
 
@@ -103,7 +121,9 @@ Append-only `suppression_entries` (tenant, contact/email/phone, channel, reason,
 
 ## 7. Mailbox pool & deliverability
 
-Dedicated cold-outreach mailboxes/subdomains only; transactional providers reserved for account/billing/opted-in product email.
+**P3-5j note:** Warm-up states, mailbox rotation, and per-inbox caps in this section apply to the **cold outreach layer only** (future mailbox-pool manager). The transactional Resend layer does not use the mailbox warm-up ramp — Resend manages its own sending infrastructure.
+
+Dedicated cold-outreach mailboxes/subdomains only; transactional providers (Resend) reserved for autoresponders, drip to opted-in contacts, and system notifications.
 
 **Mailbox states:** `created`, `dns_pending`, `warming`, `warm`, `paused`, `degraded`, `blocked`, `retired`.
 
