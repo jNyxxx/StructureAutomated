@@ -87,7 +87,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 
 | File | Purpose |
 |------|---------|
-| `docs/PHASE_4_IMPLEMENTATION_PLAN.md` | Phase 4 scope lock + slice plan (P4-0…P4-10), required owner/operator values, entry/exit criteria, non-goals, hard stops, and verification requirements. P4-0 is docs-only and does not approve deployment, provider enablement, registry push, billing money movement, SMS, or live scraping. |
+| `docs/PHASE_4_IMPLEMENTATION_PLAN.md` | Phase 4 scope lock + slice plan (P4-0…P4-10), required owner/operator values, entry/exit criteria, non-goals, hard stops, and verification requirements. P4-1 intake complete; P4-2/P4-4/P4-5 remain blocked until required values are locked or explicitly deferred. No deployment, provider enablement, registry push, billing money movement, SMS, or live scraping is approved. |
 
 ---
 
@@ -147,6 +147,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | File | Purpose |
 |------|---------|
 | `docs/evidence/phase-4-0-staging-pilot-entry-plan.md` | P4-0 staging and first-pilot entry evidence: records preflight, codebase/doc scan, Phase 4 scope and non-goals, required owner/operator values, proposed slices, entry/exit criteria, hard stops, files changed, and verification result. Docs-only; no deployment, AWS provisioning, registry push, provider enablement, billing money movement, SMS, or live scraping. |
+| `docs/evidence/phase-4-1-staging-infrastructure-values-intake.md` | P4-1 staging infrastructure values intake and lock packet: records current staging-blocked status, required owner/operator value table using MISSING/PROPOSED/LOCKED states, proposed safe defaults, boss-facing checklist for William, locking rules, hard stops, and next-slice decision. Docs-only; no deployment, AWS provisioning, registry push, provider enablement, billing money movement, SMS, or live scraping. |
 
 ---
 

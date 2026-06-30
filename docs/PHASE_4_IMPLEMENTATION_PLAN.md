@@ -49,7 +49,7 @@ Phase 4 implementation slices cannot proceed until the relevant owner/operator v
 | Slice | Name | Class | Acceptance / stop gate |
 |---|---|---|---|
 | P4-0 | Staging and first-pilot entry plan | docs / planning | Create plan and evidence, update launch blockers/runbook/manifest. No deployment, provider enablement, AWS work, registry push, credentials, or code changes. |
-| P4-1 | Staging infrastructure values lock | planning / owner-values | Record AWS, registry, platform, domains, DNS/TLS, RDS, Redis, backups, alerts, and approvers. Stop if required values are missing. |
+| P4-1 | Staging infrastructure values lock | planning / owner-values | **Complete as intake packet only.** Required owner/operator values are recorded as MISSING/PROPOSED/LOCKED; no values are locked yet, so P4-2/P4-4/P4-5 remain blocked. See [evidence/phase-4-1-staging-infrastructure-values-intake.md](evidence/phase-4-1-staging-infrastructure-values-intake.md). |
 | P4-2 | Staging path and config contract | planning / config contract | Finalize staging config matrix from `STAGING_ENVIRONMENT_TEMPLATE.md`. No values in Git. Stop if ownership is missing. |
 | P4-3 | Clerk staging integration | staging auth | Wire and smoke Clerk staging after values exist. Preserve mock local demo. Stop if tenant selector or MFA claim is missing. |
 | P4-4 | Registry / image publishing pipeline | release plumbing | Add approved image-publish path with immutable tags and approvals. Stop if registry target or push approver is missing. |
@@ -98,7 +98,12 @@ Stop immediately if required owner/operator values are missing; rollback owner i
 Every Phase 4 slice must record preflight, exact files changed, safety confirmation, relevant gates or evidence checks, unsafe-claim grep results, credential-pattern grep results, changed-file scope, rollback/emergency-stop owner status when relevant, commit hash, and push result.
 
 P4-0 verification is recorded in [evidence/phase-4-0-staging-pilot-entry-plan.md](evidence/phase-4-0-staging-pilot-entry-plan.md).
+P4-1 verification is recorded in [evidence/phase-4-1-staging-infrastructure-values-intake.md](evidence/phase-4-1-staging-infrastructure-values-intake.md).
 
-## 10. Final P4-0 verdict
+## 10. P4-1 status
+
+P4-1 created the staging infrastructure values intake and lock packet. Current result: staging deployment remains blocked because account, region, registry target, staging domains, DNS/TLS owner, RDS/Redis sizing, release approvers, alert recipients, and staging auth mode are not LOCKED. Safe defaults are recommendations only. P4-2 is blocked until required values are LOCKED or explicitly accepted as deferred.
+
+## 11. Final P4-0 / P4-1 verdict
 
 P4-0 opens Phase 4 safely as a planning-only slice. No deployment, live provider, billing money movement, registry push, real credential, SMS, or live scraping is approved by this document.

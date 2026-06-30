@@ -95,6 +95,8 @@ P3-Demo-1 mock send path readiness (2026-06-29): evidence-only demo readiness ve
 
 P4-0 staging and first-pilot entry plan (2026-06-30): docs-only Phase 4 opening completed. Phase 4 is now defined as staging deployment preparation and first paying-client pilot readiness: staging infrastructure values, staging runtime config contract, Clerk staging auth, Stripe test-mode smoke, transactional Resend internal smoke, staging smoke evidence, monitoring/alerts readiness, rollback readiness, and first-pilot review. P4-0 does not approve deployment, AWS provisioning, registry push, production launch, live cold outreach, live billing/money movement, SMS, or live scraping. See [PHASE_4_IMPLEMENTATION_PLAN](PHASE_4_IMPLEMENTATION_PLAN.md) and [evidence/phase-4-0-staging-pilot-entry-plan.md](evidence/phase-4-0-staging-pilot-entry-plan.md).
 
+P4-1 staging infrastructure values intake (2026-06-30): docs-only owner-value packet created. It records the required AWS, registry, platform, domain, DNS/TLS, runtime config, KMS, RDS, Redis, approver, alert, incident, worker, and Clerk staging values using MISSING / PROPOSED / LOCKED states. No owner/operator values are LOCKED yet beyond prior high-level direction; staging deployment remains blocked, and P4-2 is not allowed until required values are LOCKED or explicitly deferred. No deployment, AWS provisioning, registry push, production launch, live provider enablement, real billing, SMS, or live scraping. See [evidence/phase-4-1-staging-infrastructure-values-intake.md](evidence/phase-4-1-staging-infrastructure-values-intake.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -181,7 +183,7 @@ P4-0 records these as the required inputs before staging or first-pilot implemen
 | Resend transactional smoke | Provider key path, webhook signing path, DNS proof, legal footer/company mailing details, internal recipient, monitored Reply-To, emergency-stop owner, deliverability owner. |
 | Operations | Alert recipients, escalation owner, deployment/migration/rollback approvers, release evidence owner, first-pilot onboarding/support owners, later production cutover approver. |
 
-Missing values are hard stops. Engineering must not infer or invent them.
+P4-1 result: values remain mostly MISSING or PROPOSED. P4-2/P4-4/P4-5 are blocked until required values are LOCKED or explicitly accepted as deferred. Engineering must not infer or invent them.
 
 ## 8. Required >=8/10 categories (external production)
 
