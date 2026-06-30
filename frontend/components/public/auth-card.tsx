@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { KeyRound, Lock, MailCheck, RotateCcw, ShieldCheck, UserPlus } from "lucide-react";
 
 import { AuthSecurityPanel } from "@/components/public/auth-security-panel";
@@ -52,7 +53,27 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
   const item = copy[mode];
   const Icon = item.icon;
   const auth = useFrontendAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
   const showDemoLogin = mode === "login" && auth.mode === "local_mock" && typeof auth.mockSignIn === "function";
+
+  const handleSignIn = () => {
+    setError(null);
+    if (mode === "login" && auth.mode === "local_mock") {
+      if (email.trim().toLowerCase() === "test@example.com" && password === "password") {
+        auth.mockSignIn?.();
+        window.location.href = "/dashboard";
+      } else {
+        setError("Invalid email or password. Use test@example.com and password.");
+      }
+    } else {
+      auth.mockSignIn?.();
+      window.location.href = "/dashboard";
+    }
+  };
 
   return (
     <main className="min-h-screen bg-bg text-text">
@@ -90,22 +111,42 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-3">
-              <Input type="email" placeholder="name@company.com" />
-              {mode !== "verify-email" ? <Input type="password" placeholder="••••••••" /> : null}
+              {error && (
+                <div className="rounded-medium border border-red/20 bg-redbg/15 p-3 text-caption text-red">
+                  {error}
+                </div>
+              )}
+              <Input
+                type="email"
+                placeholder="name@company.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
+              />
+              {mode !== "verify-email" ? (
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(null);
+                  }}
+                />
+              ) : null}
             </div>
 
             <Button
               className="w-full"
-              onClick={() => {
-                auth.mockSignIn?.();
-                window.location.href = "/dashboard";
-              }}
+              onClick={handleSignIn}
             >
               {item.title}
             </Button>
 
             {showDemoLogin ? (
-              <div className="space-y-3">
+              <div className="sr-only">
                 <div className="relative flex items-center">
                   <div className="flex-grow border-t border-border" />
                   <span className="mx-3 shrink text-caption text-muted">or</span>
