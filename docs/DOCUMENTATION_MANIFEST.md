@@ -152,6 +152,8 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | `docs/evidence/phase-4-demo-walkthrough-script.md` | P4-Demo-Walkthrough boss demo script and QA checklist: records local/mock demo objective, pre-demo setup, walkthrough steps, safety proof, troubleshooting, pass/fail QA checklist, and boss-facing close. Docs-only; no code changes, deployment, AWS provisioning, registry push, provider enablement, billing money movement, SMS, or live scraping. |
 | `docs/evidence/phase-4-dependency-audit-triage-plan.md` | P4-DepAudit-Plan dependency audit triage: records npm audit summary, risk classification, safe fix strategy, proposed future fix slices, hard stops, and staging/production recommendation. Docs-only; no package updates, lockfile edits, installs, automatic fixes, deployment, provider enablement, billing money movement, SMS, or live scraping. |
 | `docs/evidence/phase-4-dependency-audit-raw.json` | Raw npm audit JSON evidence for P4-DepAudit-Plan. Generated from `npm audit --json`; no package changes or automatic fixes applied. |
+| `docs/evidence/phase-4-dependency-audit-fix-1.md` | P4-DepAudit-Fix-1 evidence: targeted dev/test tooling update for Vitest/Vite chain, before/after audit summary, package change rationale, full frontend gate results, remaining findings, and recommendation. |
+| `docs/evidence/phase-4-dependency-audit-after-fix-1.json` | Raw npm audit JSON evidence after P4-DepAudit-Fix-1. Audit reduced 10 → 5 and critical findings reduced 1 → 0. |
 
 ---
 

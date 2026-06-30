@@ -103,6 +103,8 @@ P4-Demo-Walkthrough boss demo script (2026-06-30): docs-only walkthrough and QA 
 
 P4-DepAudit-Plan dependency audit triage (2026-06-30): docs-only dependency audit plan created. Frontend npm audit currently reports 10 vulnerability records (4 moderate, 5 high, 1 critical). Findings do not block controlled local/mock boss demo, but they block staging/production unless fixed or explicitly accepted by owner/security with compensating controls. No automatic fixes, package updates, lockfile edits, package installs, deployment, registry push, provider enablement, real billing, SMS, or live scraping. See [evidence/phase-4-dependency-audit-triage-plan.md](evidence/phase-4-dependency-audit-triage-plan.md) and [evidence/phase-4-dependency-audit-raw.json](evidence/phase-4-dependency-audit-raw.json).
 
+P4-DepAudit-Fix-1 safe dev dependency fixes (2026-06-30): targeted dev/test tooling update completed. `vitest` moved to `^3.2.6`; `vite` pinned to `^6.4.3`. No `npm audit fix`, broad update, source change, backend change, Next.js runtime upgrade, Dockerfile/workflow/deployment change, provider enablement, real billing, SMS, or live scraping. Frontend gates passed (`npm ci`, lint, typecheck, 141 tests, build). Audit reduced from 10 to 5 findings and critical findings reduced from 1 to 0. Remaining findings still block staging/production unless fixed or formally accepted: Next.js runtime/PostCSS and Next ESLint/glob lint chain. See [evidence/phase-4-dependency-audit-fix-1.md](evidence/phase-4-dependency-audit-fix-1.md) and [evidence/phase-4-dependency-audit-after-fix-1.json](evidence/phase-4-dependency-audit-after-fix-1.json).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
