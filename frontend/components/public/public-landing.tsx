@@ -130,15 +130,15 @@ function HeroSection() {
           {flow.slice(0, 6).map((item, index) => {
             const Icon = item.icon;
             return (
-              <div key={item.title} className="flex items-center gap-3 rounded-medium border border-border bg-panel2 p-3">
-                <div className="flex size-9 items-center justify-center rounded-small bg-bluebg text-blue">
+              <div key={item.title} className="group flex items-start gap-3 rounded-medium border border-border bg-panel2 p-3 transition-all duration-300">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-small bg-bluebg text-blue mt-0.5">
                   <Icon className="size-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-small font-semibold text-text">{index + 1}. {item.title}</p>
-                  <p className="truncate text-caption text-muted">{item.text}</p>
+                  <p className="truncate group-hover:whitespace-normal text-caption text-muted transition-all duration-300">{item.text}</p>
                 </div>
-                <CheckCircle2 className="size-4 text-green" />
+                <CheckCircle2 className="size-4 shrink-0 text-green mt-1" />
               </div>
             );
           })}

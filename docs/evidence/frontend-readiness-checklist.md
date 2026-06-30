@@ -79,6 +79,7 @@
 - [x] Tables intentionally use horizontal scroll on smaller screens
 - [x] Drawers have titles/descriptions
 - [x] App pages keep dark UI contrast and professional B2B tone
+- [x] Landing page workflow preview description text wraps and expands fully on hover
 
 ## 6. Build/test checks
 

@@ -58,3 +58,6 @@ Meet at least **WCAG AA intent**:
 - [ ] Table headers present.
 - [ ] Accessible toast / live regions.
 - [ ] Sufficient contrast.
+
+## 7. Interactive text expansion
+- Descriptions or texts that are truncated (e.g. using `truncate` class) should expand to the full wrapped sentence on mouse hover using transition animations and group-hover utilities to maintain readability without layout breakage.
