@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { AuthCard, type AuthCardMode } from "@/components/public/auth-card";
 import { Button } from "@/components/ui/button";
@@ -148,6 +149,13 @@ function MockAuthProductionBlock() {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const auth = useFrontendAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (auth.isLoaded && !auth.isSignedIn && auth.mode === "local_mock" && isLocalMockAuthAllowed()) {
+      router.push("/login");
+    }
+  }, [auth.isLoaded, auth.isSignedIn, auth.mode, router]);
 
   if (auth.mode === "local_mock" && !isLocalMockAuthAllowed()) {
     return <MockAuthProductionBlock />;
