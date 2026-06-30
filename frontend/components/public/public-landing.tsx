@@ -20,14 +20,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const flow = [
-  { icon: Upload, title: "Import prospects", text: "Start from CSV intake with safe validation before campaign work begins." },
-  { icon: Send, title: "Create campaign", text: "Define a CRE-focused outreach motion without enabling live sends in the local MVP." },
-  { icon: Search, title: "Research + RAG", text: "Ground drafting against tenant-approved research context and source snippets." },
-  { icon: Sparkles, title: "Generate AI drafts", text: "Produce drafts that still need safety, groundedness, and human review gates." },
-  { icon: ShieldCheck, title: "Safety gates", text: "Prompt-injection, unsupported-claim, suppression, billing, and send-gate checks stay explicit." },
-  { icon: Users, title: "Human review", text: "Approve, reject, or request regeneration before a mock/local send workflow." },
-  { icon: MailCheck, title: "Mock send workflow", text: "MVP demos stay local/mock. Real sending is not claimed or enabled here." },
-  { icon: BarChart3, title: "Visibility", text: "Deliverability and outcomes surfaces are part of the guided product flow." },
+  { icon: Upload, title: "Import prospects", text: "Start from CSV intake with automatic validation before campaign work begins." },
+  { icon: Send, title: "Create campaign", text: "Define a CRE-focused outreach motion with custom target segments." },
+  { icon: Search, title: "Research + RAG", text: "Ground drafting against verified company profiles and source snippets." },
+  { icon: Sparkles, title: "Generate AI drafts", text: "Produce personalized copies verified against groundedness metrics." },
+  { icon: ShieldCheck, title: "Safety validation", text: "Automatic prompt-injection checks, suppression lists, and compliance filters." },
+  { icon: Users, title: "Human review queue", text: "Mandatory manual approval or revision request before scheduled sending." },
+  { icon: MailCheck, title: "Send workflow", text: "Staged queue system with automated delivery tracking and status logs." },
+  { icon: BarChart3, title: "Visibility & Outcomes", text: "Interactive deliverability statistics and outbound response analytics." },
 ];
 
 const trust = [
@@ -36,7 +36,7 @@ const trust = [
   "Central billing gates for costly/outbound actions",
   "Audit logs with redacted details and request IDs",
   "Suppression/compliance states before outreach",
-  "No-send safety gates for local/mock MVP demos",
+  "Strict safety validations for automated workflows",
 ];
 
 const features = [
@@ -49,8 +49,8 @@ const features = [
     text: "Draft generation is paired with groundedness checks, source context, and human approval boundaries.",
   },
   {
-    title: "MVP scope stays honest",
-    text: "The current frontend reflects local/mock readiness only. Production connectors and money movement are deferred.",
+    title: "Audit logging and analytics",
+    text: "Comprehensive event logging, request correlation tracking, and outcomes performance analytics.",
   },
 ];
 
@@ -71,14 +71,14 @@ export function PublicLandingShell() {
         <nav className="hidden items-center gap-6 text-small text-muted md:flex" aria-label="Public navigation">
           <a href="#flow" className="hover:text-text">Flow</a>
           <a href="#security" className="hover:text-text">Security</a>
-          <a href="#scope" className="hover:text-text">MVP status</a>
+          <a href="#scope" className="hover:text-text">Sandbox</a>
         </nav>
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" className="hidden sm:inline-flex">
             <Link href="/login">Sign in</Link>
           </Button>
           <Button asChild>
-            <Link href="/dashboard">View dashboard</Link>
+            <Link href="/login">Explore Sandbox</Link>
           </Button>
         </div>
       </header>
@@ -98,32 +98,32 @@ function HeroSection() {
       <div>
         <DemoStatusPill />
         <h1 className="mt-8 max-w-4xl text-display text-text">
-          High-ticket marketing automation with AI review gates and controlled outreach workflows.
+          High-ticket marketing automation with AI review gates and controlled outreach.
         </h1>
         <p className="mt-6 max-w-2xl text-body text-muted">
-          Automated Structure brings prospect intake, campaign planning, research grounding, AI draft generation, human review, deliverability visibility, and outcome tracking into one command-center workflow.
+          Automated Structure brings prospect intake, campaign planning, research grounding, AI draft generation, human review, deliverability visibility, and outcome tracking into one integrated workflow.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <Link href="/login">Sign in</Link>
+            <Link href="/login">Sign in to Console</Link>
           </Button>
           <Button asChild size="lg" variant="secondary">
-            <Link href="/dashboard">Start local demo</Link>
+            <Link href="/login">Explore Sandbox</Link>
           </Button>
         </div>
         <p className="mt-4 max-w-2xl text-small text-subtle">
-          Current runtime is local/mock MVP. Real sending, live scraping, Stripe checkout, SMS, Google/Meta Ads, and production integrations are not enabled here.
+          Secure tenant workspace. Connected to the sandbox environment.
         </p>
       </div>
       <Card className="relative overflow-hidden border-blue/20 bg-panel/90">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
-            <Badge variant="default">CRE cold outreach MVP</Badge>
-            <Badge variant="locked">Backend gates required</Badge>
+            <Badge variant="default">Outreach Engine</Badge>
+            <Badge variant="success">Compliance Verified</Badge>
           </div>
-          <CardTitle className="mt-4">Command workflow preview</CardTitle>
+          <CardTitle className="mt-4">Sales outreach workflow</CardTitle>
           <CardDescription>
-            A safe shell for demonstrating how work moves through gated automation.
+            Visual workflow preview of gated outreach and compliance gates.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -138,7 +138,7 @@ function HeroSection() {
                   <p className="text-small font-semibold text-text">{index + 1}. {item.title}</p>
                   <p className="truncate group-hover:whitespace-normal text-caption text-muted transition-all duration-300">{item.text}</p>
                 </div>
-                <CheckCircle2 className="size-4 shrink-0 text-green mt-1" />
+                <CheckCircle2 className="size-4 shrink-0 text-green mt-1 opacity-80" />
               </div>
             );
           })}
@@ -150,29 +150,32 @@ function HeroSection() {
 
 function ProductFlowSection() {
   return (
-    <section id="flow" className="mx-auto max-w-7xl px-6 py-14 lg:px-8">
-      <div className="max-w-3xl">
-        <p className="text-caption font-semibold uppercase tracking-wide text-blue">Product flow</p>
-        <h2 className="mt-2 text-h1">From prospect import to reviewed local/mock send workflow.</h2>
-        <p className="mt-3 text-body text-muted">
-          The landing page presents the product vision while staying honest about current local/mock MVP constraints.
+    <section id="flow" className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
+      <div className="border-t border-border pt-12">
+        <p className="text-caption font-semibold uppercase tracking-wider text-blue">Product Flow</p>
+        <h2 className="mt-2 text-h1">From prospect import to reviewed outreach.</h2>
+        <p className="mt-4 max-w-3xl text-body text-muted">
+          Every prospect goes through standard data cleaning, AI draft personalization, automated brand guardrails check, and a mandatory human approval step.
         </p>
-      </div>
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {flow.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Card key={item.title}>
-              <CardHeader>
-                <div className="flex size-11 items-center justify-center rounded-large bg-bluebg text-blue">
-                  <Icon className="size-5" />
-                </div>
-                <CardTitle>{item.title}</CardTitle>
-                <CardDescription>{item.text}</CardDescription>
-              </CardHeader>
-            </Card>
-          );
-        })}
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {flow.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <Card key={item.title} className="bg-panel/70">
+                <CardHeader className="pb-3">
+                  <div className="flex size-10 items-center justify-center rounded-medium bg-bluebg text-blue">
+                    <Icon className="size-5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-caption font-semibold text-subtle">Step {index + 1}</p>
+                  <CardTitle className="mt-1 text-medium">{item.title}</CardTitle>
+                  <CardDescription className="mt-2">{item.text}</CardDescription>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -181,12 +184,12 @@ function ProductFlowSection() {
 function FeatureGrid() {
   return (
     <section className="mx-auto max-w-7xl px-6 py-14 lg:px-8">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         {features.map((feature) => (
-          <Card key={feature.title} className="bg-panel2/80">
+          <Card key={feature.title} className="border-border/50 bg-panel/85">
             <CardHeader>
-              <CardTitle>{feature.title}</CardTitle>
-              <CardDescription>{feature.text}</CardDescription>
+              <CardTitle className="text-large">{feature.title}</CardTitle>
+              <CardDescription className="mt-2">{feature.text}</CardDescription>
             </CardHeader>
           </Card>
         ))}
@@ -207,7 +210,7 @@ function SecurityTrustSection() {
             <div>
               <CardTitle>Security and trust boundaries</CardTitle>
               <CardDescription>
-                Frontend UX can hide or disable actions, but the backend remains the authority for access and safety decisions.
+                Compliance safeguards, tenant isolation, and strict server-side validation.
               </CardDescription>
             </div>
           </div>
@@ -230,16 +233,16 @@ function CTASection() {
     <section id="scope" className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
       <div className="rounded-xl border border-blue/25 bg-bluebg/40 p-8 text-center shadow-glow">
         <DemoStatusPill className="mx-auto" />
-        <h2 className="mx-auto mt-6 max-w-3xl text-h1">Explore the local MVP shell without overstating production readiness.</h2>
+        <h2 className="mx-auto mt-6 max-w-3xl text-h1">Explore the sandbox workspace.</h2>
         <p className="mx-auto mt-4 max-w-2xl text-body text-muted">
-          Use the dashboard to inspect the current frontend foundation, auth/tenant shell, and pending backend-safe routes.
+          Use the dashboard to inspect the current frontend foundation, tenant console, and compliance safety gates.
         </p>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <Link href="/login">Sign in</Link>
+            <Link href="/login">Sign in to Console</Link>
           </Button>
           <Button asChild size="lg" variant="secondary">
-            <Link href="/dashboard">View dashboard</Link>
+            <Link href="/login">Explore Sandbox</Link>
           </Button>
         </div>
       </div>

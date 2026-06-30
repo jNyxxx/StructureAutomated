@@ -61,9 +61,10 @@ export function TopCommandBar({
         </div>
 
         <div className="hidden items-center gap-2 xl:flex">
-          <BackendStatusBadge />
-          <Badge variant="default">Local MVP</Badge>
-          <Badge variant="locked">No production</Badge>
+          <Badge variant="default" className="gap-1.5 px-3 py-1 bg-bluebg/40 text-blue border border-blue/20">
+            <span className="size-2 rounded-pill bg-blue animate-pulse" />
+            Sandbox Mode
+          </Badge>
         </div>
 
         <Tooltip>

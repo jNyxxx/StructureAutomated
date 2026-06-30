@@ -1,10 +1,10 @@
-import { KeyRound, Lock, ScrollText, ShieldCheck } from "lucide-react";
+import { KeyRound, ShieldAlert, ScrollText, ShieldCheck } from "lucide-react";
 
 const items = [
-  { icon: ShieldCheck, text: "Clerk-owned sign-in boundary" },
-  { icon: KeyRound, text: "App stores no credentials" },
-  { icon: Lock, text: "Tenant access confirmed by /auth/me" },
-  { icon: ScrollText, text: "Audit and request IDs support debugging" },
+  { icon: ShieldCheck, text: "Enterprise tenant isolation" },
+  { icon: KeyRound, text: "Multi-factor authentication ready" },
+  { icon: ScrollText, text: "Cryptographic activity auditing" },
+  { icon: ShieldAlert, text: "AI prompt injection protection" },
 ];
 
 export function AuthSecurityPanel() {

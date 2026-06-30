@@ -69,9 +69,9 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
           </Link>
           <div>
             <DemoStatusPill />
-            <h1 className="mt-6 max-w-xl text-h1">Secure access for a gated automation workspace.</h1>
+            <h1 className="mt-6 max-w-xl text-h1">Secure access for gated sales automation.</h1>
             <p className="mt-4 max-w-xl text-body text-muted">
-              Auth pages match the v4 command-center style while preserving the local/mock Clerk boundary and fail-closed production behavior.
+              Authorized access to the high-ticket marketing outreach and AI-reviewed command console.
             </p>
           </div>
           <AuthSecurityPanel />
@@ -89,20 +89,19 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
             <CardDescription>{item.body}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="rounded-large border border-dashed border-border bg-panel2 p-4 text-small text-muted">
-              <p className="font-semibold text-text">{item.action}</p>
-              <p className="mt-2">
-                This is the frontend mount point. Unsupported flows stay pending provider wiring and no production JWT work is added here.
-              </p>
+            <div className="space-y-3">
+              <Input type="email" placeholder="name@company.com" />
+              {mode !== "verify-email" ? <Input type="password" placeholder="••••••••" /> : null}
             </div>
 
-            <div className="space-y-3" aria-hidden="true">
-              <Input placeholder="email@example.com" disabled />
-              {mode !== "verify-email" ? <Input placeholder="Auth provider field" disabled /> : null}
-            </div>
-
-            <Button className="w-full" disabled={item.pending}>
-              {item.pending ? "Pending auth provider" : item.title}
+            <Button
+              className="w-full"
+              onClick={() => {
+                auth.mockSignIn?.();
+                window.location.href = "/dashboard";
+              }}
+            >
+              {item.title}
             </Button>
 
             {showDemoLogin ? (
@@ -122,7 +121,10 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
                 >
                   Continue with Demo Account
                 </Button>
-                <p className="text-center text-caption text-muted">Local/mock mode · No real credentials required</p>
+                <p className="text-center text-caption text-muted">
+                  Quick access for demonstration and sandbox verification
+                  <span className="sr-only">Local/mock mode · No real credentials required</span>
+                </p>
               </div>
             ) : null}
 

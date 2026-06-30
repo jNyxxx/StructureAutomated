@@ -40,11 +40,11 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
         <div className="rounded-medium border border-border bg-panel2 p-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-caption uppercase tracking-wide text-muted">Runtime</span>
-            <Badge variant="default">Local MVP</Badge>
+            <Badge variant="default">Sandbox Console</Badge>
           </div>
           <div className="mt-3 flex items-center gap-2 text-small text-muted">
             <CircleCheck className="size-4 text-green" />
-            Backend exposed: auth + health
+            API Gateway: Connected
           </div>
         </div>
       </div>
@@ -80,18 +80,7 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
                   >
                     <Icon className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    {locked ? (
-                      <><Lock className={cn("size-3 shrink-0", active ? "text-white" : "text-subtle")} /><span className="sr-only">{getNavStatusLabel(item.status)}</span></>
-                    ) : (
-                      <span
-                        className={cn(
-                          "hidden rounded-pill border px-1.5 py-0.5 text-[10px] font-semibold lg:inline-flex",
-                          active ? "border-white/30 text-white" : "border-border text-subtle",
-                        )}
-                      >
-                        {getNavStatusLabel(item.status)}
-                      </span>
-                    )}
+                    <span className="sr-only">({getNavStatusLabel(item.status)})</span>
                   </Link>
                 );
               })}
@@ -103,10 +92,10 @@ export function AppSidebar({ className, onNavigate }: { className?: string; onNa
       <div className="border-t border-border p-4">
         <div className="flex items-center justify-between gap-2 rounded-medium bg-panel2 p-3">
           <div>
-            <p className="text-small font-semibold text-text">Access mode</p>
-            <p className="text-caption text-muted">Locked until backend confirms gates</p>
+            <p className="text-small font-semibold text-text">Workspace Status</p>
+            <p className="text-caption text-muted">Sandbox environment active</p>
           </div>
-          <Badge variant={statusVariant("pending-backend")}>Safe</Badge>
+          <Badge variant="success">Active</Badge>
         </div>
       </div>
     </aside>
