@@ -81,6 +81,7 @@
 - [x] App pages keep dark UI contrast and professional B2B tone
 - [x] Landing page workflow preview description text wraps and expands fully on hover
 - [x] Dashboard redesigned with visual SVG charts, preflight safety notice, and diagnostics
+- [x] Removed developer warnings and locked badges across landing, sign-in, sidebar, and internal pages for a clean, value-first B2B SaaS layout
 
 ## 6. Build/test checks
 
