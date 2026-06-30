@@ -109,6 +109,8 @@ P4-DepAudit-Fix-2 remaining dependency audit assessment (2026-06-30): BLOCKED. N
 
 P4-DepAudit-Fix-3-Plan framework upgrade approval plan (2026-06-30): docs-only plan created. Recommendation is owner approval for a controlled Next 15.5.16+ upgrade attempt first, with Next 16 escalation only if needed or explicitly approved. No runtime/package implementation happened. Boss demo remains allowed; staging/production remain blocked until findings are fixed or formally accepted and owner/operator values are locked. See [evidence/phase-4-dependency-audit-fix-3-framework-upgrade-plan.md](evidence/phase-4-dependency-audit-fix-3-framework-upgrade-plan.md).
 
+P4-FirstPilot-Readiness checklist (2026-07-01): docs-only pilot checklist created. It records first-client pilot scope, pre-client requirements, onboarding fields, demo-to-pilot gaps, go/no-go criteria, and hard stops. First client is not public launch; William approval, staging smoke, dependency closure/risk acceptance, auth verification, monitoring, rollback owner, support owner, and client onboarding evidence remain required. Boss demo remains allowed; staging/production remain blocked. See [evidence/phase-4-first-pilot-readiness-checklist.md](evidence/phase-4-first-pilot-readiness-checklist.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |

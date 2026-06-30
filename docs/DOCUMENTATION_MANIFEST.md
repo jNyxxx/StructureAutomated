@@ -156,6 +156,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | `docs/evidence/phase-4-dependency-audit-after-fix-1.json` | Raw npm audit JSON evidence after P4-DepAudit-Fix-1. Audit reduced 10 → 5 and critical findings reduced 1 → 0. |
 | `docs/evidence/phase-4-dependency-audit-fix-2.md` | P4-DepAudit-Fix-2 evidence: records that no same-major compatible package update was available for the remaining frontend audit groups, no package files were changed, and the next path is framework upgrade planning or formal owner/security acceptance. |
 | `docs/evidence/phase-4-dependency-audit-fix-3-framework-upgrade-plan.md` | P4-DepAudit-Fix-3-Plan evidence: owner approval and migration plan for the remaining framework dependency work. |
+| `docs/evidence/phase-4-first-pilot-readiness-checklist.md` | P4-FirstPilot-Readiness evidence: first paying-client pilot checklist covering scope, required pre-client gates, onboarding fields, demo-to-pilot gaps, go/no-go criteria, hard stops, and approvals. |
 
 ---
 
