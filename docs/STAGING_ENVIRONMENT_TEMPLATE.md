@@ -245,6 +245,20 @@ Disallowed:
 - Stripe money movement;
 - real subscription/customer sync.
 
+When P3-6g secret resolution and P3-6h smoke approval are recorded, the staging test-mode webhook smoke config adds:
+
+```text
+MOCK_STRIPE=false
+STRIPE_MODE=test
+STRIPE_WEBHOOKS_ENABLED=true
+STRIPE_WEBHOOK_SECRET_REF=/automatedstructure/staging/stripe/STRIPE_WEBHOOK_SECRET
+STRIPE_SECRET_KEY_REF=/automatedstructure/staging/stripe/STRIPE_SECRET_KEY
+STRIPE_CHECKOUT_ENABLED=false
+STRIPE_BILLING_PORTAL_ENABLED=false
+```
+
+These refs are naming placeholders only. Do not resolve or inject real Stripe test values until P3-6g gates clear and the named smoke approver records written approval.
+
 ---
 
 ## 11. Resend / email status

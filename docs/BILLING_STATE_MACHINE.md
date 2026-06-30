@@ -30,6 +30,8 @@ P3-6d update (2026-06-29): the Stripe webhook verification foundation now exists
 
 P3-6e update (2026-06-29): the Stripe checkout / billing portal skeleton now exists at [evidence/phase-3-6e-stripe-checkout-portal-skeleton.md](evidence/phase-3-6e-stripe-checkout-portal-skeleton.md). It adds a disabled provider boundary, fail-closed checkout/portal endpoints, safe config placeholders, and boot-guard checks only. It does not create checkout sessions, create billing portal sessions, call Stripe, mutate billing state, enable real billing, or move money.
 
+P3-6f-prep (2026-06-30): Stripe internal test-mode smoke preparation doc created at [evidence/phase-3-6f-prep-stripe-test-mode-smoke.md](evidence/phase-3-6f-prep-stripe-test-mode-smoke.md). Defines required concrete values, test-mode gates, webhook smoke scenario, hard stop conditions, evidence requirements, and remaining slices P3-6g through P3-6k. No Stripe API call, checkout session, billing portal session, billing-state mutation, or money movement. Real billing remains disabled.
+
 ## 2. MVP mock billing states
 
 | State | Meaning | Default access |
