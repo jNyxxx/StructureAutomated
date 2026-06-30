@@ -20,6 +20,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Build-time public env vars — required for NEXT_PUBLIC_* to be baked into the bundle.
+# Pass --build-arg NEXT_PUBLIC_CLERK_MOCK_MODE=true for local/demo dry-runs only.
+# Pass --build-arg NEXT_PUBLIC_API_BASE_URL=<url> to set the API base at build time.
+ARG NEXT_PUBLIC_CLERK_MOCK_MODE=false
+ENV NEXT_PUBLIC_CLERK_MOCK_MODE=$NEXT_PUBLIC_CLERK_MOCK_MODE
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+
 # Ensure the optional public directory exists so the runtime COPY is stable even
 # before static public assets are added.
 RUN mkdir -p public \

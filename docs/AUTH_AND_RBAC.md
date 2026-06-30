@@ -161,7 +161,14 @@ After real Clerk sign-in, `TenantProvider` calls `/auth/me` with `X-Tenant-ID`. 
 
 ### Local/Mock Demo Auth (P3-Demo-2)
 
-When `NODE_ENV !== "production"` or `NEXT_PUBLIC_CLERK_MOCK_MODE=true`, the `MockAuthProvider` is active. It exposes `mockSignIn()` and `mockSignOut()` through `FrontendAuthState`. The sign-in page (`/login`) renders a "Continue with Demo Account" button that calls `mockSignIn()` and navigates to `/dashboard`.
+When `NODE_ENV !== "production"` or `NEXT_PUBLIC_CLERK_MOCK_MODE=true`, the `MockAuthProvider` is active. It exposes `mockSignIn()` and `mockSignOut()` through `FrontendAuthState`. The sign-in page (`/login`) accepts the following fixed demo credentials:
+
+| Field | Value |
+|---|---|
+| Email | `test@example.com` |
+| Password | `password` |
+
+Entering these credentials calls `mockSignIn()` and navigates to `/dashboard`. Incorrect credentials display a validation error; no redirect occurs. The one-click "Continue with Demo Account" bypass button has been removed.
 
 Demo identity (matches backend seed data and `LocalMockClerkVerifier`):
 
@@ -183,7 +190,7 @@ See [evidence/phase-3-demo-2-local-mock-auth-readiness.md](evidence/phase-3-demo
 
 | State | `mode` | `isLocalMockAuthAllowed()` | Result |
 |---|---|---|---|
-| Local dev, no key | `local_mock` | true | Mock runs; demo button on sign-in page |
+| Local dev, no key | `local_mock` | true | Mock runs; credential login on sign-in page (`test@example.com` / `password`) |
 | Production, no key, no mock flag | `local_mock` | false | `AuthGate` and `ClerkAuthCard` fail closed |
 | Production, real key | `real_clerk` | — | Real Clerk session |
 
