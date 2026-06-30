@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { KeyRound, Lock, MailCheck, RotateCcw, ShieldCheck, UserPlus } from "lucide-react";
 
@@ -7,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useFrontendAuth } from "@/lib/clerk";
 
 export type AuthCardMode = "login" | "signup" | "verify-email" | "forgot-password" | "reset-password";
 
@@ -48,6 +51,8 @@ const copy: Record<AuthCardMode, { title: string; body: string; action: string; 
 export function AuthCard({ mode }: { mode: AuthCardMode }) {
   const item = copy[mode];
   const Icon = item.icon;
+  const auth = useFrontendAuth();
+  const showDemoLogin = mode === "login" && auth.mode === "local_mock" && typeof auth.mockSignIn === "function";
 
   return (
     <main className="min-h-screen bg-bg text-text">
@@ -99,6 +104,27 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
             <Button className="w-full" disabled={item.pending}>
               {item.pending ? "Pending auth provider" : item.title}
             </Button>
+
+            {showDemoLogin ? (
+              <div className="space-y-3">
+                <div className="relative flex items-center">
+                  <div className="flex-grow border-t border-border" />
+                  <span className="mx-3 shrink text-caption text-muted">or</span>
+                  <div className="flex-grow border-t border-border" />
+                </div>
+                <Button
+                  className="w-full"
+                  variant="secondary"
+                  onClick={() => {
+                    auth.mockSignIn?.();
+                    window.location.href = "/dashboard";
+                  }}
+                >
+                  Continue with Demo Account
+                </Button>
+                <p className="text-center text-caption text-muted">Local/mock mode · No real credentials required</p>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap justify-between gap-3 text-small text-muted">
               <Link href="/login" className="hover:text-text">Sign in</Link>

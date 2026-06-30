@@ -2,6 +2,8 @@
 
 **Date:** 2026-06-29
 **Status:** Complete for local/mock demo-readiness evidence
+
+> **Correction added 2026-06-30 (P3-Demo-2):** This evidence file claimed the browser demo was ready. Manual browser testing after P3-Demo-1 found the sign-in page showed a dead Clerk shell with no way to log in without real Clerk credentials. P3-Demo-2 fixed this by adding a stateful `MockAuthProvider` with a "Continue with Demo Account" button (local/mock mode only), seeding `X-Tenant-ID` from `auth.tenantId` to fix the 400 on `/auth/me`, and adding tests. See [phase-3-demo-2-local-mock-auth-readiness.md](phase-3-demo-2-local-mock-auth-readiness.md).
 **Scope:** Evidence/readiness only — Phase 0 secure foundation + local/mock cold-outreach send path
 **Production status:** NOT enabled
 **Provider status:** Real Resend sending disabled; real Stripe billing disabled; cold outreach actual send mocked

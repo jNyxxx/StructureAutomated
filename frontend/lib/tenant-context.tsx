@@ -42,7 +42,7 @@ export function TenantProvider({
 }) {
   const auth = useFrontendAuth();
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
-    initialTenantId ?? confirmedTenantId,
+    initialTenantId ?? confirmedTenantId ?? null,
   );
   const [principal, setPrincipal] = useState<Principal | null>(null);
   const [status, setStatus] = useState<TenantSessionStatus>("idle");
@@ -50,6 +50,13 @@ export function TenantProvider({
   const [correlationId, setCorrelationId] = useState<string | null>(null);
   const [billingAccess, setBillingAccess] = useState<BillingAccess | null>(null);
   const [billingSubscription, setBillingSubscription] = useState<BillingSubscription | null>(null);
+
+  // Seed tenant ID from mock auth context once it becomes available after localStorage hydration.
+  useEffect(() => {
+    if (!selectedTenantId && auth.tenantId) {
+      setSelectedTenantId(auth.tenantId);
+    }
+  }, [auth.tenantId, selectedTenantId]);
 
   const refreshBilling = useCallback(async () => {
     if (!auth.isSignedIn || !selectedTenantId) return;

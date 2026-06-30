@@ -1971,4 +1971,35 @@ describe("phase 0 frontend wiring components", () => {
     render(<AuditLogTable events={[]} state="denied" />);
     expect(screen.getByText(/access denied/i)).toBeTruthy();
   });
+
+  it("login page shows demo login button in local/mock mode after hydration", async () => {
+    render(
+      <ClerkFrontendProvider>
+        <LoginPage />
+      </ClerkFrontendProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Continue with Demo Account/i })).toBeTruthy(),
+    );
+    expect(screen.getByText(/Local\/mock mode · No real credentials required/i)).toBeTruthy();
+  });
+
+  it("login page does not show demo login button when mockSignIn is absent", () => {
+    const noMockSignInAuth: FrontendAuthState = {
+      isLoaded: true,
+      isSignedIn: false,
+      userId: null,
+      email: null,
+      tenantId: null,
+      mode: "local_mock",
+      getToken: async () => null,
+    };
+    render(
+      <ClerkFrontendProvider value={noMockSignInAuth}>
+        <LoginPage />
+      </ClerkFrontendProvider>,
+    );
+    expect(screen.queryByRole("button", { name: /Continue with Demo Account/i })).toBeNull();
+    expect(screen.queryByText(/No real credentials required/i)).toBeNull();
+  });
 });

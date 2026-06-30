@@ -105,6 +105,26 @@ Both kill switches must be documented with owner contact and RTO before
 any live sending is enabled on either layer.
 - Production provider cutover must verify sending domain DNS, webhook signatures, tenant/campaign/mailbox/provider caps, legal footer/unsubscribe copy, and internal-only smoke evidence before any external recipient delivery.
 
+## B1b. Local mock demo login
+
+For local/mock development and demo sessions, the sign-in page includes a "Continue with Demo Account" button. No real Clerk credentials required.
+
+**Prerequisites:**
+- Local stack running (`docker compose up` or backend on port 8000 + frontend on port 3000 separately).
+- `APP_ENV=local` (backend) — ensures mock auth is allowed.
+- `NEXT_PUBLIC_CLERK_MOCK_MODE=true` or `NODE_ENV` is not `"production"` (frontend).
+
+**Steps:**
+1. Navigate to `http://localhost:3000/login`.
+2. Click "Continue with Demo Account".
+3. Browser redirects to `/dashboard` as `owner@example.com` (tenant `22222222-2222-2222-2222-222222222222`, role `owner`).
+4. Session persists across page refreshes via localStorage (`as_mock_session=1`).
+5. To sign out: any sign-out action clears localStorage and returns to signed-out state.
+
+**Demo identity:** token `token-sentinel` / user `11111111-1111-1111-1111-111111111111` / tenant `22222222-2222-2222-2222-222222222222` / email `owner@example.com` / role `owner`.
+
+**Safety:** Demo button does not appear in production. `isLocalMockAuthAllowed()` blocks mock auth when `NODE_ENV === "production"` without explicit mock flag. Boot guard prevents `LocalMockClerkVerifier` from running in production. See [evidence/phase-3-demo-2-local-mock-auth-readiness.md](evidence/phase-3-demo-2-local-mock-auth-readiness.md).
+
 ## B2. CI jobs (all must pass)
 
 1. Backend lint/type.

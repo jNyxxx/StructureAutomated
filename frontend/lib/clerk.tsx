@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useMemo } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { AuthCard, type AuthCardMode } from "@/components/public/auth-card";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,18 @@ export interface FrontendAuthState {
   isSignedIn: boolean;
   userId: string | null;
   email: string | null;
+  tenantId?: string | null;
   getToken: () => Promise<string | null>;
   mode?: "real_clerk" | "local_mock";
+  mockSignIn?: () => void;
+  mockSignOut?: () => void;
 }
+
+export const MOCK_DEMO_TOKEN = "token-sentinel";
+export const MOCK_DEMO_USER_ID = "11111111-1111-1111-1111-111111111111";
+export const MOCK_DEMO_TENANT_ID = "22222222-2222-2222-2222-222222222222";
+export const MOCK_DEMO_EMAIL = "owner@example.com";
+export const MOCK_SESSION_KEY = "as_mock_session";
 
 const mockModeFlag = process.env.NEXT_PUBLIC_CLERK_MOCK_MODE;
 
@@ -30,21 +39,74 @@ function blockedMockState(): FrontendAuthState {
     isSignedIn: false,
     userId: null,
     email: null,
+    tenantId: null,
     mode: "local_mock",
     getToken: async () => null,
   };
 }
 
-const localMockState: FrontendAuthState = {
-  isLoaded: true,
+const ClerkContext = createContext<FrontendAuthState>({
+  isLoaded: false,
   isSignedIn: false,
   userId: null,
   email: null,
+  tenantId: null,
   mode: "local_mock",
   getToken: async () => null,
-};
+});
 
-const ClerkContext = createContext<FrontendAuthState>(localMockState);
+function MockAuthProvider({ children }: { children: ReactNode }) {
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  const mockSignIn = useCallback(() => {
+    if (!isLocalMockAuthAllowed()) return;
+    localStorage.setItem(MOCK_SESSION_KEY, "1");
+    setIsSignedIn(true);
+  }, []);
+
+  const mockSignOut = useCallback(() => {
+    localStorage.removeItem(MOCK_SESSION_KEY);
+    setIsSignedIn(false);
+  }, []);
+
+  useEffect(() => {
+    if (isLocalMockAuthAllowed() && localStorage.getItem(MOCK_SESSION_KEY)) {
+      setIsSignedIn(true);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  const state = useMemo<FrontendAuthState>(() => {
+    if (!isLocalMockAuthAllowed()) return blockedMockState();
+    if (isSignedIn) {
+      return {
+        isLoaded: true,
+        isSignedIn: true,
+        userId: MOCK_DEMO_USER_ID,
+        email: MOCK_DEMO_EMAIL,
+        tenantId: MOCK_DEMO_TENANT_ID,
+        getToken: async () => MOCK_DEMO_TOKEN,
+        mode: "local_mock",
+        mockSignIn,
+        mockSignOut,
+      };
+    }
+    return {
+      isLoaded,
+      isSignedIn: false,
+      userId: null,
+      email: null,
+      tenantId: null,
+      getToken: async () => null,
+      mode: "local_mock",
+      mockSignIn,
+      mockSignOut,
+    };
+  }, [isSignedIn, isLoaded, mockSignIn, mockSignOut]);
+
+  return <ClerkContext.Provider value={state}>{children}</ClerkContext.Provider>;
+}
 
 /**
  * Local/mock Clerk boundary. The real @clerk/nextjs provider is intentionally not
@@ -59,11 +121,10 @@ export function ClerkFrontendProvider({
   children: ReactNode;
   value?: FrontendAuthState;
 }) {
-  const state = useMemo(() => {
-    if (value) return value;
-    return isLocalMockAuthAllowed() ? localMockState : blockedMockState();
-  }, [value]);
-  return <ClerkContext.Provider value={state}>{children}</ClerkContext.Provider>;
+  if (value) {
+    return <ClerkContext.Provider value={value}>{children}</ClerkContext.Provider>;
+  }
+  return <MockAuthProvider>{children}</MockAuthProvider>;
 }
 
 export function useFrontendAuth(): FrontendAuthState {

@@ -159,11 +159,31 @@ Real Clerk wiring (`@clerk/nextjs` not yet installed — P3-3f) adds a wrapper:
 
 After real Clerk sign-in, `TenantProvider` calls `/auth/me` with `X-Tenant-ID`. If no tenant is pre-selected (null), the backend returns `400 TENANT_REQUIRED`. A tenant-selector step is required between sign-in and the `(app)` route group. Deferred — see `LAUNCH_BLOCKERS_AND_OWNER_DECISIONS.md §7` (owner decision: auto-select vs explicit selector).
 
+### Local/Mock Demo Auth (P3-Demo-2)
+
+When `NODE_ENV !== "production"` or `NEXT_PUBLIC_CLERK_MOCK_MODE=true`, the `MockAuthProvider` is active. It exposes `mockSignIn()` and `mockSignOut()` through `FrontendAuthState`. The sign-in page (`/login`) renders a "Continue with Demo Account" button that calls `mockSignIn()` and navigates to `/dashboard`.
+
+Demo identity (matches backend seed data and `LocalMockClerkVerifier`):
+
+| Field | Value |
+|---|---|
+| Token | `token-sentinel` |
+| User ID | `11111111-1111-1111-1111-111111111111` |
+| Tenant ID | `22222222-2222-2222-2222-222222222222` |
+| Email | `owner@example.com` |
+| Role | `owner` |
+
+Session persists in localStorage (`as_mock_session=1`). The `TenantProvider` seeds `selectedTenantId` from `auth.tenantId` via a `useEffect` after localStorage hydration, so the first `/auth/me` call includes the correct `X-Tenant-ID` header.
+
+**Production safety:** `isLocalMockAuthAllowed()` blocks mock auth when `NODE_ENV === "production"` and `NEXT_PUBLIC_CLERK_MOCK_MODE` is not `"true"` or `"1"`. `AuthGate` shows a production block message; no demo content is reachable. Boot guard blocks `LocalMockClerkVerifier` in production regardless. `controlled_demo` does NOT bypass auth.
+
+See [evidence/phase-3-demo-2-local-mock-auth-readiness.md](evidence/phase-3-demo-2-local-mock-auth-readiness.md).
+
 ### Mock / production behavior
 
 | State | `mode` | `isLocalMockAuthAllowed()` | Result |
 |---|---|---|---|
-| Local dev, no key | `local_mock` | true | Mock runs, `isSignedIn=false` |
+| Local dev, no key | `local_mock` | true | Mock runs; demo button on sign-in page |
 | Production, no key, no mock flag | `local_mock` | false | `AuthGate` and `ClerkAuthCard` fail closed |
 | Production, real key | `real_clerk` | — | Real Clerk session |
 
