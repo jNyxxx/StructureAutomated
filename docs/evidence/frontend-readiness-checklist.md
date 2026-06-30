@@ -80,6 +80,7 @@
 - [x] Drawers have titles/descriptions
 - [x] App pages keep dark UI contrast and professional B2B tone
 - [x] Landing page workflow preview description text wraps and expands fully on hover
+- [x] Dashboard redesigned with visual SVG charts, preflight safety notice, and diagnostics
 
 ## 6. Build/test checks
 
