@@ -97,6 +97,8 @@ P4-0 staging and first-pilot entry plan (2026-06-30): docs-only Phase 4 opening 
 
 P4-1 staging infrastructure values intake (2026-06-30): docs-only owner-value packet created. It records the required AWS, registry, platform, domain, DNS/TLS, runtime config, KMS, RDS, Redis, approver, alert, incident, worker, and Clerk staging values using MISSING / PROPOSED / LOCKED states. No owner/operator values are LOCKED yet beyond prior high-level direction; staging deployment remains blocked, and P4-2 is not allowed until required values are LOCKED or explicitly deferred. No deployment, AWS provisioning, registry push, production launch, live provider enablement, real billing, SMS, or live scraping. See [evidence/phase-4-1-staging-infrastructure-values-intake.md](evidence/phase-4-1-staging-infrastructure-values-intake.md).
 
+P4-1b owner response tracker (2026-06-30): docs-only tracker and decision matrix created. It tracks William/operator answers with MISSING / PROPOSED / LOCKED / DEFERRED status, maps decisions to allowed slices, lists blocked slices, and records safe work while blocked. P4-2/P4-3/P4-4/P4-5/P4-7/P4-8 remain blocked until their required values are LOCKED or explicitly DEFERRED. No deployment, AWS provisioning, registry push, production launch, live provider enablement, real billing, SMS, or live scraping. See [evidence/phase-4-1b-owner-response-tracker.md](evidence/phase-4-1b-owner-response-tracker.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -183,7 +185,7 @@ P4-0 records these as the required inputs before staging or first-pilot implemen
 | Resend transactional smoke | Provider key path, webhook signing path, DNS proof, legal footer/company mailing details, internal recipient, monitored Reply-To, emergency-stop owner, deliverability owner. |
 | Operations | Alert recipients, escalation owner, deployment/migration/rollback approvers, release evidence owner, first-pilot onboarding/support owners, later production cutover approver. |
 
-P4-1 result: values remain mostly MISSING or PROPOSED. P4-2/P4-4/P4-5 are blocked until required values are LOCKED or explicitly accepted as deferred. Engineering must not infer or invent them.
+P4-1b result: values remain mostly MISSING or PROPOSED. P4-2/P4-3/P4-4/P4-5/P4-7/P4-8 are blocked until required values are LOCKED or explicitly accepted as DEFERRED. Engineering must not infer or invent them.
 
 ## 8. Required >=8/10 categories (external production)
 

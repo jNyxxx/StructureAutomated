@@ -148,6 +148,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 |------|---------|
 | `docs/evidence/phase-4-0-staging-pilot-entry-plan.md` | P4-0 staging and first-pilot entry evidence: records preflight, codebase/doc scan, Phase 4 scope and non-goals, required owner/operator values, proposed slices, entry/exit criteria, hard stops, files changed, and verification result. Docs-only; no deployment, AWS provisioning, registry push, provider enablement, billing money movement, SMS, or live scraping. |
 | `docs/evidence/phase-4-1-staging-infrastructure-values-intake.md` | P4-1 staging infrastructure values intake and lock packet: records current staging-blocked status, required owner/operator value table using MISSING/PROPOSED/LOCKED states, proposed safe defaults, boss-facing checklist for William, locking rules, hard stops, and next-slice decision. Docs-only; no deployment, AWS provisioning, registry push, provider enablement, billing money movement, SMS, or live scraping. |
+| `docs/evidence/phase-4-1b-owner-response-tracker.md` | P4-1b owner response tracker and Phase 4 decision matrix: tracks William/operator answers using MISSING/PROPOSED/LOCKED/DEFERRED states, maps decisions to allowed next slices, lists blocked slices, records safe work while blocked, and includes a boss-facing reminder. Docs-only; no deployment, AWS provisioning, registry push, provider enablement, billing money movement, SMS, or live scraping. |
 
 ---
 
