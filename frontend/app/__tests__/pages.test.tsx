@@ -1972,20 +1972,9 @@ describe("phase 0 frontend wiring components", () => {
     expect(screen.getByText(/access denied/i)).toBeTruthy();
   });
 
-  it("login page shows demo login button in local/mock mode after hydration", async () => {
-    render(
-      <ClerkFrontendProvider>
-        <LoginPage />
-      </ClerkFrontendProvider>,
-    );
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Continue with Demo Account/i })).toBeTruthy(),
-    );
-    expect(screen.getByText(/Local\/mock mode · No real credentials required/i)).toBeTruthy();
-  });
-
-  it("login page does not show demo login button when mockSignIn is absent", () => {
-    const noMockSignInAuth: FrontendAuthState = {
+  it("login page redirects to dashboard when correct credentials are entered", async () => {
+    const mockSignIn = vi.fn();
+    const auth: FrontendAuthState = {
       isLoaded: true,
       isSignedIn: false,
       userId: null,
@@ -1993,13 +1982,44 @@ describe("phase 0 frontend wiring components", () => {
       tenantId: null,
       mode: "local_mock",
       getToken: async () => null,
+      mockSignIn,
     };
     render(
-      <ClerkFrontendProvider value={noMockSignInAuth}>
+      <ClerkFrontendProvider value={auth}>
         <LoginPage />
       </ClerkFrontendProvider>,
     );
-    expect(screen.queryByRole("button", { name: /Continue with Demo Account/i })).toBeNull();
-    expect(screen.queryByText(/No real credentials required/i)).toBeNull();
+    const emailInput = screen.getByPlaceholderText(/name@company.com/i);
+    const passwordInput = screen.getByPlaceholderText(/\u2022/);
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+    fireEvent.change(passwordInput, { target: { value: "password" } });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    expect(mockSignIn).toHaveBeenCalledOnce();
+  });
+
+  it("login page shows error when wrong credentials are entered", () => {
+    const mockSignIn = vi.fn();
+    const auth: FrontendAuthState = {
+      isLoaded: true,
+      isSignedIn: false,
+      userId: null,
+      email: null,
+      tenantId: null,
+      mode: "local_mock",
+      getToken: async () => null,
+      mockSignIn,
+    };
+    render(
+      <ClerkFrontendProvider value={auth}>
+        <LoginPage />
+      </ClerkFrontendProvider>,
+    );
+    const emailInput = screen.getByPlaceholderText(/name@company.com/i);
+    const passwordInput = screen.getByPlaceholderText(/\u2022/);
+    fireEvent.change(emailInput, { target: { value: "wrong@email.com" } });
+    fireEvent.change(passwordInput, { target: { value: "wrongpass" } });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    expect(mockSignIn).not.toHaveBeenCalled();
+    expect(screen.getByText(/invalid email or password/i)).toBeTruthy();
   });
 });

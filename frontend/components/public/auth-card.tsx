@@ -58,7 +58,6 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const showDemoLogin = mode === "login" && auth.mode === "local_mock" && typeof auth.mockSignIn === "function";
 
   const handleSignIn = () => {
     setError(null);
@@ -145,29 +144,6 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
               {item.title}
             </Button>
 
-            {showDemoLogin ? (
-              <div className="sr-only">
-                <div className="relative flex items-center">
-                  <div className="flex-grow border-t border-border" />
-                  <span className="mx-3 shrink text-caption text-muted">or</span>
-                  <div className="flex-grow border-t border-border" />
-                </div>
-                <Button
-                  className="w-full"
-                  variant="secondary"
-                  onClick={() => {
-                    auth.mockSignIn?.();
-                    window.location.href = "/dashboard";
-                  }}
-                >
-                  Continue with Demo Account
-                </Button>
-                <p className="text-center text-caption text-muted">
-                  Quick access for demonstration and sandbox verification
-                  <span className="sr-only">Local/mock mode · No real credentials required</span>
-                </p>
-              </div>
-            ) : null}
 
             <div className="flex flex-wrap justify-between gap-3 text-small text-muted">
               <Link href="/login" className="hover:text-text">Sign in</Link>
