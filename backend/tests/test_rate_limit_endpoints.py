@@ -27,7 +27,6 @@ from collections.abc import Callable
 
 import pytest
 from fastapi import Depends, FastAPI
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
@@ -168,9 +167,23 @@ def _dependant_has(dependant: object, dep: Callable[..., object]) -> bool:
     return any(_dependant_has(sub, dep) for sub in deps)
 
 
-def _find_route(app: FastAPI, path: str, method: str) -> APIRoute | None:
-    for route in app.routes:
-        if isinstance(route, APIRoute) and route.path == path and method in route.methods:
+def _get_flat_routes(app_or_router: object, current_prefix: str = "") -> list[tuple[str, object]]:
+    flat = []
+    routes = getattr(app_or_router, "routes", [])
+    for r in routes:
+        if type(r).__name__ == "_IncludedRouter" and hasattr(r, "original_router"):
+            prefix = ""
+            if hasattr(r, "include_context") and r.include_context.prefix:
+                prefix = r.include_context.prefix
+            flat.extend(_get_flat_routes(r.original_router, current_prefix + prefix))
+        elif hasattr(r, "path"):
+            flat.append((current_prefix + r.path, r))
+    return flat
+
+
+def _find_route(app: FastAPI, path: str, method: str) -> object | None:
+    for p, route in _get_flat_routes(app):
+        if p == path and hasattr(route, "methods") and method in route.methods:
             return route
     return None
 
