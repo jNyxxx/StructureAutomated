@@ -43,7 +43,7 @@ function PreflightNotice() {
           </Button>
         </div>
       </div>
-      
+
       {!collapsed && (
         <div className="mt-4 grid gap-3 border-t border-border/50 pt-4 sm:grid-cols-2 lg:grid-cols-3 text-caption text-muted">
           <div className="flex gap-2">
@@ -284,7 +284,7 @@ export default function DashboardPage() {
         <DeliverabilityOutcomesPreview />
         <QuickActions />
       </div>
-      
+
     </section>
   );
 }

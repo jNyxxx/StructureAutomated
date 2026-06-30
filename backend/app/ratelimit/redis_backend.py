@@ -87,6 +87,6 @@ async def check_redis_ready(url: str) -> bool:
 
 
 def _parse_redis_pair(raw: object) -> tuple[int, int]:
-    if isinstance(raw, (list, tuple)) and len(raw) == 2:
+    if isinstance(raw, list | tuple) and len(raw) == 2:
         return int(raw[0]), int(raw[1])
     raise TypeError("Redis rate-limit script returned an unexpected shape")

@@ -134,7 +134,7 @@ def _rsa_public_key(jwk: Jwk) -> rsa.RSAPublicKey:
 def _audience_ok(claim: object, expected: str) -> bool:
     if isinstance(claim, str):
         return claim == expected
-    if isinstance(claim, (list, tuple)):
+    if isinstance(claim, list | tuple):
         return expected in claim
     return False
 
