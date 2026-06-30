@@ -74,16 +74,14 @@ function PreflightNotice() {
 }
 
 function MockVolumeChart() {
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
-
   const volumeData = [
-    { day: "Monday", count: 40, x: 25, y: 80, height: 40, fill: "rgba(59, 130, 246, 0.35)" },
-    { day: "Tuesday", count: 70, x: 65, y: 50, height: 70, fill: "rgba(59, 130, 246, 0.35)" },
-    { day: "Wednesday", count: 85, x: 105, y: 35, height: 85, fill: "rgba(59, 130, 246, 0.35)" },
-    { day: "Thursday", count: 55, x: 145, y: 65, height: 55, fill: "rgba(59, 130, 246, 0.35)" },
-    { day: "Friday", count: 95, x: 185, y: 25, height: 95, fill: "rgba(59, 130, 246, 0.6)" },
-    { day: "Saturday", count: 30, x: 225, y: 90, height: 30, fill: "rgba(59, 130, 246, 0.2)" },
-    { day: "Sunday", count: 38, x: 265, y: 82, height: 38, fill: "rgba(59, 130, 246, 0.2)" },
+    { day: "Mon", count: 40, height: "40%", fill: "bg-blue/35 hover:bg-blue" },
+    { day: "Tue", count: 70, height: "70%", fill: "bg-blue/35 hover:bg-blue" },
+    { day: "Wed", count: 85, height: "85%", fill: "bg-blue/35 hover:bg-blue" },
+    { day: "Thu", count: 55, height: "55%", fill: "bg-blue/35 hover:bg-blue" },
+    { day: "Fri", count: 95, height: "95%", fill: "bg-blue/60 hover:bg-blue" },
+    { day: "Sat", count: 30, height: "30%", fill: "bg-blue/20 hover:bg-blue" },
+    { day: "Sun", count: 38, height: "38%", fill: "bg-blue/20 hover:bg-blue" },
   ];
 
   return (
@@ -101,51 +99,41 @@ function MockVolumeChart() {
         </div>
       </CardHeader>
       <CardContent className="relative overflow-visible">
-        <div className="h-32 w-full mt-2 relative overflow-visible">
-          <svg className="h-full w-full overflow-visible" viewBox="0 0 300 120" preserveAspectRatio="none">
-            <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
-            <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
-            <line x1="0" y1="100" x2="300" y2="100" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
+        {/* Chart Area */}
+        <div className="h-32 w-full mt-2 flex items-end justify-between gap-2 px-1 relative overflow-visible">
+          {/* Background grid lines */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-1">
+            <div className="w-full border-t border-white/5 border-dashed" />
+            <div className="w-full border-t border-white/5 border-dashed" />
+            <div className="w-full border-t border-white/5 border-dashed" />
+          </div>
 
-            {volumeData.map((bar, index) => (
-              <rect
-                key={bar.day}
-                x={bar.x}
-                y={bar.y}
-                width="14"
-                height={bar.height}
-                rx="2.5"
-                fill={hoveredBar === index ? "rgb(59, 130, 246)" : bar.fill}
-                className="transition-all duration-200 cursor-pointer"
-                onMouseEnter={() => setHoveredBar(index)}
-                onMouseLeave={() => setHoveredBar(null)}
+          {volumeData.map((bar) => (
+            <div key={bar.day} className="relative group flex-1 flex flex-col items-center justify-end h-full z-10 overflow-visible">
+              {/* Bar */}
+              <div
+                className={`w-full max-w-[16px] rounded-t cursor-pointer transition-all duration-300 ${bar.fill}`}
+                style={{ height: bar.height }}
               />
-            ))}
-          </svg>
 
-          {/* Floating Tooltip */}
-          {hoveredBar !== null && (
-            <div
-              className="absolute z-30 rounded-medium bg-panel border border-border/80 px-2.5 py-1.5 text-caption text-text shadow-glow pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+8px)] flex flex-col gap-0.5 transition-all duration-150"
-              style={{
-                left: `${((volumeData[hoveredBar].x + 7) / 300) * 100}%`,
-                top: `${(volumeData[hoveredBar].y / 120) * 100}%`,
-              }}
-            >
-              <span className="font-bold text-small text-text">{volumeData[hoveredBar].day}</span>
-              <span className="text-blue font-semibold">{volumeData[hoveredBar].count} Mock Sends</span>
-              <span className="text-[10px] text-muted">92% delivery rate</span>
+              {/* CSS Tooltip */}
+              <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none transform translate-y-[-4px]">
+                <div className="rounded-medium bg-panel border border-border/80 px-2.5 py-1.5 text-caption text-text shadow-glow flex flex-col gap-0.5 whitespace-nowrap">
+                  <span className="font-bold text-small text-text">{bar.day}</span>
+                  <span className="text-blue font-semibold">{bar.count} Mock Sends</span>
+                  <span className="text-[10px] text-muted">92% delivery rate</span>
+                </div>
+                {/* Arrow */}
+                <div className="w-2 h-2 bg-panel border-r border-b border-border/80 transform rotate-45 -mt-1" />
+              </div>
             </div>
-          )}
+          ))}
         </div>
-        <div className="mt-2 flex justify-between text-[10px] text-muted font-medium px-2">
-          <span>Mon</span>
-          <span>Tue</span>
-          <span>Wed</span>
-          <span>Thu</span>
-          <span>Fri</span>
-          <span>Sat</span>
-          <span>Sun</span>
+
+        <div className="mt-3 flex justify-between text-[10px] text-muted font-medium px-2">
+          {volumeData.map((bar) => (
+            <span key={bar.day} className="w-full max-w-[16px] text-center">{bar.day}</span>
+          ))}
         </div>
       </CardContent>
     </Card>
@@ -153,14 +141,12 @@ function MockVolumeChart() {
 }
 
 function MockROIChart() {
-  const [hoveredDot, setHoveredDot] = useState<number | null>(null);
-
   const roiData = [
-    { label: "Week 1", rate: "8.5%", cx: 10, cy: 90, sends: 40, positive: 3 },
-    { label: "Week 2", rate: "11.2%", cx: 90, cy: 55, sends: 70, positive: 8 },
-    { label: "Week 3", rate: "13.8%", cx: 170, cy: 42, sends: 85, positive: 12 },
-    { label: "Week 4", rate: "14.2%", cx: 250, cy: 22, sends: 95, positive: 14 },
-    { label: "Current", rate: "14.5%", cx: 290, cy: 15, sends: 38, positive: 6 },
+    { label: "Wk 1", rate: "8.5%", left: "3.3%", top: "75%", sends: 40, positive: 3 },
+    { label: "Wk 2", rate: "11.2%", left: "30%", top: "45.8%", sends: 70, positive: 8 },
+    { label: "Wk 3", rate: "13.8%", left: "56.6%", top: "35%", sends: 85, positive: 12 },
+    { label: "Wk 4", rate: "14.2%", left: "83.3%", top: "18.3%", sends: 95, positive: 14 },
+    { label: "Current", rate: "14.5%", left: "96.6%", top: "12.5%", sends: 38, positive: 6 },
   ];
 
   return (
@@ -179,11 +165,15 @@ function MockROIChart() {
       </CardHeader>
       <CardContent className="relative overflow-visible">
         <div className="h-32 w-full mt-2 relative overflow-visible">
-          <svg className="h-full w-full overflow-visible" viewBox="0 0 300 120" preserveAspectRatio="none">
-            <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
-            <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
-            <line x1="0" y1="100" x2="300" y2="100" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
+          {/* Background grid lines */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-1">
+            <div className="w-full border-t border-white/5 border-dashed" />
+            <div className="w-full border-t border-white/5 border-dashed" />
+            <div className="w-full border-t border-white/5 border-dashed" />
+          </div>
 
+          {/* SVG Line */}
+          <svg className="absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 300 120" preserveAspectRatio="none">
             <path
               d="M 10 90 Q 50 85, 90 55 T 170 42 T 250 22 T 290 15"
               fill="none"
@@ -202,50 +192,33 @@ function MockROIChart() {
                 <stop offset="100%" stopColor="rgba(139, 92, 246, 0)" />
               </linearGradient>
             </defs>
-
-            {/* Visual Dots */}
-            {roiData.map((dot, index) => (
-              <circle
-                key={dot.label}
-                cx={dot.cx}
-                cy={dot.cy}
-                r={hoveredDot === index ? 5 : 3.5}
-                fill={hoveredDot === index ? "#ffffff" : "rgb(139, 92, 246)"}
-                stroke="rgb(139, 92, 246)"
-                strokeWidth={hoveredDot === index ? 2 : 0}
-                className="transition-all duration-150 pointer-events-none"
-              />
-            ))}
-
-            {/* Invisible Large Hover Targets */}
-            {roiData.map((dot, index) => (
-              <circle
-                key={`target-${dot.label}`}
-                cx={dot.cx}
-                cy={dot.cy}
-                r="14"
-                fill="transparent"
-                className="cursor-pointer"
-                onMouseEnter={() => setHoveredDot(index)}
-                onMouseLeave={() => setHoveredDot(null)}
-              />
-            ))}
           </svg>
 
-          {/* Floating Tooltip */}
-          {hoveredDot !== null && (
+          {/* HTML Hover Dots & Tooltips */}
+          {roiData.map((dot) => (
             <div
-              className="absolute z-30 rounded-medium bg-panel border border-border/80 px-2.5 py-1.5 text-caption text-text shadow-glow pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+8px)] flex flex-col gap-0.5 transition-all duration-150"
-              style={{
-                left: `${(roiData[hoveredDot].cx / 300) * 100}%`,
-                top: `${(roiData[hoveredDot].cy / 120) * 100}%`,
-              }}
+              key={dot.label}
+              className="absolute group flex items-center justify-center -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20"
+              style={{ left: dot.left, top: dot.top }}
             >
-              <span className="font-bold text-small text-text">{roiData[hoveredDot].label}</span>
-              <span className="text-violet font-semibold">{roiData[hoveredDot].rate} Response Rate</span>
-              <span className="text-[10px] text-muted">{roiData[hoveredDot].positive} Positive Replies</span>
+              {/* Outer Glow Ring on Hover */}
+              <div className="absolute size-6 rounded-pill bg-violet/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
+              {/* Dot */}
+              <div className="size-2 rounded-pill bg-violet border border-white group-hover:bg-white group-hover:scale-125 transition-all duration-200 shadow-sm" />
+
+              {/* Tooltip */}
+              <div className="absolute bottom-full mb-3 hidden group-hover:flex flex-col items-center pointer-events-none z-30">
+                <div className="rounded-medium bg-panel border border-border/80 px-2.5 py-1.5 text-caption text-text shadow-glow flex flex-col gap-0.5 whitespace-nowrap">
+                  <span className="font-bold text-small text-text">{dot.label}</span>
+                  <span className="text-violet font-semibold">{dot.rate} Response Rate</span>
+                  <span className="text-[10px] text-muted">{dot.positive} Positive Replies</span>
+                </div>
+                {/* Arrow */}
+                <div className="w-2 h-2 bg-panel border-r border-b border-border/80 transform rotate-45 -mt-1" />
+              </div>
             </div>
-          )}
+          ))}
         </div>
         <div className="mt-2 flex justify-between text-[10px] text-muted font-medium px-2">
           <span>Wk 1</span>

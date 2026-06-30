@@ -32,9 +32,11 @@ export function QuickActions() {
                 </div>
                 <Lock className="size-4 text-subtle" />
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <GateReasonBadge state="blocked" label="Locked" className="shrink-0" />
-                <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-caption shrink-0">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center justify-between">
+                <div className="shrink-0">
+                  <GateReasonBadge state="blocked" label="Locked" />
+                </div>
+                <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-caption shrink-0 justify-start sm:justify-center">
                   <Link href={action.href}>View shell</Link>
                 </Button>
               </div>
