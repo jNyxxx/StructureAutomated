@@ -111,6 +111,8 @@ P4-DepAudit-Fix-3-Plan framework upgrade approval plan (2026-06-30): docs-only p
 
 P4-FirstPilot-Readiness checklist (2026-07-01): docs-only pilot checklist created. It records first-client pilot scope, pre-client requirements, onboarding fields, demo-to-pilot gaps, go/no-go criteria, and hard stops. First client is not public launch; William approval, staging smoke, dependency closure/risk acceptance, auth verification, monitoring, rollback owner, support owner, and client onboarding evidence remain required. Boss demo remains allowed; staging/production remain blocked. See [evidence/phase-4-first-pilot-readiness-checklist.md](evidence/phase-4-first-pilot-readiness-checklist.md).
 
+P4-Monitoring-Alerts-Plan (2026-07-01): docs-only monitoring/incident/rollback plan created. It records required alert categories, owner roles, severity levels, staging smoke observability, rollback procedures, hard stops, and William-facing questions. Staging remains blocked until alert recipients, incident owner, deployment approver, migration approver, rollback approver, emergency-stop owner, monitoring target, and log retention are locked. Boss demo remains allowed; production remains blocked. See [evidence/phase-4-monitoring-alerts-incident-plan.md](evidence/phase-4-monitoring-alerts-incident-plan.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
