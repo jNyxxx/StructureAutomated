@@ -17,7 +17,7 @@ const actions = [
 export function QuickActions() {
   return (
     <BentoCard title="Locked quick actions" description="Actions are visible for navigation but disabled by pending backend APIs." badge="Pending backend">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
@@ -32,9 +32,9 @@ export function QuickActions() {
                 </div>
                 <Lock className="size-4 text-subtle" />
               </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <GateReasonBadge state="blocked" label="Locked" />
-                <Button asChild variant="ghost" size="sm">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <GateReasonBadge state="blocked" label="Locked" className="shrink-0" />
+                <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-caption shrink-0">
                   <Link href={action.href}>View shell</Link>
                 </Button>
               </div>
