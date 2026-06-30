@@ -74,8 +74,20 @@ function PreflightNotice() {
 }
 
 function MockVolumeChart() {
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+
+  const volumeData = [
+    { day: "Monday", count: 40, x: 25, y: 80, height: 40, fill: "rgba(59, 130, 246, 0.35)" },
+    { day: "Tuesday", count: 70, x: 65, y: 50, height: 70, fill: "rgba(59, 130, 246, 0.35)" },
+    { day: "Wednesday", count: 85, x: 105, y: 35, height: 85, fill: "rgba(59, 130, 246, 0.35)" },
+    { day: "Thursday", count: 55, x: 145, y: 65, height: 55, fill: "rgba(59, 130, 246, 0.35)" },
+    { day: "Friday", count: 95, x: 185, y: 25, height: 95, fill: "rgba(59, 130, 246, 0.6)" },
+    { day: "Saturday", count: 30, x: 225, y: 90, height: 30, fill: "rgba(59, 130, 246, 0.2)" },
+    { day: "Sunday", count: 38, x: 265, y: 82, height: 38, fill: "rgba(59, 130, 246, 0.2)" },
+  ];
+
   return (
-    <Card className="border-border/60 bg-panel/30 backdrop-blur-md">
+    <Card className="border-border/60 bg-panel/30 backdrop-blur-md relative overflow-visible">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -88,20 +100,43 @@ function MockVolumeChart() {
           </span>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-32 w-full mt-2">
-          <svg className="h-full w-full" viewBox="0 0 300 120" preserveAspectRatio="none">
+      <CardContent className="relative overflow-visible">
+        <div className="h-32 w-full mt-2 relative overflow-visible">
+          <svg className="h-full w-full overflow-visible" viewBox="0 0 300 120" preserveAspectRatio="none">
             <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
             <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
             <line x1="0" y1="100" x2="300" y2="100" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
-            <rect x="25" y="80" width="14" height="40" rx="2.5" fill="rgba(59, 130, 246, 0.35)" className="transition-all duration-300 hover:fill-blue" />
-            <rect x="65" y="50" width="14" height="70" rx="2.5" fill="rgba(59, 130, 246, 0.35)" className="transition-all duration-300 hover:fill-blue" />
-            <rect x="105" y="35" width="14" height="85" rx="2.5" fill="rgba(59, 130, 246, 0.35)" className="transition-all duration-300 hover:fill-blue" />
-            <rect x="145" y="65" width="14" height="55" rx="2.5" fill="rgba(59, 130, 246, 0.35)" className="transition-all duration-300 hover:fill-blue" />
-            <rect x="185" y="25" width="14" height="95" rx="2.5" fill="rgba(59, 130, 246, 0.6)" className="transition-all duration-300 hover:fill-blue" />
-            <rect x="225" y="90" width="14" height="30" rx="2.5" fill="rgba(59, 130, 246, 0.2)" className="transition-all duration-300 hover:fill-blue" />
-            <rect x="265" y="82" width="14" height="38" rx="2.5" fill="rgba(59, 130, 246, 0.2)" className="transition-all duration-300 hover:fill-blue" />
+
+            {volumeData.map((bar, index) => (
+              <rect
+                key={bar.day}
+                x={bar.x}
+                y={bar.y}
+                width="14"
+                height={bar.height}
+                rx="2.5"
+                fill={hoveredBar === index ? "rgb(59, 130, 246)" : bar.fill}
+                className="transition-all duration-200 cursor-pointer"
+                onMouseEnter={() => setHoveredBar(index)}
+                onMouseLeave={() => setHoveredBar(null)}
+              />
+            ))}
           </svg>
+
+          {/* Floating Tooltip */}
+          {hoveredBar !== null && (
+            <div
+              className="absolute z-30 rounded-medium bg-panel border border-border/80 px-2.5 py-1.5 text-caption text-text shadow-glow pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+8px)] flex flex-col gap-0.5 transition-all duration-150"
+              style={{
+                left: `${((volumeData[hoveredBar].x + 7) / 300) * 100}%`,
+                top: `${(volumeData[hoveredBar].y / 120) * 100}%`,
+              }}
+            >
+              <span className="font-bold text-small text-text">{volumeData[hoveredBar].day}</span>
+              <span className="text-blue font-semibold">{volumeData[hoveredBar].count} Mock Sends</span>
+              <span className="text-[10px] text-muted">92% delivery rate</span>
+            </div>
+          )}
         </div>
         <div className="mt-2 flex justify-between text-[10px] text-muted font-medium px-2">
           <span>Mon</span>
@@ -118,8 +153,18 @@ function MockVolumeChart() {
 }
 
 function MockROIChart() {
+  const [hoveredDot, setHoveredDot] = useState<number | null>(null);
+
+  const roiData = [
+    { label: "Week 1", rate: "8.5%", cx: 10, cy: 90, sends: 40, positive: 3 },
+    { label: "Week 2", rate: "11.2%", cx: 90, cy: 55, sends: 70, positive: 8 },
+    { label: "Week 3", rate: "13.8%", cx: 170, cy: 42, sends: 85, positive: 12 },
+    { label: "Week 4", rate: "14.2%", cx: 250, cy: 22, sends: 95, positive: 14 },
+    { label: "Current", rate: "14.5%", cx: 290, cy: 15, sends: 38, positive: 6 },
+  ];
+
   return (
-    <Card className="border-border/60 bg-panel/30 backdrop-blur-md">
+    <Card className="border-border/60 bg-panel/30 backdrop-blur-md relative overflow-visible">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -132,12 +177,13 @@ function MockROIChart() {
           </span>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-32 w-full mt-2">
-          <svg className="h-full w-full" viewBox="0 0 300 120" preserveAspectRatio="none">
+      <CardContent className="relative overflow-visible">
+        <div className="h-32 w-full mt-2 relative overflow-visible">
+          <svg className="h-full w-full overflow-visible" viewBox="0 0 300 120" preserveAspectRatio="none">
             <line x1="0" y1="20" x2="300" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
             <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
             <line x1="0" y1="100" x2="300" y2="100" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
+
             <path
               d="M 10 90 Q 50 85, 90 55 T 170 42 T 250 22 T 290 15"
               fill="none"
@@ -156,11 +202,50 @@ function MockROIChart() {
                 <stop offset="100%" stopColor="rgba(139, 92, 246, 0)" />
               </linearGradient>
             </defs>
-            <circle cx="90" cy="55" r="3.5" fill="rgb(139, 92, 246)" />
-            <circle cx="170" cy="42" r="3.5" fill="rgb(139, 92, 246)" />
-            <circle cx="250" cy="22" r="3.5" fill="rgb(139, 92, 246)" />
-            <circle cx="290" cy="15" r="3.5" fill="rgb(139, 92, 246)" />
+
+            {/* Visual Dots */}
+            {roiData.map((dot, index) => (
+              <circle
+                key={dot.label}
+                cx={dot.cx}
+                cy={dot.cy}
+                r={hoveredDot === index ? 5 : 3.5}
+                fill={hoveredDot === index ? "#ffffff" : "rgb(139, 92, 246)"}
+                stroke="rgb(139, 92, 246)"
+                strokeWidth={hoveredDot === index ? 2 : 0}
+                className="transition-all duration-150 pointer-events-none"
+              />
+            ))}
+
+            {/* Invisible Large Hover Targets */}
+            {roiData.map((dot, index) => (
+              <circle
+                key={`target-${dot.label}`}
+                cx={dot.cx}
+                cy={dot.cy}
+                r="14"
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHoveredDot(index)}
+                onMouseLeave={() => setHoveredDot(null)}
+              />
+            ))}
           </svg>
+
+          {/* Floating Tooltip */}
+          {hoveredDot !== null && (
+            <div
+              className="absolute z-30 rounded-medium bg-panel border border-border/80 px-2.5 py-1.5 text-caption text-text shadow-glow pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+8px)] flex flex-col gap-0.5 transition-all duration-150"
+              style={{
+                left: `${(roiData[hoveredDot].cx / 300) * 100}%`,
+                top: `${(roiData[hoveredDot].cy / 120) * 100}%`,
+              }}
+            >
+              <span className="font-bold text-small text-text">{roiData[hoveredDot].label}</span>
+              <span className="text-violet font-semibold">{roiData[hoveredDot].rate} Response Rate</span>
+              <span className="text-[10px] text-muted">{roiData[hoveredDot].positive} Positive Replies</span>
+            </div>
+          )}
         </div>
         <div className="mt-2 flex justify-between text-[10px] text-muted font-medium px-2">
           <span>Wk 1</span>
