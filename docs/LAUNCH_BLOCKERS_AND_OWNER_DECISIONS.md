@@ -107,6 +107,8 @@ P4-DepAudit-Fix-1 safe dev dependency fixes (2026-06-30): targeted dev/test tool
 
 P4-DepAudit-Fix-2 remaining dependency audit assessment (2026-06-30): BLOCKED. No same-major compatible fix exists for remaining Next.js runtime/PostCSS and Next ESLint/glob findings. `next` and `eslint-config-next` are already at latest 14.x versions found (`14.2.35`); candidate fixes require major framework-aligned upgrades to 15.x/16.x or formal owner/security acceptance. No package files, source files, backend files, `.env`, Dockerfile, workflow, deployment config, provider flags, real billing, SMS, or live scraping were changed. Boss demo remains allowed; staging/production remain blocked. See [evidence/phase-4-dependency-audit-fix-2.md](evidence/phase-4-dependency-audit-fix-2.md).
 
+P4-DepAudit-Fix-3-Plan framework upgrade approval plan (2026-06-30): docs-only plan created. Recommendation is owner approval for a controlled Next 15.5.16+ upgrade attempt first, with Next 16 escalation only if needed or explicitly approved. No runtime/package implementation happened. Boss demo remains allowed; staging/production remain blocked until findings are fixed or formally accepted and owner/operator values are locked. See [evidence/phase-4-dependency-audit-fix-3-framework-upgrade-plan.md](evidence/phase-4-dependency-audit-fix-3-framework-upgrade-plan.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |

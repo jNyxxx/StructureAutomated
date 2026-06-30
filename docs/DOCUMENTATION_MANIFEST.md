@@ -155,6 +155,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | `docs/evidence/phase-4-dependency-audit-fix-1.md` | P4-DepAudit-Fix-1 evidence: targeted dev/test tooling update for Vitest/Vite chain, before/after audit summary, package change rationale, full frontend gate results, remaining findings, and recommendation. |
 | `docs/evidence/phase-4-dependency-audit-after-fix-1.json` | Raw npm audit JSON evidence after P4-DepAudit-Fix-1. Audit reduced 10 → 5 and critical findings reduced 1 → 0. |
 | `docs/evidence/phase-4-dependency-audit-fix-2.md` | P4-DepAudit-Fix-2 evidence: records that no same-major compatible package update was available for the remaining frontend audit groups, no package files were changed, and the next path is framework upgrade planning or formal owner/security acceptance. |
+| `docs/evidence/phase-4-dependency-audit-fix-3-framework-upgrade-plan.md` | P4-DepAudit-Fix-3-Plan evidence: owner approval and migration plan for the remaining framework dependency work. |
 
 ---
 
