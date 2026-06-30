@@ -12,13 +12,13 @@ from __future__ import annotations
 import math
 from collections.abc import Awaitable
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Any, Protocol
 
 _CONNECT_TIMEOUT_SECONDS = 2.0
 
 
 class RedisClient(Protocol):
-    async def eval(self, script: str, numkeys: int, *keys_and_args: object) -> object: ...
+    def eval(self, script: str, numkeys: int, *keys_and_args: Any) -> Awaitable[Any]: ...
 
 
 class RedisRateLimitBackend:
