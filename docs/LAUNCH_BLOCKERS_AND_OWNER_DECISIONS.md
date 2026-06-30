@@ -99,6 +99,10 @@ P4-1 staging infrastructure values intake (2026-06-30): docs-only owner-value pa
 
 P4-1b owner response tracker (2026-06-30): docs-only tracker and decision matrix created. It tracks William/operator answers with MISSING / PROPOSED / LOCKED / DEFERRED status, maps decisions to allowed slices, lists blocked slices, and records safe work while blocked. P4-2/P4-3/P4-4/P4-5/P4-7/P4-8 remain blocked until their required values are LOCKED or explicitly DEFERRED. No deployment, AWS provisioning, registry push, production launch, live provider enablement, real billing, SMS, or live scraping. See [evidence/phase-4-1b-owner-response-tracker.md](evidence/phase-4-1b-owner-response-tracker.md).
 
+P4-Demo-Walkthrough boss demo script (2026-06-30): docs-only walkthrough and QA checklist created for William's controlled local/mock review. It does not unblock implementation; Phase 4 owner/operator values remain required before staging or provider work. No deployment, AWS provisioning, registry push, production launch, live provider enablement, real billing, SMS, or live scraping. See [evidence/phase-4-demo-walkthrough-script.md](evidence/phase-4-demo-walkthrough-script.md).
+
+P4-DepAudit-Plan dependency audit triage (2026-06-30): docs-only dependency audit plan created. Frontend npm audit currently reports 10 vulnerability records (4 moderate, 5 high, 1 critical). Findings do not block controlled local/mock boss demo, but they block staging/production unless fixed or explicitly accepted by owner/security with compensating controls. No automatic fixes, package updates, lockfile edits, package installs, deployment, registry push, provider enablement, real billing, SMS, or live scraping. See [evidence/phase-4-dependency-audit-triage-plan.md](evidence/phase-4-dependency-audit-triage-plan.md) and [evidence/phase-4-dependency-audit-raw.json](evidence/phase-4-dependency-audit-raw.json).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
