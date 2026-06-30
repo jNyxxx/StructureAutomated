@@ -81,6 +81,16 @@ The Phase 3 analog of doc #14 (`PHASE_0_1_IMPLEMENTATION_PLAN.md`). Planning art
 
 ---
 
+## Phase 4 planning (not counted among the 20 docs)
+
+Phase 4 is the staging and first-paying-client pilot readiness program. It is a new planning track after Phase 3 final handoff and P3-Audit; the locked 20-doc set is unchanged.
+
+| File | Purpose |
+|------|---------|
+| `docs/PHASE_4_IMPLEMENTATION_PLAN.md` | Phase 4 scope lock + slice plan (P4-0…P4-10), required owner/operator values, entry/exit criteria, non-goals, hard stops, and verification requirements. P4-0 is docs-only and does not approve deployment, provider enablement, registry push, billing money movement, SMS, or live scraping. |
+
+---
+
 ## Phase 3 evidence files (not counted among the 20 docs)
 
 | File | Purpose |
@@ -129,6 +139,14 @@ The Phase 3 analog of doc #14 (`PHASE_0_1_IMPLEMENTATION_PLAN.md`). Planning art
 | `docs/evidence/phase-3-8a-launch-readiness-dashboard.md` | P3-8a launch readiness dashboard: consolidated Phase 3 readiness for the boss — demo status (READY), completed slice summary, 38-row open blocker table with owners/values/blocking slices/risks, readiness categories (demo READY; staging/Clerk/Resend/cold outreach/Stripe test/Stripe live/production all BLOCKED), recommended next paths, risk notes, and boss-facing summary. Docs-only; no live providers, deployment, secrets, or registry push. |
 | `docs/evidence/phase-3-final-boss-handoff-package.md` | P3-Final boss handoff: executive summary (14 checks), demo startup instructions and 11-step browser flow, complete-work summary (Phase 0 through P3-Audit), intentionally-not-live list with kill switches, safety gate status, open blocker summary, recommended next approval paths, boss-facing message for William. P3-Final package created at `9ec8d99`; final audited Phase 3 baseline is `747db3f`. Docs-only; no live providers, deployment, secrets, or registry push. |
 | `docs/evidence/phase-3-final-requirements-architecture-audit.md` | P3-Audit final requirements and architecture compliance audit: verifies Phase 3 against locked architecture, owner decisions, safety rules, local/mock demo readiness, provider-disable constraints, CI/Docker gates, and Phase 4 planning readiness. Backend Ruff/Black/mypy/731 pytest PASS; frontend npm ci/lint/typecheck/141 tests/build PASS; backend/frontend production Docker builds PASS with `p3-audit-local` tags. Result: PASS for Phase 4 planning only. |
+
+---
+
+## Phase 4 evidence files (not counted among the 20 docs)
+
+| File | Purpose |
+|------|---------|
+| `docs/evidence/phase-4-0-staging-pilot-entry-plan.md` | P4-0 staging and first-pilot entry evidence: records preflight, codebase/doc scan, Phase 4 scope and non-goals, required owner/operator values, proposed slices, entry/exit criteria, hard stops, files changed, and verification result. Docs-only; no deployment, AWS provisioning, registry push, provider enablement, billing money movement, SMS, or live scraping. |
 
 ---
 

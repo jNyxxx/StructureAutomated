@@ -93,6 +93,8 @@ P3-Audit-Cleanup final handoff reference cleanup (2026-06-30): docs-only cleanup
 
 P3-Demo-1 mock send path readiness (2026-06-29): evidence-only demo readiness verification completed for Phase 0 secure foundation + local/mock cold-outreach send path. Confirms tenant/auth/RBAC/RLS, billing/access gates, campaign/contact flow, mock drafts/evidence, human review, send-gate dry-run, mock send-intent/outbound/audit, deliverability/outcomes read paths, suppression/compliance, rate limits, Resend cold-outreach lockout, Stripe fail-closed skeleton, and no real-provider/production/money movement enablement. Backend/frontend gates passed; backend/frontend production Docker builds passed with `p3-demo-1-local` tags after Docker Desktop came online. See [evidence/phase-3-demo-1-mock-send-path-readiness.md](evidence/phase-3-demo-1-mock-send-path-readiness.md).
 
+P4-0 staging and first-pilot entry plan (2026-06-30): docs-only Phase 4 opening completed. Phase 4 is now defined as staging deployment preparation and first paying-client pilot readiness: staging infrastructure values, staging runtime config contract, Clerk staging auth, Stripe test-mode smoke, transactional Resend internal smoke, staging smoke evidence, monitoring/alerts readiness, rollback readiness, and first-pilot review. P4-0 does not approve deployment, AWS provisioning, registry push, production launch, live cold outreach, live billing/money movement, SMS, or live scraping. See [PHASE_4_IMPLEMENTATION_PLAN](PHASE_4_IMPLEMENTATION_PLAN.md) and [evidence/phase-4-0-staging-pilot-entry-plan.md](evidence/phase-4-0-staging-pilot-entry-plan.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -165,6 +167,21 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Tenant-selector UX after login | After real Clerk sign-in, `selectedTenantId` starts null → backend returns `400 TENANT_REQUIRED`. Need: auto-select first membership **or** explicit tenant-select page before entering `(app)`. No default — needs owner decision. Smoke workaround: pass `?tenant=<uuid>` query param. Full fix requires `GET /auth/tenants` endpoint + selector page (P3-3g+). | P3-3g implementation |
 | Clerk next.js `middleware.ts` server-side guard | `AuthGate` client-side guard is MVP-sufficient; `clerkMiddleware` server-side protection deferred to post-smoke hardening. No owner decision needed — implementation decision only. | Post-smoke hardening |
 | SMS legal wording | Counsel-approved only | Phase 3 |
+
+## 7A. Phase 4 required owner/operator values
+
+P4-0 records these as the required inputs before staging or first-pilot implementation slices can proceed:
+
+| Area | Required owner/operator values |
+|---|---|
+| Staging infrastructure | AWS account/region, deployment platform, ECR/registry target, staging frontend/API domains, DNS/TLS owner. |
+| Runtime services | Staging RDS/Postgres config, Redis/ElastiCache config, backup retention, restore-drill owner, runtime config path ownership. |
+| Clerk staging | Clerk staging project values, issuer/JWKS/audience/AZP/MFA claim, publishable key, backend key path, tenant-selector decision. |
+| Stripe test-mode smoke | Test backend key path, webhook signing path, test price IDs, smoke approver, billing-state owner, billing-portal owner. |
+| Resend transactional smoke | Provider key path, webhook signing path, DNS proof, legal footer/company mailing details, internal recipient, monitored Reply-To, emergency-stop owner, deliverability owner. |
+| Operations | Alert recipients, escalation owner, deployment/migration/rollback approvers, release evidence owner, first-pilot onboarding/support owners, later production cutover approver. |
+
+Missing values are hard stops. Engineering must not infer or invent them.
 
 ## 8. Required >=8/10 categories (external production)
 
