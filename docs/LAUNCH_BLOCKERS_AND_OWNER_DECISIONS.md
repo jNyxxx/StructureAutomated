@@ -105,6 +105,8 @@ P4-DepAudit-Plan dependency audit triage (2026-06-30): docs-only dependency audi
 
 P4-DepAudit-Fix-1 safe dev dependency fixes (2026-06-30): targeted dev/test tooling update completed. `vitest` moved to `^3.2.6`; `vite` pinned to `^6.4.3`. No `npm audit fix`, broad update, source change, backend change, Next.js runtime upgrade, Dockerfile/workflow/deployment change, provider enablement, real billing, SMS, or live scraping. Frontend gates passed (`npm ci`, lint, typecheck, 141 tests, build). Audit reduced from 10 to 5 findings and critical findings reduced from 1 to 0. Remaining findings still block staging/production unless fixed or formally accepted: Next.js runtime/PostCSS and Next ESLint/glob lint chain. See [evidence/phase-4-dependency-audit-fix-1.md](evidence/phase-4-dependency-audit-fix-1.md) and [evidence/phase-4-dependency-audit-after-fix-1.json](evidence/phase-4-dependency-audit-after-fix-1.json).
 
+P4-DepAudit-Fix-2 remaining dependency audit assessment (2026-06-30): BLOCKED. No same-major compatible fix exists for remaining Next.js runtime/PostCSS and Next ESLint/glob findings. `next` and `eslint-config-next` are already at latest 14.x versions found (`14.2.35`); candidate fixes require major framework-aligned upgrades to 15.x/16.x or formal owner/security acceptance. No package files, source files, backend files, `.env`, Dockerfile, workflow, deployment config, provider flags, real billing, SMS, or live scraping were changed. Boss demo remains allowed; staging/production remain blocked. See [evidence/phase-4-dependency-audit-fix-2.md](evidence/phase-4-dependency-audit-fix-2.md).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
