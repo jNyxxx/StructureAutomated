@@ -7,9 +7,32 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import insert, select, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.draft import Draft, DraftEvidence
 from app.repositories.base import BaseRepository
+
+_DRAFT_COLUMNS = (
+    Draft.id,
+    Draft.tenant_id,
+    Draft.campaign_id,
+    Draft.contact_id,
+    Draft.status,
+    Draft.subject,
+    Draft.body,
+    Draft.idempotency_key,
+    Draft.created_at,
+    Draft.updated_at,
+)
+_DRAFT_EVIDENCE_COLUMNS = (
+    DraftEvidence.id,
+    DraftEvidence.tenant_id,
+    DraftEvidence.draft_id,
+    DraftEvidence.source_type,
+    DraftEvidence.source_id,
+    DraftEvidence.content_snippet,
+    DraftEvidence.created_at,
+)
 
 
 @dataclass(frozen=True)
@@ -41,30 +64,30 @@ class DraftEvidenceRecord:
     created_at: datetime
 
 
-def _draft(row: Draft) -> DraftRecord:
+def _draft(row: RowMapping) -> DraftRecord:
     return DraftRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        campaign_id=row.campaign_id,
-        contact_id=row.contact_id,
-        status=row.status,
-        subject=row.subject,
-        body=row.body,
-        idempotency_key=row.idempotency_key,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        campaign_id=row["campaign_id"],
+        contact_id=row["contact_id"],
+        status=row["status"],
+        subject=row["subject"],
+        body=row["body"],
+        idempotency_key=row["idempotency_key"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
     )
 
 
-def _evidence(row: DraftEvidence) -> DraftEvidenceRecord:
+def _evidence(row: RowMapping) -> DraftEvidenceRecord:
     return DraftEvidenceRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        draft_id=row.draft_id,
-        source_type=row.source_type,
-        source_id=row.source_id,
-        content_snippet=row.content_snippet,
-        created_at=row.created_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        draft_id=row["draft_id"],
+        source_type=row["source_type"],
+        source_id=row["source_id"],
+        content_snippet=row["content_snippet"],
+        created_at=row["created_at"],
     )
 
 
@@ -95,10 +118,10 @@ class DraftRepository(BaseRepository):
                         body=body,
                         idempotency_key=idempotency_key,
                     )
-                    .returning(Draft)
+                    .returning(*_DRAFT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _draft(row)
@@ -107,13 +130,13 @@ class DraftRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(Draft).where(
+                    select(*_DRAFT_COLUMNS).where(
                         Draft.tenant_id == tenant_id,
                         Draft.id == draft_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _draft(row) if row is not None else None
@@ -124,13 +147,13 @@ class DraftRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(Draft).where(
+                    select(*_DRAFT_COLUMNS).where(
                         Draft.tenant_id == tenant_id,
                         Draft.idempotency_key == key,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _draft(row) if row is not None else None
@@ -155,10 +178,10 @@ class DraftRepository(BaseRepository):
                         source_id=source_id,
                         content_snippet=content_snippet,
                     )
-                    .returning(DraftEvidence)
+                    .returning(*_DRAFT_EVIDENCE_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _evidence(row)
@@ -169,13 +192,13 @@ class DraftRepository(BaseRepository):
         rows = (
             (
                 await self.conn.execute(
-                    select(DraftEvidence).where(
+                    select(*_DRAFT_EVIDENCE_COLUMNS).where(
                         DraftEvidence.tenant_id == tenant_id,
                         DraftEvidence.draft_id == draft_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         return [_evidence(r) for r in rows]
@@ -189,10 +212,10 @@ class DraftRepository(BaseRepository):
                     update(Draft)
                     .where(Draft.tenant_id == tenant_id, Draft.id == draft_id)
                     .values(status=status)
-                    .returning(Draft)
+                    .returning(*_DRAFT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _draft(row) if row is not None else None
