@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from app.repositories.idempotency_repo import IdempotencyRepository
 from app.services.idempotency import (
     IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD,
     IdempotencyConflictError,
@@ -33,6 +34,34 @@ class _Row:
         self.response_hash: str | None = None
         self.status_code: int | None = None
         self.locked_until = locked_until
+
+
+class _MappingOnlyResult:
+    """Fake SQL result that fails if repository code maps only the scalar id."""
+
+    def __init__(self, row: dict[str, Any]) -> None:
+        self.row = row
+        self.mappings_called = False
+
+    def mappings(self) -> "_MappingOnlyResult":
+        self.mappings_called = True
+        return self
+
+    def first(self) -> dict[str, Any]:
+        return self.row
+
+    def scalars(self) -> None:
+        raise AssertionError("IdempotencyRepository must map full rows, not scalar UUIDs")
+
+
+class _FakeRepositoryConnection:
+    def __init__(self, row: dict[str, Any]) -> None:
+        self.result = _MappingOnlyResult(row)
+        self.statements: list[Any] = []
+
+    async def execute(self, statement: Any) -> _MappingOnlyResult:
+        self.statements.append(statement)
+        return self.result
 
 
 class _FakeRepo:
@@ -58,6 +87,35 @@ class _FakeRepo:
         row = self.rows[(tenant_id, key)]
         row.response_hash = response_hash
         row.status_code = status_code
+
+
+async def test_idempotency_repository_get_returns_complete_record_without_scalar_mapper() -> None:
+    import uuid
+
+    row = {
+        "id": uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        "tenant_id": uuid.UUID("11111111-1111-1111-1111-111111111111"),
+        "actor_user_id": uuid.UUID("22222222-2222-2222-2222-222222222222"),
+        "key": "docker-e2e-key",
+        "request_hash": "request-hash",
+        "response_hash": "response-hash",
+        "status_code": 201,
+        "locked_until": None,
+        "expires_at": _NOW + timedelta(hours=24),
+        "created_at": _NOW,
+    }
+    conn = _FakeRepositoryConnection(row)
+    repo = IdempotencyRepository(conn)  # type: ignore[arg-type]
+
+    record = await repo.get(tenant_id=row["tenant_id"], key=row["key"])
+
+    assert record is not None
+    assert record.id == row["id"]
+    assert record.request_hash == "request-hash"
+    assert record.response_hash == "response-hash"
+    assert record.status_code == 201
+    assert conn.result.mappings_called is True
+    assert len(conn.statements) == 1
 
 
 def test_hash_payload_is_order_insensitive_for_dicts_and_stable_for_strings() -> None:

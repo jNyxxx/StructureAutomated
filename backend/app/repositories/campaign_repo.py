@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import insert, select, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.campaign import Campaign, CampaignContact
 from app.models.contact import Contact
@@ -12,28 +13,47 @@ from app.repositories.base import BaseRepository
 from app.services.authz import TenantOwnedObject
 from app.services.campaign import CampaignContactRecord, CampaignRecord
 
+_CAMPAIGN_COLUMNS = (
+    Campaign.id,
+    Campaign.tenant_id,
+    Campaign.created_by_user_id,
+    Campaign.name,
+    Campaign.description,
+    Campaign.goal,
+    Campaign.target_segment,
+    Campaign.notes,
+    Campaign.status,
+)
+_CAMPAIGN_CONTACT_COLUMNS = (
+    CampaignContact.id,
+    CampaignContact.tenant_id,
+    CampaignContact.campaign_id,
+    CampaignContact.contact_id,
+    CampaignContact.status,
+)
 
-def _campaign(row: Campaign) -> CampaignRecord:
+
+def _campaign(row: RowMapping) -> CampaignRecord:
     return CampaignRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        created_by_user_id=row.created_by_user_id,
-        name=row.name,
-        description=row.description,
-        goal=row.goal,
-        target_segment=row.target_segment,
-        notes=row.notes,
-        status=row.status,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        created_by_user_id=row["created_by_user_id"],
+        name=row["name"],
+        description=row["description"],
+        goal=row["goal"],
+        target_segment=row["target_segment"],
+        notes=row["notes"],
+        status=row["status"],
     )
 
 
-def _campaign_contact(row: CampaignContact) -> CampaignContactRecord:
+def _campaign_contact(row: RowMapping) -> CampaignContactRecord:
     return CampaignContactRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        campaign_id=row.campaign_id,
-        contact_id=row.contact_id,
-        status=row.status,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        campaign_id=row["campaign_id"],
+        contact_id=row["contact_id"],
+        status=row["status"],
     )
 
 
@@ -64,10 +84,10 @@ class CampaignRepository(BaseRepository):
                         notes=notes,
                         status=status,
                     )
-                    .returning(Campaign)
+                    .returning(*_CAMPAIGN_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _campaign(row)
@@ -78,12 +98,12 @@ class CampaignRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(Campaign).where(
+                    select(*_CAMPAIGN_COLUMNS).where(
                         Campaign.tenant_id == tenant_id, Campaign.id == campaign_id
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _campaign(row) if row is not None else None
@@ -92,12 +112,12 @@ class CampaignRepository(BaseRepository):
         rows = (
             (
                 await self.conn.execute(
-                    select(Campaign)
+                    select(*_CAMPAIGN_COLUMNS)
                     .where(Campaign.tenant_id == tenant_id)
                     .order_by(Campaign.created_at)
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         return [_campaign(row) for row in rows]
@@ -134,10 +154,10 @@ class CampaignRepository(BaseRepository):
                     update(Campaign)
                     .where(Campaign.tenant_id == tenant_id, Campaign.id == campaign_id)
                     .values(**values)
-                    .returning(Campaign)
+                    .returning(*_CAMPAIGN_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _campaign(row) if row is not None else None
@@ -163,14 +183,14 @@ class CampaignRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(CampaignContact).where(
+                    select(*_CAMPAIGN_CONTACT_COLUMNS).where(
                         CampaignContact.tenant_id == tenant_id,
                         CampaignContact.campaign_id == campaign_id,
                         CampaignContact.contact_id == contact_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _campaign_contact(row) if row is not None else None
@@ -193,10 +213,10 @@ class CampaignRepository(BaseRepository):
                         contact_id=contact_id,
                         status=status,
                     )
-                    .returning(CampaignContact)
+                    .returning(*_CAMPAIGN_CONTACT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _campaign_contact(row)
@@ -219,10 +239,10 @@ class CampaignRepository(BaseRepository):
                         CampaignContact.contact_id == contact_id,
                     )
                     .values(status=status)
-                    .returning(CampaignContact)
+                    .returning(*_CAMPAIGN_CONTACT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _campaign_contact(row) if row is not None else None
@@ -233,13 +253,13 @@ class CampaignRepository(BaseRepository):
         rows = (
             (
                 await self.conn.execute(
-                    select(CampaignContact).where(
+                    select(*_CAMPAIGN_CONTACT_COLUMNS).where(
                         CampaignContact.tenant_id == tenant_id,
                         CampaignContact.campaign_id == campaign_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         return [_campaign_contact(row) for row in rows]
