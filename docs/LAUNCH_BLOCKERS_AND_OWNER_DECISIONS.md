@@ -113,6 +113,8 @@ P4-FirstPilot-Readiness checklist (2026-07-01): docs-only pilot checklist create
 
 P4-Monitoring-Alerts-Plan (2026-07-01): docs-only monitoring/incident/rollback plan created. It records required alert categories, owner roles, severity levels, staging smoke observability, rollback procedures, hard stops, and William-facing questions. Staging remains blocked until alert recipients, incident owner, deployment approver, migration approver, rollback approver, emergency-stop owner, monitoring target, and log retention are locked. Boss demo remains allowed; production remains blocked. See [evidence/phase-4-monitoring-alerts-incident-plan.md](evidence/phase-4-monitoring-alerts-incident-plan.md).
 
+P4-DepAudit-Fix-3a controlled Next.js 15 upgrade attempt (2026-07-01): BLOCKED. William approved attempting the local-only Next 15 upgrade while explicitly pausing AWS, deployment, registry, staging, provider setup, and production until the first real client is being closed. Attempted `next@15.5.16` and `eslint-config-next@15.5.16`; frontend lint/typecheck/141 tests/build and backend gates passed, and audit improved from 5 findings to 2 findings. The dependency blocker did not clear because `npm audit` still reports 1 high Next advisory and 1 moderate nested PostCSS advisory. Package/source changes were reverted and only docs/evidence remain. Boss demo remains allowed; staging remains paused by William; production waits for the first real client. See [evidence/phase-4-dependency-audit-next15-upgrade.md](evidence/phase-4-dependency-audit-next15-upgrade.md) and [evidence/phase-4-dependency-audit-after-next15.json](evidence/phase-4-dependency-audit-after-next15.json).
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
