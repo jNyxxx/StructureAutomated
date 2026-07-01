@@ -161,6 +161,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | `docs/evidence/phase-4-local-readiness-closeout.md` | P4-LocalReadiness-Closeout evidence: final local/demo readiness closeout package resumed after a partial attempt, including William's pause decision, backend/frontend gate evidence, known master audit blocker, incomplete Docker compose evidence, route smoke result, demo readiness, blocked list, and recommendation. |
 | `docs/evidence/phase-4-sendgate-compliance-qa.md` | P4-LocalReadiness-Closeout send-gate/compliance QA evidence: records local/mock send-gate, billing/access, compliance, webhook fail-closed, provider-boundary, and server-side trust test coverage and remaining risks. |
 | `docs/evidence/phase-4-first-client-onboarding-runbook.md` | P4-LocalReadiness-Closeout first-client onboarding runbook: preparation-only checklist for tenant intake, billing/access, compliance, suppression, sending policy, pilot go/no-go, evidence bundle, and William approval boundaries. |
+| `docs/evidence/phase-4-local-e2e-completion.md` | P4-LocalE2E-Completion evidence: local-only E2E audit covering backend/frontend/API route inventory, flow matrix, gate results, local route smoke, Docker daemon blocker, master audit blocker, safety confirmation, and recommendation. |
 
 ---
 
