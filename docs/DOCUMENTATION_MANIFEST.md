@@ -158,6 +158,9 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | `docs/evidence/phase-4-dependency-audit-fix-3-framework-upgrade-plan.md` | P4-DepAudit-Fix-3-Plan evidence: owner approval and migration plan for the remaining framework dependency work. |
 | `docs/evidence/phase-4-first-pilot-readiness-checklist.md` | P4-FirstPilot-Readiness evidence: first paying-client pilot checklist covering scope, required pre-client gates, onboarding fields, demo-to-pilot gaps, go/no-go criteria, hard stops, and approvals. |
 | `docs/evidence/phase-4-monitoring-alerts-incident-plan.md` | P4-Monitoring-Alerts-Plan evidence: staging/pilot monitoring scope, alert categories, required owners, severity levels, smoke observability, rollback plan, hard stops, and William-facing questions. |
+| `docs/evidence/phase-4-local-readiness-closeout.md` | P4-LocalReadiness-Closeout evidence: final local/demo readiness closeout package resumed after a partial attempt, including William's pause decision, backend/frontend gate evidence, known master audit blocker, incomplete Docker compose evidence, route smoke result, demo readiness, blocked list, and recommendation. |
+| `docs/evidence/phase-4-sendgate-compliance-qa.md` | P4-LocalReadiness-Closeout send-gate/compliance QA evidence: records local/mock send-gate, billing/access, compliance, webhook fail-closed, provider-boundary, and server-side trust test coverage and remaining risks. |
+| `docs/evidence/phase-4-first-client-onboarding-runbook.md` | P4-LocalReadiness-Closeout first-client onboarding runbook: preparation-only checklist for tenant intake, billing/access, compliance, suppression, sending policy, pilot go/no-go, evidence bundle, and William approval boundaries. |
 
 ---
 
