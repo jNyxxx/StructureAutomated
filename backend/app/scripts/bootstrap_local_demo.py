@@ -36,7 +36,12 @@ DEFAULT_TENANT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 DEFAULT_USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 _TENANT_NAME = "Automated Structure Local Mock Tenant"
 _USER_EMAIL = "owner@example.com"
-_USER_IDENTITY_PROVIDER = "local_mock"
+# "clerk", not a mock-specific value: app/auth/local_mock.py's _LocalMockUsers
+# (the in-memory auth path used for demo logins) always returns AuthUser with
+# identity_provider="clerk", matching the real schema convention. The `users`
+# table row this script provisions must use the same value so any code path
+# that queries it directly (not through the in-memory mock) finds it.
+_USER_IDENTITY_PROVIDER = "clerk"
 _USER_PROVIDER_USER_ID = "local_mock_user"
 _MEMBERSHIP_ROLE = "owner"
 _PLAN_KEY = "mvp_mock"

@@ -8,8 +8,11 @@ from typing import Any
 
 import pytest
 
+from app.auth.local_mock import _PROVIDER_USER_ID, _LocalMockUsers
 from app.config import Settings
 from app.scripts.bootstrap_local_demo import (
+    _USER_IDENTITY_PROVIDER,
+    _USER_PROVIDER_USER_ID,
     DEFAULT_TENANT_ID,
     DEFAULT_USER_ID,
     BootstrapEnvironmentError,
@@ -274,7 +277,7 @@ async def test_bootstrap_partial_state_is_completed_not_duplicated() -> None:
     existing_user = _FakeUser(
         id=_USER,
         email="owner@example.com",
-        identity_provider="local_mock",
+        identity_provider="clerk",
         provider_user_id="local_mock_user",
     )
     fakes = _Fakes(
@@ -298,3 +301,19 @@ def test_bootstrap_default_identity_matches_mock_auth() -> None:
     # and seed_local_grounding.py so the mock-auth verifier keeps working unchanged.
     assert str(DEFAULT_TENANT_ID) == "22222222-2222-2222-2222-222222222222"
     assert str(DEFAULT_USER_ID) == "11111111-1111-1111-1111-111111111111"
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_user_identity_matches_local_mock_auth_users() -> None:
+    # The `users` row this script provisions must resolve through
+    # app.auth.local_mock._LocalMockUsers.get_by_identity the same way a real
+    # Clerk-backed row would, so any code path querying the real table directly
+    # (not through the in-memory mock) finds the same identity. A mismatch here
+    # previously made the bootstrap's own idempotency check blind to a
+    # pre-existing row, causing a duplicate-key crash on re-run.
+    assert _USER_PROVIDER_USER_ID == _PROVIDER_USER_ID
+    resolved = await _LocalMockUsers().get_by_identity(
+        identity_provider=_USER_IDENTITY_PROVIDER, provider_user_id=_USER_PROVIDER_USER_ID
+    )
+    assert resolved is not None
+    assert resolved.id == DEFAULT_USER_ID
