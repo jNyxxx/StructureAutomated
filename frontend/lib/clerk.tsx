@@ -26,12 +26,26 @@ export const MOCK_DEMO_EMAIL = "owner@example.com";
 export const MOCK_SESSION_KEY = "as_mock_session";
 
 const mockModeFlag = process.env.NEXT_PUBLIC_CLERK_MOCK_MODE;
+const MOCK_SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
 
 export function isLocalMockAuthAllowed(
   nodeEnv: string | undefined = process.env.NODE_ENV,
   explicitMockMode: string | undefined = mockModeFlag,
 ): boolean {
   return nodeEnv !== "production" || explicitMockMode === "true" || explicitMockMode === "1";
+}
+
+export function createMockDemoToken(): string {
+  const cryptoApi = globalThis.crypto;
+  const randomId = cryptoApi?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+  const safeId = randomId.replace(/[^A-Za-z0-9_-]/g, "");
+  return `${MOCK_DEMO_TOKEN}:${safeId}`;
+}
+
+function isValidMockDemoToken(token: string): boolean {
+  if (!token.startsWith(`${MOCK_DEMO_TOKEN}:`)) return false;
+  const sessionId = token.slice(MOCK_DEMO_TOKEN.length + 1);
+  return MOCK_SESSION_ID_PATTERN.test(sessionId);
 }
 
 function blockedMockState(): FrontendAuthState {
@@ -57,37 +71,43 @@ const ClerkContext = createContext<FrontendAuthState>({
 });
 
 function MockAuthProvider({ children }: { children: ReactNode }) {
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [mockToken, setMockToken] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const mockSignIn = useCallback(() => {
     if (!isLocalMockAuthAllowed()) return;
-    localStorage.setItem(MOCK_SESSION_KEY, "1");
-    setIsSignedIn(true);
+    const nextToken = createMockDemoToken();
+    localStorage.setItem(MOCK_SESSION_KEY, nextToken);
+    setMockToken(nextToken);
   }, []);
 
   const mockSignOut = useCallback(() => {
     localStorage.removeItem(MOCK_SESSION_KEY);
-    setIsSignedIn(false);
+    setMockToken(null);
   }, []);
 
   useEffect(() => {
-    if (isLocalMockAuthAllowed() && localStorage.getItem(MOCK_SESSION_KEY)) {
-      setIsSignedIn(true);
+    if (isLocalMockAuthAllowed()) {
+      const storedToken = localStorage.getItem(MOCK_SESSION_KEY);
+      if (storedToken) {
+        const nextToken = isValidMockDemoToken(storedToken) ? storedToken : createMockDemoToken();
+        localStorage.setItem(MOCK_SESSION_KEY, nextToken);
+        setMockToken(nextToken);
+      }
     }
     setIsLoaded(true);
   }, []);
 
   const state = useMemo<FrontendAuthState>(() => {
     if (!isLocalMockAuthAllowed()) return blockedMockState();
-    if (isSignedIn) {
+    if (mockToken) {
       return {
         isLoaded: true,
         isSignedIn: true,
         userId: MOCK_DEMO_USER_ID,
         email: MOCK_DEMO_EMAIL,
         tenantId: MOCK_DEMO_TENANT_ID,
-        getToken: async () => MOCK_DEMO_TOKEN,
+        getToken: async () => mockToken,
         mode: "local_mock",
         mockSignIn,
         mockSignOut,
@@ -104,7 +124,7 @@ function MockAuthProvider({ children }: { children: ReactNode }) {
       mockSignIn,
       mockSignOut,
     };
-  }, [isSignedIn, isLoaded, mockSignIn, mockSignOut]);
+  }, [mockToken, isLoaded, mockSignIn, mockSignOut]);
 
   return <ClerkContext.Provider value={state}>{children}</ClerkContext.Provider>;
 }

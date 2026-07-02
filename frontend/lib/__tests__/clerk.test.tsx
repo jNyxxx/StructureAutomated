@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AuthGate,
   ClerkFrontendProvider,
+  createMockDemoToken,
   isLocalMockAuthAllowed,
   MOCK_DEMO_EMAIL,
   MOCK_DEMO_TENANT_ID,
@@ -157,7 +158,7 @@ describe("MockAuthProvider (no value override)", () => {
     expect(screen.getByTestId("mode").textContent).toBe("local_mock");
   });
 
-  it("mockSignIn token resolves to MOCK_DEMO_TOKEN", async () => {
+  it("mockSignIn token resolves to a fresh local demo token", async () => {
     let capturedToken: string | null = null;
     function TokenInspector() {
       const auth = useFrontendAuth();
@@ -174,7 +175,9 @@ describe("MockAuthProvider (no value override)", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "sign-in" })).toBeTruthy());
     act(() => { screen.getByRole("button", { name: "sign-in" }).click(); });
     await act(async () => { screen.getByRole("button", { name: "get-token" }).click(); });
-    expect(capturedToken).toBe(MOCK_DEMO_TOKEN);
+    const token = capturedToken ?? "";
+    expect(token.startsWith(`${MOCK_DEMO_TOKEN}:`)).toBe(true);
+    expect(token).not.toBe(MOCK_DEMO_TOKEN);
   });
 
   it("mockSignOut returns to signed-out state", async () => {
@@ -204,7 +207,7 @@ describe("MockAuthProvider (no value override)", () => {
     );
     await waitFor(() => expect(screen.getByRole("button", { name: "sign-in" })).toBeTruthy());
     act(() => { screen.getByRole("button", { name: "sign-in" }).click(); });
-    await waitFor(() => expect(localStorageMock[MOCK_SESSION_KEY]).toBe("1"));
+    await waitFor(() => expect(localStorageMock[MOCK_SESSION_KEY]?.startsWith(`${MOCK_DEMO_TOKEN}:`)).toBe(true));
   });
 
   it("mockSignOut removes session from localStorage", async () => {
@@ -220,7 +223,7 @@ describe("MockAuthProvider (no value override)", () => {
   });
 
   it("hydrates from localStorage — mounts as signed in if session key present", async () => {
-    localStorageMock[MOCK_SESSION_KEY] = "1";
+    localStorageMock[MOCK_SESSION_KEY] = createMockDemoToken();
     render(
       <ClerkFrontendProvider>
         <AuthInspector />
@@ -229,6 +232,18 @@ describe("MockAuthProvider (no value override)", () => {
     await waitFor(() => expect(screen.getByTestId("is-signed-in").textContent).toBe("true"));
     expect(screen.getByTestId("user-id").textContent).toBe(MOCK_DEMO_USER_ID);
     expect(screen.getByTestId("tenant-id").textContent).toBe(MOCK_DEMO_TENANT_ID);
+  });
+
+  it("migrates legacy localStorage marker to a fresh local demo token", async () => {
+    localStorageMock[MOCK_SESSION_KEY] = "1";
+    render(
+      <ClerkFrontendProvider>
+        <AuthInspector />
+      </ClerkFrontendProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("is-signed-in").textContent).toBe("true"));
+    expect(localStorageMock[MOCK_SESSION_KEY]?.startsWith(`${MOCK_DEMO_TOKEN}:`)).toBe(true);
+    expect(localStorageMock[MOCK_SESSION_KEY]).not.toBe("1");
   });
 });
 
