@@ -76,10 +76,14 @@ class TenantUpdateResult:
 
 
 class TenantSettingsStore(Protocol):
-    async def get_current_tenant(self) -> TenantSettingsRecord | None: ...
+    async def get_current_tenant(self, *, tenant_id: uuid.UUID) -> TenantSettingsRecord | None: ...
 
     async def update_current_tenant(
-        self, *, name: str | None = None, settings: dict[str, Any] | None = None
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        name: str | None = None,
+        settings: dict[str, Any] | None = None,
     ) -> TenantSettingsRecord: ...
 
 
@@ -89,7 +93,7 @@ class MembershipReadStore(Protocol):
 
 class AuditReadStore(Protocol):
     async def list_recent_bounded(
-        self, *, cursor: str | None, limit: int
+        self, *, tenant_id: uuid.UUID, cursor: str | None, limit: int
     ) -> tuple[list[AuditEventReadRecord], str | None]: ...
 
 
@@ -171,7 +175,7 @@ class SettingsAPIService:
 
     async def get_current_tenant(self, principal: CurrentPrincipal) -> TenantSettingsRecord:
         self._require_any(principal, (CAN_READ_DASHBOARD, CAN_MANAGE_TEAM))
-        tenant = await self._tenants.get_current_tenant()
+        tenant = await self._tenants.get_current_tenant(tenant_id=principal.tenant_id)
         if tenant is None:
             raise AppError("TENANT_NOT_FOUND", "Tenant not found.", status_code=404)
         return tenant
@@ -216,6 +220,7 @@ class SettingsAPIService:
         current = await self.get_current_tenant(principal)
         merged_settings = {**safe_tenant_settings(current.settings), **safe_patch}
         tenant = await self._tenants.update_current_tenant(
+            tenant_id=principal.tenant_id,
             name=name.strip() if name is not None else None,
             settings=merged_settings,
         )
@@ -255,6 +260,7 @@ class SettingsAPIService:
     ) -> AuditEventPage:
         self._require_any(principal, (CAN_READ_AUDIT,))
         items, next_cursor = await self._audit_events.list_recent_bounded(
+            tenant_id=principal.tenant_id,
             cursor=cursor,
             limit=limit,
         )

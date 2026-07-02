@@ -44,9 +44,16 @@ class AuditRepository(BaseRepository):
         await self.conn.execute(insert(AuditEvent).values(**payload))
 
     async def list_recent_bounded(
-        self, *, cursor: str | None, limit: int
+        self, *, tenant_id: uuid.UUID, cursor: str | None, limit: int
     ) -> tuple[list[AuditEventReadRecord], str | None]:
-        stmt = select(*_AUDIT_EVENT_COLUMNS)
+        """List recent audit events, explicitly scoped to tenant_id.
+
+        audit_events is an RLS-only table (no tenant_id column check elsewhere
+        in the app) — this filter is defense-in-depth on top of RLS, since
+        local/dev/demo Postgres roles have been observed running with
+        BYPASSRLS (see docs/evidence/phase-4-rls-defense-in-depth-fix.md).
+        """
+        stmt = select(*_AUDIT_EVENT_COLUMNS).where(AuditEvent.tenant_id == tenant_id)
         if cursor is not None:
             try:
                 cursor_id = uuid.UUID(cursor)
@@ -55,7 +62,9 @@ class AuditRepository(BaseRepository):
             cursor_row = (
                 (
                     await self.conn.execute(
-                        select(*_AUDIT_EVENT_COLUMNS).where(AuditEvent.id == cursor_id)
+                        select(*_AUDIT_EVENT_COLUMNS).where(
+                            AuditEvent.tenant_id == tenant_id, AuditEvent.id == cursor_id
+                        )
                     )
                 )
                 .mappings()

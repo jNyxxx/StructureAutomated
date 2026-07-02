@@ -56,21 +56,47 @@ class TenantRepository(BaseRepository):
         """
         return (await self.conn.execute(select(Tenant))).first()
 
-    async def get_current_tenant(self) -> TenantSettingsRecord | None:
-        """Return the active tenant as a safe API record."""
-        row = (await self.conn.execute(select(*_TENANT_COLUMNS))).mappings().first()
+    async def get_current_tenant(self, *, tenant_id: uuid.UUID) -> TenantSettingsRecord | None:
+        """Return the active tenant as a safe API record.
+
+        Explicitly scoped to tenant_id as defense-in-depth on top of RLS
+        (CLAUDE.md rule 6) — local/dev/demo Postgres roles have been observed
+        running with BYPASSRLS, which would otherwise leave this RLS-only
+        table (see migrations/versions/0002_core_tenancy.py) unfiltered.
+        """
+        row = (
+            (await self.conn.execute(select(*_TENANT_COLUMNS).where(Tenant.id == tenant_id)))
+            .mappings()
+            .first()
+        )
         return _tenant_record(row) if row is not None else None
 
     async def update_current_tenant(
-        self, *, name: str | None = None, settings: dict[str, Any] | None = None
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        name: str | None = None,
+        settings: dict[str, Any] | None = None,
     ) -> TenantSettingsRecord:
+        """Update the active tenant, explicitly scoped to tenant_id.
+
+        See get_current_tenant() docstring — without this filter, a bypassed
+        RLS policy would let this UPDATE affect every tenant row in the table.
+        """
         values: dict[str, Any] = {}
         if name is not None:
             values["name"] = name
         if settings is not None:
             values["settings"] = settings
         row = (
-            (await self.conn.execute(update(Tenant).values(**values).returning(*_TENANT_COLUMNS)))
+            (
+                await self.conn.execute(
+                    update(Tenant)
+                    .where(Tenant.id == tenant_id)
+                    .values(**values)
+                    .returning(*_TENANT_COLUMNS)
+                )
+            )
             .mappings()
             .one()
         )

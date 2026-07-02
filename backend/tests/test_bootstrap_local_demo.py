@@ -45,8 +45,12 @@ class _FakeTenantRepo:
     def __init__(self, tenant: _FakeTenant | None = None) -> None:
         self.tenant = tenant
         self.create_calls = 0
+        self.get_calls: list[uuid.UUID] = []
 
-    async def get_current_tenant(self) -> _FakeTenant | None:
+    async def get_current_tenant(self, *, tenant_id: uuid.UUID) -> _FakeTenant | None:
+        self.get_calls.append(tenant_id)
+        if self.tenant is not None and self.tenant.id != tenant_id:
+            return None
         return self.tenant
 
     async def create(self, *, id: uuid.UUID, name: str) -> _FakeTenant:

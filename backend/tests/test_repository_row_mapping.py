@@ -81,7 +81,16 @@ _ROI = uuid.UUID("c0c0c0c0-c0c0-c0c0-c0c0-c0c0c0c0c0c0")
 _RESEARCH_RUN = uuid.UUID("d0d0d0d0-d0d0-d0d0-d0d0-d0d0d0d0d0d0")
 _RESEARCH_ARTIFACT = uuid.UUID("e0e0e0e0-e0e0-e0e0-e0e0-e0e0e0e0e0e0")
 _RESEARCH_CONTACT = uuid.UUID("f0f0f0f0-f0f0-f0f0-f0f0-f0f0f0f0f0f0")
+_TENANT_B = uuid.UUID("11111111-2222-3333-4444-555555555555")
 _NOW = datetime(2026, 7, 2, 12, 0, tzinfo=UTC)
+
+
+def _bound_params(statement: Any) -> dict[str, Any]:
+    return statement.compile().params
+
+
+def _where_sql(rendered_sql: str) -> str:
+    return rendered_sql.split("WHERE", 1)[1] if "WHERE" in rendered_sql else ""
 
 
 class _MappingOnlyResult:
@@ -410,13 +419,64 @@ async def test_audit_repository_list_recent_bounded_returns_complete_rows() -> N
     conn = _FakeRepositoryConnection(row)
     repo = AuditRepository(conn)  # type: ignore[arg-type]
 
-    items, next_cursor = await repo.list_recent_bounded(cursor=None, limit=25)
+    items, next_cursor = await repo.list_recent_bounded(tenant_id=_TENANT, cursor=None, limit=25)
 
     assert items == [AuditEventReadRecord(**row)]
     assert items[0].id == _AUDIT_EVENT
     assert next_cursor is None
     assert conn.result.mappings_called is True
     assert len(conn.statements) == 1
+
+
+async def test_audit_repository_list_recent_bounded_filters_by_tenant_id() -> None:
+    """RLS defense-in-depth: audit_events is an RLS-only table (no app-level
+    filter historically). This proves the repository scopes the query itself
+    rather than relying solely on Postgres RLS, which local/dev/demo can
+    bypass (BYPASSRLS role) -- see
+    docs/evidence/phase-4-rls-defense-in-depth-fix.md."""
+    row = {
+        "id": _AUDIT_EVENT,
+        "event_type": "draft.generated",
+        "actor_user_id": _CONTACT,
+        "object_type": "draft",
+        "object_id": _DRAFT,
+        "request_id": None,
+        "job_id": None,
+        "redacted_details": {},
+        "created_at": _NOW,
+    }
+    conn = _FakeRepositoryConnection(row)
+    repo = AuditRepository(conn)  # type: ignore[arg-type]
+
+    await repo.list_recent_bounded(tenant_id=_TENANT, cursor=None, limit=25)
+
+    stmt = conn.statements[0]
+    where_sql = _where_sql(str(stmt))
+    assert "audit_events.tenant_id" in where_sql
+    assert _TENANT in _bound_params(stmt).values()
+
+
+async def test_audit_repository_list_recent_bounded_scopes_to_given_tenant_not_hardcoded() -> None:
+    row = {
+        "id": _AUDIT_EVENT,
+        "event_type": "draft.generated",
+        "actor_user_id": _CONTACT,
+        "object_type": "draft",
+        "object_id": _DRAFT,
+        "request_id": None,
+        "job_id": None,
+        "redacted_details": {},
+        "created_at": _NOW,
+    }
+    conn = _FakeRepositoryConnection(row)
+    repo = AuditRepository(conn)  # type: ignore[arg-type]
+
+    await repo.list_recent_bounded(tenant_id=_TENANT_B, cursor=None, limit=25)
+
+    stmt = conn.statements[0]
+    bound = _bound_params(stmt).values()
+    assert _TENANT_B in bound
+    assert _TENANT not in bound
 
 
 async def test_tenant_repository_get_current_tenant_returns_complete_row() -> None:
@@ -431,11 +491,52 @@ async def test_tenant_repository_get_current_tenant_returns_complete_row() -> No
     conn = _FakeRepositoryConnection(row)
     repo = TenantRepository(conn)  # type: ignore[arg-type]
 
-    record = await repo.get_current_tenant()
+    record = await repo.get_current_tenant(tenant_id=_TENANT)
 
     assert record == TenantSettingsRecord(**row)
     assert conn.result.mappings_called is True
     assert len(conn.statements) == 1
+
+
+async def test_tenant_repository_get_current_tenant_filters_by_tenant_id() -> None:
+    """See test_audit_repository_list_recent_bounded_filters_by_tenant_id docstring."""
+    row = {
+        "id": _TENANT,
+        "name": "Acme CRE",
+        "status": "active",
+        "settings": {},
+        "created_at": _NOW,
+        "updated_at": _NOW,
+    }
+    conn = _FakeRepositoryConnection(row)
+    repo = TenantRepository(conn)  # type: ignore[arg-type]
+
+    await repo.get_current_tenant(tenant_id=_TENANT)
+
+    stmt = conn.statements[0]
+    where_sql = _where_sql(str(stmt))
+    assert "tenants.id" in where_sql
+    assert _TENANT in _bound_params(stmt).values()
+
+
+async def test_tenant_repository_get_current_tenant_scopes_to_given_tenant_not_hardcoded() -> None:
+    row = {
+        "id": _TENANT_B,
+        "name": "Other Tenant",
+        "status": "active",
+        "settings": {},
+        "created_at": _NOW,
+        "updated_at": _NOW,
+    }
+    conn = _FakeRepositoryConnection(row)
+    repo = TenantRepository(conn)  # type: ignore[arg-type]
+
+    await repo.get_current_tenant(tenant_id=_TENANT_B)
+
+    stmt = conn.statements[0]
+    bound = _bound_params(stmt).values()
+    assert _TENANT_B in bound
+    assert _TENANT not in bound
 
 
 async def test_tenant_repository_update_current_tenant_returns_complete_row() -> None:
@@ -450,11 +551,57 @@ async def test_tenant_repository_update_current_tenant_returns_complete_row() ->
     conn = _FakeRepositoryConnection(row)
     repo = TenantRepository(conn)  # type: ignore[arg-type]
 
-    record = await repo.update_current_tenant(name="Acme CRE Renamed", settings={"theme": "dark"})
+    record = await repo.update_current_tenant(
+        tenant_id=_TENANT, name="Acme CRE Renamed", settings={"theme": "dark"}
+    )
 
     assert record == TenantSettingsRecord(**row)
     assert conn.result.mappings_called is True
     assert len(conn.statements) == 1
+
+
+async def test_tenant_repository_update_current_tenant_filters_by_tenant_id() -> None:
+    row = {
+        "id": _TENANT,
+        "name": "Acme CRE Renamed",
+        "status": "active",
+        "settings": {"theme": "dark"},
+        "created_at": _NOW,
+        "updated_at": _NOW,
+    }
+    conn = _FakeRepositoryConnection(row)
+    repo = TenantRepository(conn)  # type: ignore[arg-type]
+
+    await repo.update_current_tenant(
+        tenant_id=_TENANT, name="Acme CRE Renamed", settings={"theme": "dark"}
+    )
+
+    stmt = conn.statements[0]
+    where_sql = _where_sql(str(stmt))
+    assert "tenants.id" in where_sql
+    assert _TENANT in _bound_params(stmt).values()
+
+
+async def test_tenant_repository_update_current_tenant_does_not_target_other_tenant() -> None:
+    """An update scoped to tenant A can never carry tenant B's id in its WHERE
+    clause bind parameters -- i.e. it cannot silently target another tenant's
+    row even though Postgres RETURNING with no WHERE would previously have
+    updated every tenant row in the table (see evidence doc)."""
+    row = {
+        "id": _TENANT,
+        "name": "Acme CRE Renamed",
+        "status": "active",
+        "settings": {},
+        "created_at": _NOW,
+        "updated_at": _NOW,
+    }
+    conn = _FakeRepositoryConnection(row)
+    repo = TenantRepository(conn)  # type: ignore[arg-type]
+
+    await repo.update_current_tenant(tenant_id=_TENANT, name="Acme CRE Renamed")
+
+    stmt = conn.statements[0]
+    assert _TENANT_B not in _bound_params(stmt).values()
 
 
 async def test_support_access_repository_create_returns_complete_grant_row() -> None:

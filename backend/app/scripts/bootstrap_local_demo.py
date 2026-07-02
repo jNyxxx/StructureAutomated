@@ -86,7 +86,7 @@ async def bootstrap_local_demo(
 ) -> BootstrapResult:
     """Idempotently provision the demo tenant/user/membership/billing/compliance rows."""
     tenant_created = False
-    if await tenant_repo.get_current_tenant() is None:
+    if await tenant_repo.get_current_tenant(tenant_id=tenant_id) is None:
         await tenant_repo.create(id=tenant_id, name=_TENANT_NAME)
         tenant_created = True
 
