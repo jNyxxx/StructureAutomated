@@ -7,10 +7,29 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, insert, or_, select, update
+from sqlalchemy import and_, insert, or_, select, text, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.sending import OutboundMessage, SendGateResult
 from app.repositories.base import BaseRepository
+
+_GATE_RESULT_COLUMNS = (
+    SendGateResult.id,
+    SendGateResult.tenant_id,
+    SendGateResult.draft_id,
+    SendGateResult.status,
+    SendGateResult.deny_reason_code,
+    SendGateResult.created_at,
+)
+_OUTBOUND_MESSAGE_COLUMNS = (
+    OutboundMessage.id,
+    OutboundMessage.tenant_id,
+    OutboundMessage.draft_id,
+    OutboundMessage.status,
+    OutboundMessage.sent_at,
+    OutboundMessage.created_at,
+    OutboundMessage.updated_at,
+)
 
 
 @dataclass(frozen=True)
@@ -38,26 +57,26 @@ class OutboundMessageRecord:
     updated_at: datetime
 
 
-def _gate_result(row: SendGateResult) -> SendGateResultRecord:
+def _gate_result(row: RowMapping) -> SendGateResultRecord:
     return SendGateResultRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        draft_id=row.draft_id,
-        status=row.status,
-        deny_reason_code=row.deny_reason_code,
-        created_at=row.created_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        draft_id=row["draft_id"],
+        status=row["status"],
+        deny_reason_code=row["deny_reason_code"],
+        created_at=row["created_at"],
     )
 
 
-def _outbound_message(row: OutboundMessage) -> OutboundMessageRecord:
+def _outbound_message(row: RowMapping) -> OutboundMessageRecord:
     return OutboundMessageRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        draft_id=row.draft_id,
-        status=row.status,
-        sent_at=row.sent_at,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        draft_id=row["draft_id"],
+        status=row["status"],
+        sent_at=row["sent_at"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
     )
 
 
@@ -82,10 +101,10 @@ class SendingRepository(BaseRepository):
                         status=status,
                         deny_reason_code=deny_reason_code,
                     )
-                    .returning(SendGateResult)
+                    .returning(*_GATE_RESULT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _gate_result(row)
@@ -96,13 +115,13 @@ class SendingRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(SendGateResult).where(
+                    select(*_GATE_RESULT_COLUMNS).where(
                         SendGateResult.tenant_id == tenant_id,
                         SendGateResult.draft_id == draft_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _gate_result(row) if row is not None else None
@@ -125,10 +144,10 @@ class SendingRepository(BaseRepository):
                         status=status,
                         sent_at=sent_at,
                     )
-                    .returning(OutboundMessage)
+                    .returning(*_OUTBOUND_MESSAGE_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _outbound_message(row)
@@ -139,13 +158,13 @@ class SendingRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(OutboundMessage).where(
+                    select(*_OUTBOUND_MESSAGE_COLUMNS).where(
                         OutboundMessage.tenant_id == tenant_id,
                         OutboundMessage.draft_id == draft_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _outbound_message(row) if row is not None else None
@@ -157,7 +176,7 @@ class SendingRepository(BaseRepository):
         cursor: str | None,
         limit: int,
     ) -> tuple[list[OutboundMessageRecord], str | None]:
-        stmt = select(OutboundMessage).where(OutboundMessage.tenant_id == tenant_id)
+        stmt = select(*_OUTBOUND_MESSAGE_COLUMNS).where(OutboundMessage.tenant_id == tenant_id)
         if cursor is not None:
             try:
                 cursor_id = uuid.UUID(cursor)
@@ -166,23 +185,23 @@ class SendingRepository(BaseRepository):
             cursor_row = (
                 (
                     await self.conn.execute(
-                        select(OutboundMessage).where(
+                        select(*_OUTBOUND_MESSAGE_COLUMNS).where(
                             OutboundMessage.tenant_id == tenant_id,
                             OutboundMessage.id == cursor_id,
                         )
                     )
                 )
-                .scalars()
+                .mappings()
                 .first()
             )
             if cursor_row is None:
                 return [], None
             stmt = stmt.where(
                 or_(
-                    OutboundMessage.created_at < cursor_row.created_at,
+                    OutboundMessage.created_at < cursor_row["created_at"],
                     and_(
-                        OutboundMessage.created_at == cursor_row.created_at,
-                        OutboundMessage.id < cursor_row.id,
+                        OutboundMessage.created_at == cursor_row["created_at"],
+                        OutboundMessage.id < cursor_row["id"],
                     ),
                 )
             )
@@ -196,11 +215,11 @@ class SendingRepository(BaseRepository):
                     ).limit(limit + 1)
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         page_rows = rows[:limit]
-        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        next_cursor = str(page_rows[-1]["id"]) if len(rows) > limit and page_rows else None
         return [_outbound_message(row) for row in page_rows], next_cursor
 
     async def get_outbound_message_by_id(
@@ -209,13 +228,13 @@ class SendingRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(OutboundMessage).where(
+                    select(*_OUTBOUND_MESSAGE_COLUMNS).where(
                         OutboundMessage.tenant_id == tenant_id,
                         OutboundMessage.id == message_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _outbound_message(row) if row is not None else None
@@ -232,8 +251,6 @@ class SendingRepository(BaseRepository):
         if sent_at is not None:
             values["sent_at"] = sent_at
 
-        from sqlalchemy import text
-
         values["updated_at"] = text("now()")
 
         row = (
@@ -245,10 +262,10 @@ class SendingRepository(BaseRepository):
                         OutboundMessage.draft_id == draft_id,
                     )
                     .values(**values)
-                    .returning(OutboundMessage)
+                    .returning(*_OUTBOUND_MESSAGE_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _outbound_message(row) if row is not None else None
