@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.engine import RowMapping
 
 from app.models.tenant import Tenant
@@ -33,6 +34,19 @@ def _tenant_record(row: RowMapping) -> TenantSettingsRecord:
 
 
 class TenantRepository(BaseRepository):
+    async def create(self, *, id: uuid.UUID, name: str) -> TenantSettingsRecord:
+        """Insert a new tenant row. Caller must check existence first (not idempotent)."""
+        row = (
+            (
+                await self.conn.execute(
+                    insert(Tenant).values(id=id, name=name).returning(*_TENANT_COLUMNS)
+                )
+            )
+            .mappings()
+            .one()
+        )
+        return _tenant_record(row)
+
     async def get_current(self) -> Any:
         """Return the active tenant row (RLS already scopes to it).
 

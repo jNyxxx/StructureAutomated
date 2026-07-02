@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+import uuid
+
+from sqlalchemy import insert, select
 from sqlalchemy.engine import RowMapping
 
 from app.models.user import User
@@ -29,6 +31,28 @@ def _auth_user(row: RowMapping) -> AuthUser:
 
 
 class UserRepository(BaseRepository):
+    async def create(
+        self, *, id: uuid.UUID, email: str, identity_provider: str, provider_user_id: str
+    ) -> AuthUser:
+        """Insert a new user row. Caller must check existence first (not idempotent)."""
+        row = (
+            (
+                await self.conn.execute(
+                    insert(User)
+                    .values(
+                        id=id,
+                        email=email,
+                        identity_provider=identity_provider,
+                        provider_user_id=provider_user_id,
+                    )
+                    .returning(*_AUTH_USER_COLUMNS)
+                )
+            )
+            .mappings()
+            .one()
+        )
+        return _auth_user(row)
+
     async def get_by_identity(
         self, *, identity_provider: str, provider_user_id: str
     ) -> AuthUser | None:

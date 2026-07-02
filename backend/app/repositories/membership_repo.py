@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.engine import RowMapping
 
 from app.models.membership import TenantMembership
@@ -51,6 +51,23 @@ def _auth_membership(row: RowMapping) -> AuthMembership:
 
 
 class MembershipRepository(BaseRepository):
+    async def create(
+        self, *, tenant_id: uuid.UUID, user_id: uuid.UUID, role: str
+    ) -> MembershipReadRecord:
+        """Insert a new membership row. Caller must check existence first (not idempotent)."""
+        row = (
+            (
+                await self.conn.execute(
+                    insert(TenantMembership)
+                    .values(tenant_id=tenant_id, user_id=user_id, role=role)
+                    .returning(*_MEMBERSHIP_COLUMNS)
+                )
+            )
+            .mappings()
+            .one()
+        )
+        return _membership_record(row)
+
     async def list_for_current_tenant(self) -> list[Any]:
         """List memberships for the active tenant (RLS scopes the rows).
 

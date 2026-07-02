@@ -45,6 +45,14 @@ def _record(subscription: RowMapping, plan: RowMapping) -> TenantSubscriptionRec
 
 
 class BillingRepository(BaseRepository):
+    async def get_plan_by_key(self, key: str) -> BillingPlan | None:
+        row = (
+            (await self.conn.execute(select(*_PLAN_COLUMNS).where(Plan.key == key)))
+            .mappings()
+            .first()
+        )
+        return _plan(row) if row is not None else None
+
     async def get_subscription(self, tenant_id: uuid.UUID) -> TenantSubscriptionRecord | None:
         stmt = (
             select(

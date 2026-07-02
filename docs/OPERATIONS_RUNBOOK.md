@@ -125,6 +125,31 @@ For local/mock development and demo sessions, the sign-in page includes a "Conti
 
 **Safety:** Demo button does not appear in production. `isLocalMockAuthAllowed()` blocks mock auth when `NODE_ENV === "production"` without explicit mock flag. Boot guard prevents `LocalMockClerkVerifier` from running in production. See [evidence/phase-3-demo-2-local-mock-auth-readiness.md](evidence/phase-3-demo-2-local-mock-auth-readiness.md).
 
+## B1c. Fresh-volume local bootstrap
+
+On a brand-new/empty local Postgres volume (e.g. after `docker compose down -v`, or a fresh clone), run these in order before using the demo login above — no manual SQL required:
+
+1. `docker compose up -d --build`
+2. `docker compose exec backend alembic upgrade head`
+3. `docker compose exec backend python -m app.scripts.bootstrap_local_demo` — creates the demo tenant (`22222222-2222-2222-2222-222222222222`), owner user (`11111111-1111-1111-1111-111111111111`, `owner@example.com`), membership, `mvp_mock` billing subscription, and a safe compliance profile (live sending/SMS off). Idempotent — safe to re-run; prints `CREATED` or `SKIPPED (already_exists)` per entity.
+4. `docker compose exec backend python -m app.scripts.seed_local_grounding` — adds the grounding document drafts need to reach `status: "generated"` instead of `needs_regeneration`. Depends on step 3 having run first; fails closed with `SeedPreconditionError` otherwise.
+
+Both scripts refuse to run unless `APP_ENV` is `local`/`development`/`demo`.
+
+To smoke-test the fresh-volume path without touching your normal dev database, run the same commands with an isolated Compose project name so a separate, disposable volume is used instead of `automatedstructure_db_data`:
+
+```
+COMPOSE_PROJECT_NAME=automatedstructure_fresh_smoke docker compose down --remove-orphans
+COMPOSE_PROJECT_NAME=automatedstructure_fresh_smoke docker compose up -d --build
+COMPOSE_PROJECT_NAME=automatedstructure_fresh_smoke docker compose exec backend alembic upgrade head
+COMPOSE_PROJECT_NAME=automatedstructure_fresh_smoke docker compose exec backend python -m app.scripts.bootstrap_local_demo
+COMPOSE_PROJECT_NAME=automatedstructure_fresh_smoke docker compose exec backend python -m app.scripts.seed_local_grounding
+# ... verify, then tear down the disposable volume:
+COMPOSE_PROJECT_NAME=automatedstructure_fresh_smoke docker compose down -v --remove-orphans
+```
+
+Stop the normal dev stack first (or expect host port collisions on 8000/3000/5432, since `docker-compose.yml` maps fixed host ports) — both projects can't bind the same ports at once. See [evidence/phase-4-fresh-volume-bootstrap.md](evidence/phase-4-fresh-volume-bootstrap.md).
+
 ## B2. CI jobs (all must pass)
 
 1. Backend lint/type.
@@ -209,6 +234,8 @@ P4-RepositoryRowMapping-Hardening (2026-07-02): repo-wide row-mapping hardening 
 P4-FinalManualDemoSmoke (2026-07-02): final local/mock demo smoke evidence recorded the core Docker demo flow as passing through contact import, campaign create, grounded draft generation, review approval, send-gate, mock send, outbound record, audit trail, billing/access, compliance/suppressions, deliverability, and outcomes. It also found the final logout -> login blocker: `POST /auth/logout` revoked the fixed local mock session ref, and future demo sessions returned `401 AUTH_SESSION_REVOKED`. This blocker is closed by P4-LocalMockAuthSessionCycle-Fix. See [evidence/phase-4-final-manual-demo-smoke.md](evidence/phase-4-final-manual-demo-smoke.md).
 
 P4-LocalMockAuthSessionCycle-Fix (2026-07-02): local/mock logout -> re-login fixed. The frontend now creates a fresh local demo token per sign-in and the backend local mock verifier maps each token/session id to a distinct provider session ref. Logout revokes only the current local mock session; reusing that token is still rejected, while a fresh demo login succeeds without backend restart. Backend and frontend gates passed, Docker health/readiness passed, container auth-cycle regressions passed, and abbreviated local demo route smoke passed. Production Clerk/JWT auth is unchanged; no deployment, registry push, provider enablement, billing money movement, SMS, live scraping, package change, or real `.env` change occurred. Boss demo is fully allowed for local/mock flow. See [evidence/phase-4-local-mock-auth-session-cycle-fix.md](evidence/phase-4-local-mock-auth-session-cycle-fix.md).
+
+P4-FreshVolumeBootstrap (2026-07-02): committed local fresh-volume demo tenant bootstrap added, closing the manual-SQL gap flagged by P4-LocalDockerE2E-Fix-4. `app/scripts/bootstrap_local_demo.py` idempotently provisions the demo tenant/user/membership/`mvp_mock` subscription/compliance profile through `tenant_session` (no raw connections, no RLS bypass); four small repository create/lookup methods were added to support it. Verified on a genuinely fresh, isolated Docker volume (`COMPOSE_PROJECT_NAME=automatedstructure_fresh_smoke`): migrate -> bootstrap (idempotent across two runs) -> `seed_local_grounding` (now succeeds) -> full grounded happy-path E2E (import -> campaign -> draft `generated` -> review -> approve -> send-gate `passed` -> mock send -> full audit trail). Backend gates passed (800 tests); frontend gates passed (142 tests, build 27 routes). The normal dev stack's volume was untouched throughout. No gate weakened; no package, `.env`, deployment, provider, staging, production, or `p4/next15-upgrade` change occurred. Boss demo allowed. See §B1c above and [evidence/phase-4-fresh-volume-bootstrap.md](evidence/phase-4-fresh-volume-bootstrap.md).
 
 P3-7d CI/CD release pipeline plan (2026-06-28): docs-only release plan created. Current CI already covers backend Ruff/Black/mypy/pytest/migration smoke, frontend lint/typecheck/test/build, gitleaks, and pre-commit. Future implementation should add `npm ci`, production Docker image builds, immutable SHA tags, registry push only after approval, migration one-off tasks, staging/production GitHub Environment approvals, smoke evidence capture, and rollback gates. No workflow implementation yet. See [evidence/phase-3-7d-cicd-release-pipeline-plan.md](evidence/phase-3-7d-cicd-release-pipeline-plan.md).
 
