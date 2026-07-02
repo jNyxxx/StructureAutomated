@@ -6,23 +6,36 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import insert, select, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.support_access import SupportAccessGrantModel
 from app.repositories.base import BaseRepository
 from app.services.authz import SupportAccessGrant
 
+_SUPPORT_ACCESS_GRANT_COLUMNS = (
+    SupportAccessGrantModel.id,
+    SupportAccessGrantModel.tenant_id,
+    SupportAccessGrantModel.support_user_id,
+    SupportAccessGrantModel.granted_by_user_id,
+    SupportAccessGrantModel.reason,
+    SupportAccessGrantModel.scope,
+    SupportAccessGrantModel.expires_at,
+    SupportAccessGrantModel.revoked_at,
+    SupportAccessGrantModel.created_at,
+)
 
-def _to_grant(row: SupportAccessGrantModel) -> SupportAccessGrant:
+
+def _to_grant(row: RowMapping) -> SupportAccessGrant:
     return SupportAccessGrant(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        support_user_id=row.support_user_id,
-        granted_by_user_id=row.granted_by_user_id,
-        reason=row.reason,
-        scope=row.scope,
-        expires_at=row.expires_at,
-        revoked_at=row.revoked_at,
-        created_at=row.created_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        support_user_id=row["support_user_id"],
+        granted_by_user_id=row["granted_by_user_id"],
+        reason=row["reason"],
+        scope=row["scope"],
+        expires_at=row["expires_at"],
+        revoked_at=row["revoked_at"],
+        created_at=row["created_at"],
     )
 
 
@@ -49,9 +62,9 @@ class SupportAccessRepository(BaseRepository):
                 expires_at=expires_at,
                 created_at=created_at,
             )
-            .returning(SupportAccessGrantModel)
+            .returning(*_SUPPORT_ACCESS_GRANT_COLUMNS)
         )
-        row = (await self.conn.execute(stmt)).scalars().one()
+        row = (await self.conn.execute(stmt)).mappings().one()
         return _to_grant(row)
 
     async def get_active(
@@ -62,14 +75,14 @@ class SupportAccessRepository(BaseRepository):
         scope: str,
         now: datetime,
     ) -> SupportAccessGrant | None:
-        stmt = select(SupportAccessGrantModel).where(
+        stmt = select(*_SUPPORT_ACCESS_GRANT_COLUMNS).where(
             SupportAccessGrantModel.tenant_id == tenant_id,
             SupportAccessGrantModel.support_user_id == support_user_id,
             SupportAccessGrantModel.scope == scope,
             SupportAccessGrantModel.revoked_at.is_(None),
             SupportAccessGrantModel.expires_at > now,
         )
-        row = (await self.conn.execute(stmt)).scalars().first()
+        row = (await self.conn.execute(stmt)).mappings().first()
         return _to_grant(row) if row is not None else None
 
     async def revoke(
@@ -82,7 +95,7 @@ class SupportAccessRepository(BaseRepository):
             update(SupportAccessGrantModel)
             .where(SupportAccessGrantModel.id == grant_id)
             .values(revoked_at=revoked_at)
-            .returning(SupportAccessGrantModel)
+            .returning(*_SUPPORT_ACCESS_GRANT_COLUMNS)
         )
-        row = (await self.conn.execute(stmt)).scalars().first()
+        row = (await self.conn.execute(stmt)).mappings().first()
         return _to_grant(row) if row is not None else None

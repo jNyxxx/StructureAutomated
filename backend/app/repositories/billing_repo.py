@@ -6,18 +6,41 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import insert, select, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.billing import Plan, TenantSubscription
 from app.repositories.base import BaseRepository
 from app.services.billing import BillingPlan, TenantSubscriptionRecord
 
+_PLAN_COLUMNS = (
+    Plan.id,
+    Plan.key,
+    Plan.name,
+    Plan.features,
+)
+_TENANT_SUBSCRIPTION_COLUMNS = (
+    TenantSubscription.tenant_id,
+    TenantSubscription.plan_id,
+    TenantSubscription.tenant_status,
+    TenantSubscription.grace_until,
+)
 
-def _record(row: TenantSubscription, plan: Plan) -> TenantSubscriptionRecord:
+
+def _plan(row: RowMapping) -> BillingPlan:
+    return BillingPlan(
+        id=row["id"],
+        key=row["key"],
+        name=row["name"],
+        features=row["features"],
+    )
+
+
+def _record(subscription: RowMapping, plan: RowMapping) -> TenantSubscriptionRecord:
     return TenantSubscriptionRecord(
-        tenant_id=row.tenant_id,
-        tenant_status=row.tenant_status,
-        grace_until=row.grace_until,
-        plan=BillingPlan(id=plan.id, key=plan.key, name=plan.name, features=plan.features),
+        tenant_id=subscription["tenant_id"],
+        tenant_status=subscription["tenant_status"],
+        grace_until=subscription["grace_until"],
+        plan=_plan(plan),
     )
 
 
@@ -58,31 +81,42 @@ class BillingRepository(BaseRepository):
         tenant_status: str,
         grace_until: datetime | None,
     ) -> TenantSubscriptionRecord:
-        result = await self.conn.execute(
-            update(TenantSubscription)
-            .where(TenantSubscription.tenant_id == tenant_id)
-            .values(tenant_status=tenant_status, grace_until=grace_until)
-            .returning(TenantSubscription)
+        subscription = (
+            (
+                await self.conn.execute(
+                    update(TenantSubscription)
+                    .where(TenantSubscription.tenant_id == tenant_id)
+                    .values(tenant_status=tenant_status, grace_until=grace_until)
+                    .returning(*_TENANT_SUBSCRIPTION_COLUMNS)
+                )
+            )
+            .mappings()
+            .one()
         )
-        subscription = result.scalars().one()
         plan = (
-            (await self.conn.execute(select(Plan).where(Plan.id == subscription.plan_id)))
-            .scalars()
+            (
+                await self.conn.execute(
+                    select(*_PLAN_COLUMNS).where(Plan.id == subscription["plan_id"])
+                )
+            )
+            .mappings()
             .one()
         )
         return _record(subscription, plan)
 
     async def create_plan(self, *, key: str, name: str, features: dict[str, bool]) -> BillingPlan:
-        plan = (
+        row = (
             (
                 await self.conn.execute(
-                    insert(Plan).values(key=key, name=name, features=features).returning(Plan)
+                    insert(Plan)
+                    .values(key=key, name=name, features=features)
+                    .returning(*_PLAN_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
-        return BillingPlan(id=plan.id, key=plan.key, name=plan.name, features=plan.features)
+        return _plan(row)
 
     async def create_subscription(
         self,
@@ -102,11 +136,15 @@ class BillingRepository(BaseRepository):
                         tenant_status=tenant_status,
                         grace_until=grace_until,
                     )
-                    .returning(TenantSubscription)
+                    .returning(*_TENANT_SUBSCRIPTION_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
-        plan = (await self.conn.execute(select(Plan).where(Plan.id == plan_id))).scalars().one()
+        plan = (
+            (await self.conn.execute(select(*_PLAN_COLUMNS).where(Plan.id == plan_id)))
+            .mappings()
+            .one()
+        )
         return _record(subscription, plan)
