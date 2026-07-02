@@ -59,7 +59,8 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
   const [error, setError] = useState<string | null>(null);
 
 
-  const handleSignIn = () => {
+  const handleSignIn = (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError(null);
     if (mode === "login" && auth.mode === "local_mock") {
       if (email.trim().toLowerCase() === "test@example.com" && password === "password") {
@@ -109,7 +110,7 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
             <CardDescription>{item.body}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="space-y-3">
+            <form onSubmit={handleSignIn} className="space-y-3">
               {error && (
                 <div className="rounded-medium border border-red/20 bg-redbg/15 p-3 text-caption text-red">
                   {error}
@@ -135,14 +136,14 @@ export function AuthCard({ mode }: { mode: AuthCardMode }) {
                   }}
                 />
               ) : null}
-            </div>
 
-            <Button
-              className="w-full"
-              onClick={handleSignIn}
-            >
-              {item.title}
-            </Button>
+              <Button
+                type="submit"
+                className="w-full"
+              >
+                {item.title}
+              </Button>
+            </form>
 
 
             <div className="flex flex-wrap justify-between gap-3 text-small text-muted">
