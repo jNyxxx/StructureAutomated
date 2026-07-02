@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-03  
 **Branch:** `master`  
-**Current reference commit:** `35ed0cb test(p4): add local stability smoke`  
+**Current verified merge commit:** `71fb8fe chore(p4): merge Next 15 dependency audit fix`
 **Audience:** William, internal stakeholders, and first-client planning discussions  
 **Status:** Local/mock boss demo packet ready. This is not a staging or production launch packet.
 
@@ -30,7 +30,7 @@ The current local/mock demo proves that the MVP flow works safely on a local Doc
 | Stability smoke | **READY** | Local stability smoke passes 188 requests with 0 failures and 0 server 500s. |
 | Staging | **PAUSED** | Staging work remains intentionally paused until William reopens it. |
 | Production | **WAITING FOR FIRST REAL CLIENT** | Production work waits for first-client timing, approvals, and operator values. |
-| `p4/next15-upgrade` | **WAITING FOR WILLIAM APPROVAL** | Needed to resolve remaining `npm audit` path or formally accept risk. |
+| Next 15 / npm audit blocker | **CLOSED** | William approved the merge path; merged `master` now has `npm audit` = 0 vulnerabilities, Next `15.5.19`, and React still on `18.3.1`. |
 | Real providers | **DISABLED** | Resend, Stripe money movement, SMS, live scraping, and live cold outreach remain off. |
 
 ---
@@ -88,6 +88,7 @@ Use these simple talking points:
 | Backend tests | Passed in the latest smoke/evidence runs. |
 | Frontend tests | Passed: 142 tests in latest evidence. |
 | Docker health/readiness | Passed: `/health`, `/live`, and `/ready` OK in latest evidence. |
+| Next 15 dependency blocker | Closed: merged `master` reports `npm audit` 0 vulnerabilities; Next is `15.5.19`; React remains `18.3.1`. |
 | Gate behavior | Review approval, send-gate, mock send, outbound record, and audit readback are exercised. |
 
 Main evidence files:
@@ -97,6 +98,7 @@ Main evidence files:
 - `docs/evidence/phase-4-fresh-volume-bootstrap.md`
 - `docs/evidence/phase-4-local-mock-auth-session-cycle-fix.md`
 - `docs/evidence/phase-4-final-manual-demo-smoke.md`
+- `docs/evidence/phase-4-next15-merge-final-verification.md`
 
 ---
 
@@ -123,7 +125,8 @@ These are intentionally blocked and should not be presented as live:
 
 | Item | Current state | Needed decision/action |
 |---|---|---|
-| `p4/next15-upgrade` | Branch exists but is not merged. | William approves merge path or accepts current `npm audit` risk for continued local-only demo. |
+| Next 15 / npm audit blocker | Closed on merged `master`. | No further decision needed for this blocker; keep dependency monitoring active. |
+| Frontend action E2E readiness audit | Pending separate audit. | Run the dedicated frontend readiness/action E2E audit before claiming the frontend is fully complete. |
 | Staging | Paused. | William confirms when staging work should reopen. |
 | Production | Waiting for first real client. | William confirms first-client timing, operator owner, and cutover sequence. |
 | Live providers | Disabled. | Explicit approval required before any provider smoke or connection. |
@@ -163,13 +166,13 @@ Collect these before moving from local/mock demo into first-client work.
 
 Keep these decisions tight:
 
-1. Approve or reject merging `p4/next15-upgrade`, or formally accept the current `npm audit` risk for local-only demo.
-2. Confirm first-client timing.
-3. Confirm when staging should reopen.
-4. Confirm the real provider sequence: auth, email, billing, monitoring, then pilot.
-5. Confirm first-client compliance baseline and legal review path.
-6. Confirm whether the first client pays through Stripe immediately or starts with manual/off-platform billing.
-7. Confirm who owns emergency stop and human draft approval.
+1. Confirm first-client timing.
+2. Confirm when staging should reopen.
+3. Confirm the real provider sequence: auth, email, billing, monitoring, then pilot.
+4. Confirm first-client compliance baseline and legal review path.
+5. Confirm whether the first client pays through Stripe immediately or starts with manual/off-platform billing.
+6. Confirm who owns emergency stop and human draft approval.
+7. Confirm when to run the separate frontend action E2E readiness audit.
 
 ---
 
