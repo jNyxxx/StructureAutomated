@@ -139,6 +139,8 @@ P4-LocalLoadStabilitySmoke (2026-07-02): COMPLETE. Added `docker compose exec -T
 
 P4-BossClientDemoPacket (2026-07-03): COMPLETE. Added [demo/BOSS_CLIENT_DEMO_PACKET.md](demo/BOSS_CLIENT_DEMO_PACKET.md), a docs-only boss/client demo and first-client readiness packet. It documents local/mock readiness, Docker E2E, fresh-volume bootstrap, stability smoke, paused staging, first-client production timing, `p4/next15-upgrade` approval need, disabled live providers, demo script, talking points, proof summary, blocked live capabilities, first-client onboarding checklist, and recommended William decisions. No source, package, `.env`, deployment, provider, staging, production, live sending, billing money movement, SMS, scraping, or `p4/next15-upgrade` change occurred. Boss demo packet is ready. Boss demo remains allowed for local/mock flow.
 
+P4-FinalLocalPolish (2026-07-03): COMPLETE. Final Docker rehearsal passed: compose rebuild/start, `/health`, `/live`, `/ready`, local E2E `SMOKE PASSED (16/16)`, local stability `77 passes / 188 requests / 0 failures / 0 server 500s`, and key demo routes returned HTTP 200. Recently touched docs were scanned; no safe typo-only edits were needed. Removed documented dead `AuditRepository.list_recent()` after confirming no live/router/service/test/API caller; active audit listing remains `list_recent_bounded()`. Backend and frontend gates passed. UI polish remains waiting for actual William/demo feedback. No package, `.env`, deployment, provider, staging, production, live sending, billing money movement, SMS, scraping, or `p4/next15-upgrade` change occurred. Boss demo remains allowed for local/mock flow.
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |

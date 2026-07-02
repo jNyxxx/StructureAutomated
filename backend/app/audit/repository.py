@@ -43,9 +43,6 @@ class AuditRepository(BaseRepository):
     async def insert(self, payload: dict[str, Any]) -> None:
         await self.conn.execute(insert(AuditEvent).values(**payload))
 
-    async def list_recent(self) -> list[Any]:
-        return list((await self.conn.execute(select(AuditEvent))).all())
-
     async def list_recent_bounded(
         self, *, cursor: str | None, limit: int
     ) -> tuple[list[AuditEventReadRecord], str | None]:

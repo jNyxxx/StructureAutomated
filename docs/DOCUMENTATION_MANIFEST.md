@@ -174,6 +174,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | `docs/evidence/phase-4-local-e2e-smoke-script.md` | P4-LocalE2E-SmokeScript evidence: repeatable local Docker E2E smoke script, bootstrap identity-provider drift fix, idempotency replay recovery behavior, tests added/updated, backend/frontend gates, Docker health/readiness, 5 consecutive smoke passes against the normal dev volume, safety confirmation, and remaining blockers. |
 | `docs/evidence/phase-4-local-load-stability-smoke.md` | P4-LocalLoadStabilitySmoke evidence: local-only stability smoke command, local/demo guards, request/iteration counts, health/auth/E2E/outbound/audit coverage, tests added, backend/frontend/Docker gate results, stability result counts, safety confirmation, and remaining blockers. |
 | `docs/demo/BOSS_CLIENT_DEMO_PACKET.md` | P4-BossClientDemoPacket: plain-English boss/client demo and first-client readiness handoff covering AutomatedStructure summary, readiness statuses, demo script, talking points, evidence summary, intentionally blocked live capabilities, William approvals, first-client checklist, next decisions, and safe local commands. |
+| `docs/evidence/phase-4-final-local-polish.md` | P4-FinalLocalPolish evidence: final local Docker rehearsal, health/readiness, local E2E/stability results, demo route smoke, docs typo scan, dead-code cleanup of `AuditRepository.list_recent()`, gate results, UI polish status, safety confirmation, and remaining blockers. |
 
 ---
 
