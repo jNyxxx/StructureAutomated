@@ -141,6 +141,8 @@ P4-BossClientDemoPacket (2026-07-03): COMPLETE. Added [demo/BOSS_CLIENT_DEMO_PAC
 
 P4-FinalLocalPolish (2026-07-03): COMPLETE. Final Docker rehearsal passed: compose rebuild/start, `/health`, `/live`, `/ready`, local E2E `SMOKE PASSED (16/16)`, local stability `77 passes / 188 requests / 0 failures / 0 server 500s`, and key demo routes returned HTTP 200. Recently touched docs were scanned; no safe typo-only edits were needed. Removed documented dead `AuditRepository.list_recent()` after confirming no live/router/service/test/API caller; active audit listing remains `list_recent_bounded()`. Backend and frontend gates passed. UI polish remains waiting for actual William/demo feedback. No package, `.env`, deployment, provider, staging, production, live sending, billing money movement, SMS, scraping, or `p4/next15-upgrade` change occurred. Boss demo remains allowed for local/mock flow.
 
+P4-N8nWorkflowPlan (2026-07-03): COMPLETE as docs-only plan. Added [integrations/N8N_WORKFLOW_PLAN.md](integrations/N8N_WORKFLOW_PLAN.md) documenting n8n's role (optional automation/notification glue only), hard may/must-never boundaries, a 3-phase rollout (local/mock -> first-client/staging prep -> production-approved), 7 specific proposed workflows with trigger/action/safety-rule/failure-behavior detail, event/webhook contract assumptions built on existing conventions (job envelope, `/webhooks/n8n/{name}`, HMAC fail-closed verification, no-send reason codes), a security/secrets plan, failure-behavior rules (notifications fail open, gates stay fail closed), and a 10-item acceptance checklist. n8n Docker service confirmed to have zero workflows configured; local demo/E2E/stability smoke remain fully independent of n8n. Recommended first future workflow is Draft Needs Review Alert. 8 owner decisions added to §7 below. No source, package, workflow JSON, `.env`, deployment, provider, staging, production, live sending, billing money movement, SMS, scraping, or `p4/next15-upgrade` change occurred. Boss demo remains allowed for local/mock flow; staging remains paused; production still waits for the first real client.
+
 ## 2. Resolved owner decisions
 
 | Decision | Final owner decision | Authority |
@@ -214,6 +216,14 @@ All Phase 0 + Phase 1 scope in mock mode ([PHASE_0_1_IMPLEMENTATION_PLAN](PHASE_
 | Tenant-selector UX after login | After real Clerk sign-in, `selectedTenantId` starts null → backend returns `400 TENANT_REQUIRED`. Need: auto-select first membership **or** explicit tenant-select page before entering `(app)`. No default — needs owner decision. Smoke workaround: pass `?tenant=<uuid>` query param. Full fix requires `GET /auth/tenants` endpoint + selector page (P3-3g+). | P3-3g implementation |
 | Clerk next.js `middleware.ts` server-side guard | `AuthGate` client-side guard is MVP-sufficient; `clerkMiddleware` server-side protection deferred to post-smoke hardening. No owner decision needed — implementation decision only. | Post-smoke hardening |
 | SMS legal wording | Counsel-approved only | Phase 3 |
+| n8n notification channel (Slack vs. Teams vs. email) | Not yet decided | Before first n8n workflow build (Phase B) |
+| n8n Draft Needs Review / Send Gate Blocked alert recipients | Not yet decided | Before first n8n workflow build (Phase B) |
+| Whether daily activity summaries should be sent, and to whom | Not yet decided | Before first n8n workflow build (Phase B) |
+| Incident escalation (Workflow G) channel | Not yet decided | Before first n8n workflow build (Phase B) |
+| What client data may appear in n8n notification payloads | Redacted/summarized only by default; scope not yet confirmed | Before first n8n workflow build (Phase B) |
+| n8n workflow enablement timing (staging vs. first real client) | Not yet decided; default is no workflows until approved | Before first n8n workflow build (Phase B) |
+| n8n credential ownership (Slack/Teams webhook secrets, channel API keys) | Not yet decided | Before first n8n workflow build (Phase B) |
+| Confirm first n8n workflow = Draft Needs Review Alert | Recommended default per [integrations/N8N_WORKFLOW_PLAN.md](integrations/N8N_WORKFLOW_PLAN.md) §10; not yet confirmed by William | Before first n8n workflow build (Phase B) |
 
 ## 7A. Phase 4 required owner/operator values
 

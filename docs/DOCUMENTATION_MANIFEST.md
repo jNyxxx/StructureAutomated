@@ -88,6 +88,7 @@ Phase 4 is the staging and first-paying-client pilot readiness program. It is a 
 | File | Purpose |
 |------|---------|
 | `docs/PHASE_4_IMPLEMENTATION_PLAN.md` | Phase 4 scope lock + slice plan (P4-0…P4-10), required owner/operator values, entry/exit criteria, non-goals, hard stops, and verification requirements. P4-1 intake complete; P4-2/P4-4/P4-5 remain blocked until required values are locked or explicitly deferred. No deployment, provider enablement, registry push, billing money movement, SMS, or live scraping is approved. |
+| `docs/integrations/N8N_WORKFLOW_PLAN.md` | n8n role, boundaries, and future workflow catalog (docs-only; zero workflows built; owner decisions pending). |
 
 ---
 

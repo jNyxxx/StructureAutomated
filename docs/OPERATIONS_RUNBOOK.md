@@ -74,6 +74,10 @@ External Slack/internal alerts are **post-demo**. The first future Slack alert s
 
 Postgres + pgvector - backend - frontend - worker - n8n - Redis (optional, local rate limiting) - LocalStack (optional, SQS/S3 sim).
 
+## B1a. n8n service status
+
+n8n runs as a core-stack Docker service (`n8nio/n8n:1.70.0`, port 5678, basic auth) but currently has **zero workflows** configured — its only volume (`n8n_data`) holds no workflow definitions. This is expected and not a blocker: no local demo step, `local_e2e_smoke.py`, or `local_stability_smoke.py` run depends on n8n having any workflow. Real workflows are deferred until William approves staging or first-client work. See [integrations/N8N_WORKFLOW_PLAN.md](integrations/N8N_WORKFLOW_PLAN.md) for the full role/boundaries/future-workflow plan.
+
 Rate-limit backend selection:
 
 - Local/test/default: `RATE_LIMIT_BACKEND=in_memory`.
