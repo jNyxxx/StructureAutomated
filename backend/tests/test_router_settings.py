@@ -257,15 +257,21 @@ class _TenantStore:
     def __init__(self, tenant: TenantSettingsRecord | None = None) -> None:
         self.tenant = tenant if tenant is not None else _tenant()
         self.updates: list[dict[str, Any]] = []
+        self.get_calls: list[uuid.UUID] = []
 
-    async def get_current_tenant(self) -> TenantSettingsRecord | None:
+    async def get_current_tenant(self, *, tenant_id: uuid.UUID) -> TenantSettingsRecord | None:
+        self.get_calls.append(tenant_id)
         return self.tenant
 
     async def update_current_tenant(
-        self, *, name: str | None = None, settings: dict[str, Any] | None = None
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        name: str | None = None,
+        settings: dict[str, Any] | None = None,
     ) -> TenantSettingsRecord:
         assert self.tenant is not None
-        self.updates.append({"name": name, "settings": settings})
+        self.updates.append({"tenant_id": tenant_id, "name": name, "settings": settings})
         self.tenant = TenantSettingsRecord(
             id=self.tenant.id,
             name=name if name is not None else self.tenant.name,
@@ -283,9 +289,13 @@ class _MembershipStore:
 
 
 class _AuditStore:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
     async def list_recent_bounded(
-        self, *, cursor: str | None, limit: int
+        self, *, tenant_id: uuid.UUID, cursor: str | None, limit: int
     ) -> tuple[list[AuditEventReadRecord], str | None]:
+        self.calls.append({"tenant_id": tenant_id, "cursor": cursor, "limit": limit})
         return [_audit_event()], None
 
 
@@ -307,9 +317,11 @@ def _service(
     *,
     tenant_store: _TenantStore | None = None,
     idempotency: _Idempotency | None = None,
-) -> tuple[SettingsAPIService, _TenantStore, _Idempotency, list[dict[str, Any]]]:
+    audit_store: _AuditStore | None = None,
+) -> tuple[SettingsAPIService, _TenantStore, _Idempotency, list[dict[str, Any]], _AuditStore]:
     tenants = tenant_store or _TenantStore()
     idem = idempotency or _Idempotency()
+    audit_events = audit_store or _AuditStore()
     audits: list[dict[str, Any]] = []
 
     async def audit_record(**kwargs: Any) -> None:
@@ -319,7 +331,7 @@ def _service(
         SettingsAPIService(
             tenants=tenants,
             memberships=_MembershipStore(),
-            audit_events=_AuditStore(),
+            audit_events=audit_events,
             rbac=RBACService(),
             idempotency=idem,
             audit_record=audit_record,
@@ -327,12 +339,13 @@ def _service(
         tenants,
         idem,
         audits,
+        audit_events,
     )
 
 
 @pytest.mark.asyncio
 async def test_service_update_requires_team_permission() -> None:
-    service, _, _, _ = _service()
+    service, _, _, _, _ = _service()
     with pytest.raises(AppError) as exc:
         await service.update_current_tenant_idempotent(
             _principal("viewer"),
@@ -345,7 +358,7 @@ async def test_service_update_requires_team_permission() -> None:
 
 @pytest.mark.asyncio
 async def test_service_update_rejects_unsafe_settings_key() -> None:
-    service, _, _, _ = _service()
+    service, _, _, _, _ = _service()
     with pytest.raises(AppError) as exc:
         await service.update_current_tenant_idempotent(
             _principal("owner"),
@@ -358,7 +371,7 @@ async def test_service_update_rejects_unsafe_settings_key() -> None:
 
 @pytest.mark.asyncio
 async def test_service_update_audits_changed_field_names_only() -> None:
-    service, tenants, idem, audits = _service()
+    service, tenants, idem, audits, _ = _service()
     result = await service.update_current_tenant_idempotent(
         _principal("owner"),
         idempotency_key="k",
@@ -376,11 +389,35 @@ async def test_service_update_audits_changed_field_names_only() -> None:
 
 
 @pytest.mark.asyncio
+async def test_service_update_scopes_repository_call_to_principal_tenant() -> None:
+    """Proves SettingsAPIService threads principal.tenant_id down to the
+    repository on every read/update -- it can never omit it or substitute a
+    different tenant, even though the repository itself now enforces the
+    filter independently (test_repository_row_mapping.py)."""
+    service, tenants, _, _, _ = _service()
+    await service.update_current_tenant_idempotent(
+        _principal("owner"),
+        idempotency_key="k",
+        now=_NOW,
+        name="New Name",
+    )
+    assert tenants.updates[0]["tenant_id"] == _TENANT
+    assert all(tenant_id == _TENANT for tenant_id in tenants.get_calls)
+
+
+@pytest.mark.asyncio
 async def test_service_audit_events_require_audit_permission() -> None:
-    service, _, _, _ = _service()
+    service, _, _, _, _ = _service()
     with pytest.raises(AppError) as exc:
         await service.list_audit_events(_principal("viewer"), cursor=None, limit=25)
     assert exc.value.code == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_service_list_audit_events_scopes_repository_call_to_principal_tenant() -> None:
+    service, _, _, _, audit_events = _service()
+    await service.list_audit_events(_principal("owner"), cursor=None, limit=25)
+    assert audit_events.calls[0]["tenant_id"] == _TENANT
 
 
 async def test_settings_di_opens_tenant_session_with_principal_context(

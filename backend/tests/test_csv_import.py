@@ -11,6 +11,7 @@ from sqlalchemy import CheckConstraint, UniqueConstraint
 from app.auth.principal import CurrentPrincipal
 from app.middleware.error_handler import AppError
 from app.models import Contact, ContactImport, ContactImportRow
+from app.repositories.contact_repo import ContactImportRepository
 from app.services.authz import CAN_IMPORT_CONTACTS, RBACService
 from app.services.billing import (
     CAN_CREATE_CAMPAIGN,
@@ -197,6 +198,38 @@ class _IdempotencyGate:
         )
 
 
+class _MappingOnlyResult:
+    def __init__(self, row: dict[str, Any]) -> None:
+        self.row = row
+        self.mappings_called = False
+
+    def mappings(self) -> "_MappingOnlyResult":
+        self.mappings_called = True
+        return self
+
+    def one(self) -> dict[str, Any]:
+        return self.row
+
+    def first(self) -> dict[str, Any]:
+        return self.row
+
+    def all(self) -> list[dict[str, Any]]:
+        return [self.row]
+
+    def scalars(self) -> None:
+        raise AssertionError("repository must map complete rows")
+
+
+class _FakeContactImportRepositoryConnection:
+    def __init__(self, row: dict[str, Any]) -> None:
+        self.result = _MappingOnlyResult(row)
+        self.statements: list[Any] = []
+
+    async def execute(self, statement: Any) -> _MappingOnlyResult:
+        self.statements.append(statement)
+        return self.result
+
+
 class _Store:
     def __init__(self) -> None:
         self.imports: dict[uuid.UUID, ContactImportRecord] = {}
@@ -353,6 +386,36 @@ async def _import(
         idempotency_key=idempotency_key,
         now=_NOW,
     )
+
+
+async def test_contact_import_repository_create_returns_complete_import_record() -> None:
+    row = {
+        "id": uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+        "tenant_id": _TENANT,
+        "idempotency_key": "import-key-1",
+        "status": "pending",
+        "total_rows": 0,
+        "valid_rows": 0,
+        "invalid_rows": 0,
+        "duplicate_rows": 0,
+    }
+    conn = _FakeContactImportRepositoryConnection(row)
+    repo = ContactImportRepository(conn)  # type: ignore[arg-type]
+
+    created = await repo.create_import(
+        tenant_id=_TENANT,
+        actor_user_id=_ACTOR,
+        idempotency_key=row["idempotency_key"],
+        source_filename="cre-import.csv",
+        status=row["status"],
+    )
+
+    assert created == ContactImportRecord(**row)
+    assert created.id == row["id"]
+    assert created.tenant_id == _TENANT
+    assert created.idempotency_key == "import-key-1"
+    assert conn.result.mappings_called is True
+    assert len(conn.statements) == 1
 
 
 def test_contact_import_models_are_tenant_owned_and_constrained() -> None:

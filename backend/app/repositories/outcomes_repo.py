@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import func, select
+from sqlalchemy.engine import RowMapping
 
 from app.models.outcomes import CampaignROIAssumptions, OutcomeEvent
 from app.repositories.base import BaseRepository
@@ -46,6 +47,58 @@ class ROIAssumptionsRecord:
     revenue_per_deal_won_cents: int
     created_at: datetime
     updated_at: datetime
+
+
+_OUTCOME_EVENT_COLUMNS = (
+    OutcomeEvent.id,
+    OutcomeEvent.tenant_id,
+    OutcomeEvent.campaign_id,
+    OutcomeEvent.contact_id,
+    OutcomeEvent.outbound_message_id,
+    OutcomeEvent.event_type,
+    OutcomeEvent.note,
+    OutcomeEvent.idempotency_key,
+    OutcomeEvent.occurred_at,
+    OutcomeEvent.created_at,
+)
+_ROI_ASSUMPTIONS_COLUMNS = (
+    CampaignROIAssumptions.id,
+    CampaignROIAssumptions.tenant_id,
+    CampaignROIAssumptions.campaign_id,
+    CampaignROIAssumptions.cost_per_send_cents,
+    CampaignROIAssumptions.pipeline_value_per_opportunity_cents,
+    CampaignROIAssumptions.revenue_per_deal_won_cents,
+    CampaignROIAssumptions.created_at,
+    CampaignROIAssumptions.updated_at,
+)
+
+
+def _outcome_event(row: RowMapping) -> OutcomeEventRecord:
+    return OutcomeEventRecord(
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        campaign_id=row["campaign_id"],
+        contact_id=row["contact_id"],
+        outbound_message_id=row["outbound_message_id"],
+        event_type=row["event_type"],
+        note=row["note"],
+        idempotency_key=row["idempotency_key"],
+        occurred_at=row["occurred_at"],
+        created_at=row["created_at"],
+    )
+
+
+def _roi_assumptions(row: RowMapping) -> ROIAssumptionsRecord:
+    return ROIAssumptionsRecord(
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        campaign_id=row["campaign_id"],
+        cost_per_send_cents=row["cost_per_send_cents"],
+        pipeline_value_per_opportunity_cents=row["pipeline_value_per_opportunity_cents"],
+        revenue_per_deal_won_cents=row["revenue_per_deal_won_cents"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
 
 
 @dataclass(frozen=True)
@@ -133,48 +186,22 @@ class OutcomesRepository(BaseRepository):
     async def get_outcome_event(
         self, *, tenant_id: uuid.UUID, event_id: uuid.UUID
     ) -> OutcomeEventRecord | None:
-        stmt = select(OutcomeEvent).where(
+        stmt = select(*_OUTCOME_EVENT_COLUMNS).where(
             OutcomeEvent.tenant_id == tenant_id,
             OutcomeEvent.id == event_id,
         )
-        row = (await self.conn.execute(stmt)).scalars().first()
-        if row is None:
-            return None
-        return OutcomeEventRecord(
-            id=row.id,
-            tenant_id=row.tenant_id,
-            campaign_id=row.campaign_id,
-            contact_id=row.contact_id,
-            outbound_message_id=row.outbound_message_id,
-            event_type=row.event_type,
-            note=row.note,
-            idempotency_key=row.idempotency_key,
-            occurred_at=row.occurred_at,
-            created_at=row.created_at,
-        )
+        row = (await self.conn.execute(stmt)).mappings().first()
+        return _outcome_event(row) if row is not None else None
 
     async def _get_by_idempotency_key(
         self, *, tenant_id: uuid.UUID, idempotency_key: str
     ) -> OutcomeEventRecord | None:
-        stmt = select(OutcomeEvent).where(
+        stmt = select(*_OUTCOME_EVENT_COLUMNS).where(
             OutcomeEvent.tenant_id == tenant_id,
             OutcomeEvent.idempotency_key == idempotency_key,
         )
-        row = (await self.conn.execute(stmt)).scalars().first()
-        if row is None:
-            return None
-        return OutcomeEventRecord(
-            id=row.id,
-            tenant_id=row.tenant_id,
-            campaign_id=row.campaign_id,
-            contact_id=row.contact_id,
-            outbound_message_id=row.outbound_message_id,
-            event_type=row.event_type,
-            note=row.note,
-            idempotency_key=row.idempotency_key,
-            occurred_at=row.occurred_at,
-            created_at=row.created_at,
-        )
+        row = (await self.conn.execute(stmt)).mappings().first()
+        return _outcome_event(row) if row is not None else None
 
     # ------------------------------------------------------------------
     # ROI Assumptions CRUD
@@ -235,23 +262,12 @@ class OutcomesRepository(BaseRepository):
     async def get_roi_assumptions(
         self, *, tenant_id: uuid.UUID, campaign_id: uuid.UUID
     ) -> ROIAssumptionsRecord | None:
-        stmt = select(CampaignROIAssumptions).where(
+        stmt = select(*_ROI_ASSUMPTIONS_COLUMNS).where(
             CampaignROIAssumptions.tenant_id == tenant_id,
             CampaignROIAssumptions.campaign_id == campaign_id,
         )
-        row = (await self.conn.execute(stmt)).scalars().first()
-        if row is None:
-            return None
-        return ROIAssumptionsRecord(
-            id=row.id,
-            tenant_id=row.tenant_id,
-            campaign_id=row.campaign_id,
-            cost_per_send_cents=row.cost_per_send_cents,
-            pipeline_value_per_opportunity_cents=row.pipeline_value_per_opportunity_cents,
-            revenue_per_deal_won_cents=row.revenue_per_deal_won_cents,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
-        )
+        row = (await self.conn.execute(stmt)).mappings().first()
+        return _roi_assumptions(row) if row is not None else None
 
     # ------------------------------------------------------------------
     # Aggregation

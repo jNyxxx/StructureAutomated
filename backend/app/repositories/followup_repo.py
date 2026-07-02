@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, insert, or_, select, update
+from sqlalchemy import and_, insert, or_, select, text, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.followup import FollowUpRule, FollowUpSchedule
 from app.repositories.base import BaseRepository
@@ -44,32 +45,57 @@ class FollowUpScheduleRecord:
     updated_at: datetime
 
 
-def _rule(row: FollowUpRule) -> FollowUpRuleRecord:
+_FOLLOWUP_RULE_COLUMNS = (
+    FollowUpRule.id,
+    FollowUpRule.tenant_id,
+    FollowUpRule.campaign_id,
+    FollowUpRule.delay_seconds,
+    FollowUpRule.created_at,
+    FollowUpRule.updated_at,
+)
+_FOLLOWUP_SCHEDULE_COLUMNS = (
+    FollowUpSchedule.id,
+    FollowUpSchedule.tenant_id,
+    FollowUpSchedule.campaign_id,
+    FollowUpSchedule.contact_id,
+    FollowUpSchedule.original_outbound_message_id,
+    FollowUpSchedule.original_draft_id,
+    FollowUpSchedule.followup_rule_id,
+    FollowUpSchedule.status,
+    FollowUpSchedule.run_after,
+    FollowUpSchedule.actor_user_id,
+    FollowUpSchedule.actor_role,
+    FollowUpSchedule.created_at,
+    FollowUpSchedule.updated_at,
+)
+
+
+def _rule(row: RowMapping) -> FollowUpRuleRecord:
     return FollowUpRuleRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        campaign_id=row.campaign_id,
-        delay_seconds=row.delay_seconds,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        campaign_id=row["campaign_id"],
+        delay_seconds=row["delay_seconds"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
     )
 
 
-def _schedule(row: FollowUpSchedule) -> FollowUpScheduleRecord:
+def _schedule(row: RowMapping) -> FollowUpScheduleRecord:
     return FollowUpScheduleRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        campaign_id=row.campaign_id,
-        contact_id=row.contact_id,
-        original_outbound_message_id=row.original_outbound_message_id,
-        original_draft_id=row.original_draft_id,
-        followup_rule_id=row.followup_rule_id,
-        status=row.status,
-        run_after=row.run_after,
-        actor_user_id=row.actor_user_id,
-        actor_role=row.actor_role,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        campaign_id=row["campaign_id"],
+        contact_id=row["contact_id"],
+        original_outbound_message_id=row["original_outbound_message_id"],
+        original_draft_id=row["original_draft_id"],
+        followup_rule_id=row["followup_rule_id"],
+        status=row["status"],
+        run_after=row["run_after"],
+        actor_user_id=row["actor_user_id"],
+        actor_role=row["actor_role"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
     )
 
 
@@ -92,10 +118,10 @@ class FollowUpRepository(BaseRepository):
                         campaign_id=campaign_id,
                         delay_seconds=delay_seconds,
                     )
-                    .returning(FollowUpRule)
+                    .returning(*_FOLLOWUP_RULE_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _rule(row)
@@ -107,7 +133,7 @@ class FollowUpRepository(BaseRepository):
         cursor: str | None,
         limit: int,
     ) -> tuple[list[FollowUpRuleRecord], str | None]:
-        stmt = select(FollowUpRule).where(FollowUpRule.tenant_id == tenant_id)
+        stmt = select(*_FOLLOWUP_RULE_COLUMNS).where(FollowUpRule.tenant_id == tenant_id)
         if cursor is not None:
             try:
                 cursor_id = uuid.UUID(cursor)
@@ -116,23 +142,23 @@ class FollowUpRepository(BaseRepository):
             cursor_row = (
                 (
                     await self.conn.execute(
-                        select(FollowUpRule).where(
+                        select(*_FOLLOWUP_RULE_COLUMNS).where(
                             FollowUpRule.tenant_id == tenant_id,
                             FollowUpRule.id == cursor_id,
                         )
                     )
                 )
-                .scalars()
+                .mappings()
                 .first()
             )
             if cursor_row is None:
                 return [], None
             stmt = stmt.where(
                 or_(
-                    FollowUpRule.created_at < cursor_row.created_at,
+                    FollowUpRule.created_at < cursor_row["created_at"],
                     and_(
-                        FollowUpRule.created_at == cursor_row.created_at,
-                        FollowUpRule.id < cursor_row.id,
+                        FollowUpRule.created_at == cursor_row["created_at"],
+                        FollowUpRule.id < cursor_row["id"],
                     ),
                 )
             )
@@ -144,11 +170,11 @@ class FollowUpRepository(BaseRepository):
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         page_rows = rows[:limit]
-        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        next_cursor = str(page_rows[-1]["id"]) if len(rows) > limit and page_rows else None
         return [_rule(row) for row in page_rows], next_cursor
 
     async def get_followup_rule_by_campaign(
@@ -157,13 +183,13 @@ class FollowUpRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(FollowUpRule).where(
+                    select(*_FOLLOWUP_RULE_COLUMNS).where(
                         FollowUpRule.tenant_id == tenant_id,
                         FollowUpRule.campaign_id == campaign_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _rule(row) if row is not None else None
@@ -198,10 +224,10 @@ class FollowUpRepository(BaseRepository):
                         actor_user_id=actor_user_id,
                         actor_role=actor_role,
                     )
-                    .returning(FollowUpSchedule)
+                    .returning(*_FOLLOWUP_SCHEDULE_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _schedule(row)
@@ -212,13 +238,13 @@ class FollowUpRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(FollowUpSchedule).where(
+                    select(*_FOLLOWUP_SCHEDULE_COLUMNS).where(
                         FollowUpSchedule.tenant_id == tenant_id,
                         FollowUpSchedule.id == schedule_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _schedule(row) if row is not None else None
@@ -229,14 +255,14 @@ class FollowUpRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(FollowUpSchedule).where(
+                    select(*_FOLLOWUP_SCHEDULE_COLUMNS).where(
                         FollowUpSchedule.tenant_id == tenant_id,
                         FollowUpSchedule.original_outbound_message_id
                         == original_outbound_message_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _schedule(row) if row is not None else None
@@ -248,7 +274,7 @@ class FollowUpRepository(BaseRepository):
         cursor: str | None,
         limit: int,
     ) -> tuple[list[FollowUpScheduleRecord], str | None]:
-        stmt = select(FollowUpSchedule).where(FollowUpSchedule.tenant_id == tenant_id)
+        stmt = select(*_FOLLOWUP_SCHEDULE_COLUMNS).where(FollowUpSchedule.tenant_id == tenant_id)
         if cursor is not None:
             try:
                 cursor_id = uuid.UUID(cursor)
@@ -257,23 +283,23 @@ class FollowUpRepository(BaseRepository):
             cursor_row = (
                 (
                     await self.conn.execute(
-                        select(FollowUpSchedule).where(
+                        select(*_FOLLOWUP_SCHEDULE_COLUMNS).where(
                             FollowUpSchedule.tenant_id == tenant_id,
                             FollowUpSchedule.id == cursor_id,
                         )
                     )
                 )
-                .scalars()
+                .mappings()
                 .first()
             )
             if cursor_row is None:
                 return [], None
             stmt = stmt.where(
                 or_(
-                    FollowUpSchedule.created_at < cursor_row.created_at,
+                    FollowUpSchedule.created_at < cursor_row["created_at"],
                     and_(
-                        FollowUpSchedule.created_at == cursor_row.created_at,
-                        FollowUpSchedule.id < cursor_row.id,
+                        FollowUpSchedule.created_at == cursor_row["created_at"],
+                        FollowUpSchedule.id < cursor_row["id"],
                     ),
                 )
             )
@@ -286,11 +312,11 @@ class FollowUpRepository(BaseRepository):
                     ).limit(limit + 1)
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         page_rows = rows[:limit]
-        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        next_cursor = str(page_rows[-1]["id"]) if len(rows) > limit and page_rows else None
         return [_schedule(row) for row in page_rows], next_cursor
 
     async def update_followup_schedule_status(
@@ -300,8 +326,6 @@ class FollowUpRepository(BaseRepository):
         schedule_id: uuid.UUID,
         status: str,
     ) -> FollowUpScheduleRecord | None:
-        from sqlalchemy import text
-
         values: dict[str, Any] = {"status": status, "updated_at": text("now()")}
         row = (
             (
@@ -312,10 +336,10 @@ class FollowUpRepository(BaseRepository):
                         FollowUpSchedule.id == schedule_id,
                     )
                     .values(**values)
-                    .returning(FollowUpSchedule)
+                    .returning(*_FOLLOWUP_SCHEDULE_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _schedule(row) if row is not None else None

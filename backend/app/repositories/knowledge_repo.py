@@ -6,6 +6,7 @@ import uuid
 from typing import Any
 
 from sqlalchemy import delete, insert, select, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.knowledge import KnowledgeChunk, KnowledgeDocument
 from app.models.research import ResearchArtifact
@@ -16,40 +17,68 @@ from app.services.rag_grounding import (
     ResearchArtifactRecord,
 )
 
+_DOCUMENT_COLUMNS = (
+    KnowledgeDocument.id,
+    KnowledgeDocument.tenant_id,
+    KnowledgeDocument.title,
+    KnowledgeDocument.source_url,
+    KnowledgeDocument.content,
+    KnowledgeDocument.status,
+    KnowledgeDocument.created_at,
+    KnowledgeDocument.updated_at,
+    KnowledgeDocument.deleted_at,
+)
+_CHUNK_COLUMNS = (
+    KnowledgeChunk.id,
+    KnowledgeChunk.tenant_id,
+    KnowledgeChunk.document_id,
+    KnowledgeChunk.chunk_index,
+    KnowledgeChunk.content,
+    KnowledgeChunk.created_at,
+)
+_RESEARCH_ARTIFACT_COLUMNS = (
+    ResearchArtifact.id,
+    ResearchArtifact.tenant_id,
+    ResearchArtifact.research_run_id,
+    ResearchArtifact.contact_id,
+    ResearchArtifact.findings,
+    ResearchArtifact.created_at,
+)
 
-def _document(row: KnowledgeDocument) -> KnowledgeDocumentRecord:
+
+def _document(row: RowMapping) -> KnowledgeDocumentRecord:
     return KnowledgeDocumentRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        title=row.title,
-        source_url=row.source_url,
-        content=row.content,
-        status=row.status,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-        deleted_at=row.deleted_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        title=row["title"],
+        source_url=row["source_url"],
+        content=row["content"],
+        status=row["status"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        deleted_at=row["deleted_at"],
     )
 
 
-def _chunk(row: KnowledgeChunk) -> KnowledgeChunkRecord:
+def _chunk(row: RowMapping) -> KnowledgeChunkRecord:
     return KnowledgeChunkRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        document_id=row.document_id,
-        chunk_index=row.chunk_index,
-        content=row.content,
-        created_at=row.created_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        document_id=row["document_id"],
+        chunk_index=row["chunk_index"],
+        content=row["content"],
+        created_at=row["created_at"],
     )
 
 
-def _research_artifact(row: ResearchArtifact) -> ResearchArtifactRecord:
+def _research_artifact(row: RowMapping) -> ResearchArtifactRecord:
     return ResearchArtifactRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        research_run_id=row.research_run_id,
-        contact_id=row.contact_id,
-        findings=row.findings,
-        created_at=row.created_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        research_run_id=row["research_run_id"],
+        contact_id=row["contact_id"],
+        findings=row["findings"],
+        created_at=row["created_at"],
     )
 
 
@@ -74,10 +103,10 @@ class KnowledgeRepository(BaseRepository):
                         source_url=source_url,
                         status=status,
                     )
-                    .returning(KnowledgeDocument)
+                    .returning(*_DOCUMENT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _document(row)
@@ -88,14 +117,33 @@ class KnowledgeRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(KnowledgeDocument).where(
+                    select(*_DOCUMENT_COLUMNS).where(
                         KnowledgeDocument.tenant_id == tenant_id,
                         KnowledgeDocument.id == document_id,
                         KnowledgeDocument.deleted_at.is_(None),
                     )
                 )
             )
-            .scalars()
+            .mappings()
+            .first()
+        )
+        return _document(row) if row is not None else None
+
+    async def get_document_by_title(
+        self, *, tenant_id: uuid.UUID, title: str
+    ) -> KnowledgeDocumentRecord | None:
+        row = (
+            (
+                await self.conn.execute(
+                    select(*_DOCUMENT_COLUMNS).where(
+                        KnowledgeDocument.tenant_id == tenant_id,
+                        KnowledgeDocument.title == title,
+                        KnowledgeDocument.status == "active",
+                        KnowledgeDocument.deleted_at.is_(None),
+                    )
+                )
+            )
+            .mappings()
             .first()
         )
         return _document(row) if row is not None else None
@@ -106,13 +154,13 @@ class KnowledgeRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(KnowledgeChunk).where(
+                    select(*_CHUNK_COLUMNS).where(
                         KnowledgeChunk.tenant_id == tenant_id,
                         KnowledgeChunk.id == chunk_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _chunk(row) if row is not None else None
@@ -152,10 +200,10 @@ class KnowledgeRepository(BaseRepository):
                         KnowledgeDocument.id == document_id,
                     )
                     .values(**values)
-                    .returning(KnowledgeDocument)
+                    .returning(*_DOCUMENT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _document(row) if row is not None else None
@@ -179,10 +227,10 @@ class KnowledgeRepository(BaseRepository):
                             chunk_index=i,
                             content=text_content,
                         )
-                        .returning(KnowledgeChunk)
+                        .returning(*_CHUNK_COLUMNS)
                     )
                 )
-                .scalars()
+                .mappings()
                 .one()
             )
             inserted.append(_chunk(row))
@@ -203,8 +251,9 @@ class KnowledgeRepository(BaseRepository):
         rows = (
             (
                 await self.conn.execute(
-                    select(KnowledgeChunk)
-                    .join(KnowledgeDocument)
+                    select(*_CHUNK_COLUMNS)
+                    .select_from(KnowledgeChunk)
+                    .join(KnowledgeDocument, KnowledgeChunk.document_id == KnowledgeDocument.id)
                     .where(
                         KnowledgeChunk.tenant_id == tenant_id,
                         KnowledgeDocument.status == "active",
@@ -212,7 +261,7 @@ class KnowledgeRepository(BaseRepository):
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         return [_chunk(r) for r in rows]
@@ -223,7 +272,7 @@ class KnowledgeRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(ResearchArtifact)
+                    select(*_RESEARCH_ARTIFACT_COLUMNS)
                     .where(
                         ResearchArtifact.tenant_id == tenant_id,
                         ResearchArtifact.contact_id == contact_id,
@@ -231,7 +280,7 @@ class KnowledgeRepository(BaseRepository):
                     .order_by(ResearchArtifact.created_at.desc())
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _research_artifact(row) if row is not None else None

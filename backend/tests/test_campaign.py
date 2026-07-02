@@ -11,6 +11,7 @@ from sqlalchemy import CheckConstraint, UniqueConstraint
 from app.auth.principal import CurrentPrincipal
 from app.middleware.error_handler import AppError
 from app.models import Campaign, CampaignContact
+from app.repositories.campaign_repo import CampaignRepository
 from app.services.authz import ObjectAuthorizationService, RBACService, TenantOwnedObject
 from app.services.billing import (
     CAN_CREATE_CAMPAIGN,
@@ -116,6 +117,40 @@ class _IdempotencyGate:
                 "tenant_id": tenant_id,
             }
         )
+
+
+class _MappingOnlyResult:
+    """Fake result that fails if repository code regresses to scalar UUID mapping."""
+
+    def __init__(self, row: dict[str, Any]) -> None:
+        self.row = row
+        self.mappings_called = False
+
+    def mappings(self) -> "_MappingOnlyResult":
+        self.mappings_called = True
+        return self
+
+    def one(self) -> dict[str, Any]:
+        return self.row
+
+    def first(self) -> dict[str, Any]:
+        return self.row
+
+    def all(self) -> list[dict[str, Any]]:
+        return [self.row]
+
+    def scalars(self) -> None:
+        raise AssertionError("CampaignRepository must map full rows, not scalar UUIDs")
+
+
+class _FakeCampaignRepositoryConnection:
+    def __init__(self, row: dict[str, Any]) -> None:
+        self.result = _MappingOnlyResult(row)
+        self.statements: list[Any] = []
+
+    async def execute(self, statement: Any) -> _MappingOnlyResult:
+        self.statements.append(statement)
+        return self.result
 
 
 class _Store:
@@ -305,6 +340,40 @@ async def _create(
         idempotency_key=idempotency_key,
         now=_NOW,
     )
+
+
+async def test_campaign_repository_create_returns_complete_campaign_without_scalar_mapper() -> None:
+    row = {
+        "id": _CAMPAIGN,
+        "tenant_id": _TENANT,
+        "created_by_user_id": _ACTOR,
+        "name": "Docker E2E Campaign",
+        "description": "Local demo only",
+        "goal": "Verify Docker E2E",
+        "target_segment": "Local mock contacts",
+        "notes": "No live providers",
+        "status": "draft",
+    }
+    conn = _FakeCampaignRepositoryConnection(row)
+    repo = CampaignRepository(conn)  # type: ignore[arg-type]
+
+    created = await repo.create_campaign(
+        tenant_id=_TENANT,
+        created_by_user_id=_ACTOR,
+        name=row["name"],
+        description=row["description"],
+        goal=row["goal"],
+        target_segment=row["target_segment"],
+        notes=row["notes"],
+        status=row["status"],
+    )
+
+    assert created == CampaignRecord(**row)
+    assert created.id == _CAMPAIGN
+    assert created.tenant_id == _TENANT
+    assert created.created_by_user_id == _ACTOR
+    assert conn.result.mappings_called is True
+    assert len(conn.statements) == 1
 
 
 def test_campaign_models_are_tenant_owned_and_constrained() -> None:

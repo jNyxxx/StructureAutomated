@@ -6,33 +6,53 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import and_, insert, or_, select, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.compliance import ComplianceProfile, Suppression
 from app.repositories.base import BaseRepository
 from app.services.compliance import ComplianceProfileRecord, SuppressionRecord
 
+_COMPLIANCE_PROFILE_COLUMNS = (
+    ComplianceProfile.tenant_id,
+    ComplianceProfile.jurisdiction,
+    ComplianceProfile.sending_review_required,
+    ComplianceProfile.live_sending_allowed,
+    ComplianceProfile.sms_allowed,
+)
+_SUPPRESSION_COLUMNS = (
+    Suppression.id,
+    Suppression.tenant_id,
+    Suppression.channel,
+    Suppression.contact_hash,
+    Suppression.reason,
+    Suppression.source,
+    Suppression.never_contact,
+    Suppression.created_at,
+    Suppression.revoked_at,
+)
 
-def _profile(row: ComplianceProfile) -> ComplianceProfileRecord:
+
+def _profile(row: RowMapping) -> ComplianceProfileRecord:
     return ComplianceProfileRecord(
-        tenant_id=row.tenant_id,
-        jurisdiction=row.jurisdiction,
-        sending_review_required=row.sending_review_required,
-        live_sending_allowed=row.live_sending_allowed,
-        sms_allowed=row.sms_allowed,
+        tenant_id=row["tenant_id"],
+        jurisdiction=row["jurisdiction"],
+        sending_review_required=row["sending_review_required"],
+        live_sending_allowed=row["live_sending_allowed"],
+        sms_allowed=row["sms_allowed"],
     )
 
 
-def _suppression(row: Suppression) -> SuppressionRecord:
+def _suppression(row: RowMapping) -> SuppressionRecord:
     return SuppressionRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        channel=row.channel,
-        contact_hash=row.contact_hash,
-        reason=row.reason,
-        source=row.source,
-        never_contact=row.never_contact,
-        created_at=row.created_at,
-        revoked_at=row.revoked_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        channel=row["channel"],
+        contact_hash=row["contact_hash"],
+        reason=row["reason"],
+        source=row["source"],
+        never_contact=row["never_contact"],
+        created_at=row["created_at"],
+        revoked_at=row["revoked_at"],
     )
 
 
@@ -41,10 +61,12 @@ class ComplianceRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(ComplianceProfile).where(ComplianceProfile.tenant_id == tenant_id)
+                    select(*_COMPLIANCE_PROFILE_COLUMNS).where(
+                        ComplianceProfile.tenant_id == tenant_id
+                    )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _profile(row) if row is not None else None
@@ -71,10 +93,10 @@ class ComplianceRepository(BaseRepository):
                             live_sending_allowed=live_sending_allowed,
                             sms_allowed=sms_allowed,
                         )
-                        .returning(ComplianceProfile)
+                        .returning(*_COMPLIANCE_PROFILE_COLUMNS)
                     )
                 )
-                .scalars()
+                .mappings()
                 .one()
             )
             return _profile(row)
@@ -89,10 +111,10 @@ class ComplianceRepository(BaseRepository):
                         live_sending_allowed=live_sending_allowed,
                         sms_allowed=sms_allowed,
                     )
-                    .returning(ComplianceProfile)
+                    .returning(*_COMPLIANCE_PROFILE_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _profile(row)
@@ -107,7 +129,7 @@ class ComplianceRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(Suppression).where(
+                    select(*_SUPPRESSION_COLUMNS).where(
                         Suppression.tenant_id == tenant_id,
                         Suppression.channel == channel,
                         Suppression.contact_hash == contact_hash,
@@ -115,7 +137,7 @@ class ComplianceRepository(BaseRepository):
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _suppression(row) if row is not None else None
@@ -126,13 +148,13 @@ class ComplianceRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(Suppression).where(
+                    select(*_SUPPRESSION_COLUMNS).where(
                         Suppression.tenant_id == tenant_id,
                         Suppression.id == suppression_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _suppression(row) if row is not None else None
@@ -144,7 +166,7 @@ class ComplianceRepository(BaseRepository):
         cursor: str | None,
         limit: int,
     ) -> tuple[list[SuppressionRecord], str | None]:
-        stmt = select(Suppression).where(Suppression.tenant_id == tenant_id)
+        stmt = select(*_SUPPRESSION_COLUMNS).where(Suppression.tenant_id == tenant_id)
         if cursor is not None:
             try:
                 cursor_id = uuid.UUID(cursor)
@@ -153,23 +175,23 @@ class ComplianceRepository(BaseRepository):
             cursor_row = (
                 (
                     await self.conn.execute(
-                        select(Suppression).where(
+                        select(*_SUPPRESSION_COLUMNS).where(
                             Suppression.tenant_id == tenant_id,
                             Suppression.id == cursor_id,
                         )
                     )
                 )
-                .scalars()
+                .mappings()
                 .first()
             )
             if cursor_row is None:
                 return [], None
             stmt = stmt.where(
                 or_(
-                    Suppression.created_at < cursor_row.created_at,
+                    Suppression.created_at < cursor_row["created_at"],
                     and_(
-                        Suppression.created_at == cursor_row.created_at,
-                        Suppression.id < cursor_row.id,
+                        Suppression.created_at == cursor_row["created_at"],
+                        Suppression.id < cursor_row["id"],
                     ),
                 )
             )
@@ -182,11 +204,11 @@ class ComplianceRepository(BaseRepository):
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .all()
         )
         page_rows = rows[:limit]
-        next_cursor = str(page_rows[-1].id) if len(rows) > limit and page_rows else None
+        next_cursor = str(page_rows[-1]["id"]) if len(rows) > limit and page_rows else None
         return [_suppression(row) for row in page_rows], next_cursor
 
     async def add_suppression(
@@ -213,10 +235,10 @@ class ComplianceRepository(BaseRepository):
                         never_contact=never_contact,
                         created_at=created_at,
                     )
-                    .returning(Suppression)
+                    .returning(*_SUPPRESSION_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _suppression(row)
@@ -233,10 +255,10 @@ class ComplianceRepository(BaseRepository):
                     update(Suppression)
                     .where(Suppression.id == suppression_id)
                     .values(revoked_at=revoked_at)
-                    .returning(Suppression)
+                    .returning(*_SUPPRESSION_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _suppression(row) if row is not None else None

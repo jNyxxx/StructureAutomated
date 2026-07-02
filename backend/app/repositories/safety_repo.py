@@ -6,6 +6,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import insert, select, update
+from sqlalchemy.engine import RowMapping
 
 from app.models.safety import SafetyGateResult
 from app.repositories.base import BaseRepository
@@ -13,22 +14,36 @@ from app.repositories.base import BaseRepository
 if TYPE_CHECKING:
     from app.services.safety import SafetyGateResultRecord
 
+_SAFETY_GATE_RESULT_COLUMNS = (
+    SafetyGateResult.id,
+    SafetyGateResult.tenant_id,
+    SafetyGateResult.campaign_id,
+    SafetyGateResult.contact_id,
+    SafetyGateResult.draft_id,
+    SafetyGateResult.gate_type,
+    SafetyGateResult.status,
+    SafetyGateResult.severity,
+    SafetyGateResult.reason_code,
+    SafetyGateResult.safe_details,
+    SafetyGateResult.created_at,
+)
 
-def _safety_gate_result(row: SafetyGateResult) -> SafetyGateResultRecord:
+
+def _safety_gate_result(row: RowMapping) -> SafetyGateResultRecord:
     from app.services.safety import SafetyGateResultRecord
 
     return SafetyGateResultRecord(
-        id=row.id,
-        tenant_id=row.tenant_id,
-        campaign_id=row.campaign_id,
-        contact_id=row.contact_id,
-        draft_id=row.draft_id,
-        gate_type=row.gate_type,
-        status=row.status,
-        severity=row.severity,
-        reason_code=row.reason_code,
-        safe_details=row.safe_details,
-        created_at=row.created_at,
+        id=row["id"],
+        tenant_id=row["tenant_id"],
+        campaign_id=row["campaign_id"],
+        contact_id=row["contact_id"],
+        draft_id=row["draft_id"],
+        gate_type=row["gate_type"],
+        status=row["status"],
+        severity=row["severity"],
+        reason_code=row["reason_code"],
+        safe_details=row["safe_details"],
+        created_at=row["created_at"],
     )
 
 
@@ -61,10 +76,10 @@ class SafetyRepository(BaseRepository):
                         reason_code=reason_code,
                         safe_details=safe_details,
                     )
-                    .returning(SafetyGateResult)
+                    .returning(*_SAFETY_GATE_RESULT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .one()
         )
         return _safety_gate_result(row)
@@ -75,13 +90,13 @@ class SafetyRepository(BaseRepository):
         row = (
             (
                 await self.conn.execute(
-                    select(SafetyGateResult).where(
+                    select(*_SAFETY_GATE_RESULT_COLUMNS).where(
                         SafetyGateResult.tenant_id == tenant_id,
                         SafetyGateResult.id == result_id,
                     )
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _safety_gate_result(row) if row is not None else None
@@ -94,7 +109,7 @@ class SafetyRepository(BaseRepository):
         contact_id: uuid.UUID | None = None,
         draft_id: uuid.UUID | None = None,
     ) -> list[SafetyGateResultRecord]:
-        stmt = select(SafetyGateResult).where(SafetyGateResult.tenant_id == tenant_id)
+        stmt = select(*_SAFETY_GATE_RESULT_COLUMNS).where(SafetyGateResult.tenant_id == tenant_id)
         if campaign_id is not None:
             stmt = stmt.where(SafetyGateResult.campaign_id == campaign_id)
         if contact_id is not None:
@@ -102,7 +117,7 @@ class SafetyRepository(BaseRepository):
         if draft_id is not None:
             stmt = stmt.where(SafetyGateResult.draft_id == draft_id)
 
-        rows = (await self.conn.execute(stmt)).scalars().all()
+        rows = (await self.conn.execute(stmt)).mappings().all()
         return [_safety_gate_result(r) for r in rows]
 
     async def update_result_draft_id(
@@ -117,10 +132,10 @@ class SafetyRepository(BaseRepository):
                         SafetyGateResult.id == result_id,
                     )
                     .values(draft_id=draft_id)
-                    .returning(SafetyGateResult)
+                    .returning(*_SAFETY_GATE_RESULT_COLUMNS)
                 )
             )
-            .scalars()
+            .mappings()
             .first()
         )
         return _safety_gate_result(row) if row is not None else None

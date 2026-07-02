@@ -240,6 +240,51 @@ def test_live_local_app_wires_mock_auth_service_only_for_non_production() -> Non
     assert principal["mfa_verified"] is True
 
 
+def test_live_local_mock_logout_rejects_old_session_but_allows_fresh_demo_login() -> None:
+    app = create_app()
+    client = TestClient(app)
+    tenant = uuid.UUID("22222222-2222-2222-2222-222222222222")
+    old_token = "token-sentinel:session_cycle_old_01"
+    fresh_token = "token-sentinel:session_cycle_new_01"
+
+    first_login = client.post("/auth/session", headers=_headers(token=old_token, tenant_id=tenant))
+    logout = client.post("/auth/logout", headers=_headers(token=old_token, tenant_id=tenant))
+    denied = client.get("/auth/me", headers=_headers(token=old_token, tenant_id=tenant))
+    second_login = client.post(
+        "/auth/session", headers=_headers(token=fresh_token, tenant_id=tenant)
+    )
+
+    assert first_login.status_code == 200
+    assert first_login.json()["principal"]["tenant_id"] == str(tenant)
+    assert logout.status_code == 200
+    assert logout.json()["revoked"] == 1
+    assert denied.status_code == 401
+    assert denied.json()["error"]["code"] == "AUTH_SESSION_REVOKED"
+    assert second_login.status_code == 200
+    second_principal = second_login.json()["principal"]
+    assert second_principal["tenant_id"] == str(tenant)
+    assert second_principal["role"] == "owner"
+    assert second_principal["mfa_verified"] is True
+
+
+def test_live_local_mock_static_tokens_do_not_share_one_revocation_ref() -> None:
+    app = create_app()
+    client = TestClient(app)
+    tenant = uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+    logout = client.post("/auth/logout", headers=_headers(token="token-sentinel", tenant_id=tenant))
+    old_denied = client.get("/auth/me", headers=_headers(token="token-sentinel", tenant_id=tenant))
+    alternate_login = client.post(
+        "/auth/session", headers=_headers(token="fake-valid-token", tenant_id=tenant)
+    )
+
+    assert logout.status_code == 200
+    assert old_denied.status_code == 401
+    assert old_denied.json()["error"]["code"] == "AUTH_SESSION_REVOKED"
+    assert alternate_login.status_code == 200
+    assert alternate_login.json()["principal"]["tenant_id"] == str(tenant)
+
+
 def test_production_app_does_not_attach_mock_verifier(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     from app.config import get_settings
 
